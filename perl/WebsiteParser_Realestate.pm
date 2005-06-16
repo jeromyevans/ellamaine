@@ -24,6 +24,8 @@
 # Date: $Date$
 # $Id$
 #
+package WebsiteParser_Realestate;
+
 use PrintLogger;
 use CGI qw(:standard);
 use HTTPClient;
@@ -35,7 +37,7 @@ use SuburbProfiles;
 use DebugTools;
 use AdvertisedPropertyProfiles;
 use PropertyTypes;
-use WebsiteParser_Common;
+use WebsiteParserTools;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;   # 23Jan05
 

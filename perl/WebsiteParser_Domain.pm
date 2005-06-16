@@ -34,7 +34,8 @@
 #                  - modified to use new architecture that combines common sales and rentals processing
 # 23 May 2005      - major change so that the parses don't have to do anything clever with the address string, 
 #  price or suburbname - these are all processed in common code
-#
+package WebsiteParser_Domain;
+
 use PrintLogger;
 use CGI qw(:standard);
 use HTTPClient;
@@ -46,14 +47,17 @@ use Ellamaine::HTMLSyntaxTree;
 use Ellamaine::DocumentReader;
 use AdvertisedPropertyProfiles;
 use PropertyTypes;
-use WebsiteParser_Common;
+use WebsiteParserTools;
 use DomainRegions;
 use OriginatingHTML;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;
+use TrimWhitespace;
+use PrettyPrint;
 
+require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(parseDomainPropertyDetails);
+
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------

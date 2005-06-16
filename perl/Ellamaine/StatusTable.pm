@@ -12,7 +12,11 @@
 # multiple different sessions could have the same ID (preventing correct recovery)
 # 
 # History:
-#
+# 16 June 2005 - Modified so that housekeeping is performed every run - threads that haven't been active
+#  for more than 24 hours are released
+#              - Modified the statement that allocates a thread to this instance to check that the
+#  selected threadID hasn't been snatched by another instance in a race-condition. If it has been 
+#  snatched then it simply tries again
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -122,8 +126,8 @@ sub createTable
                              "(threadID, created, lastActive, allocated, instanceID, restarts, recordsEncountered, recordsParsed, recordsAdded, lastURL) VALUES ".
                              "($threadID, null, null, 0, null, 0, 0, 0, 0, null)";
             
-            $statement = $sqlClient->prepareStatement($statementText);
-      
+            $statement = $sqlClient->prepareStatement($statementText, { RaiseError => 0, PrintError => 0, Warn => 0, AutoCommit => 1});
+            
             if ($sqlClient->executeStatement($statement))
             {
             }
@@ -175,6 +179,19 @@ sub requestNewThread
       
    if ($sqlClient)
    {
+       print "   StatusTable:(housekeeping) cleaning up threads inactive more than 1 day...\n";
+      # This was originally intended for when the table was full (no threads available), but
+      # no reason not to do housekeeping regularly...
+      $triedCleanup = 1;
+      $statementText = "update $tableName set allocated=0 where lastActive < date_add(now(), interval -1 day)";
+      
+      $statement = $sqlClient->prepareStatement($statementText);
+            
+      if ($sqlClient->executeStatement($statement))
+      {       
+         $success = 1;
+      }
+               
       while (!$threadIDSet)
       {
          print "   StatusTable:requesting new threadID...";
@@ -193,25 +210,35 @@ sub requestNewThread
             $threadID = $$lastRecordHashRef{'threadID'};
             
             $quotedInstanceID = $sqlClient->quote($instanceID);
+            # 16Jun05 - note: the last part of the where 'allocated=0' is used to detect if another instance took this
+            # threadID since the select above - it's a feeble attempt to reduce the likelihood of this event
             $statementText = "UPDATE ".$this->{'tableName'}." ".
                              "set created=now(), lastActive=now(), allocated=1, instanceID=$quotedInstanceID, restarts=0, recordsEncountered=0, recordsParsed=0, recordsAdded=0, lastURL=null ".
-                             "WHERE threadID = $threadID";
+                             "WHERE threadID = $threadID AND allocated=0";
             
             $statement = $sqlClient->prepareStatement($statementText);
       
             if ($sqlClient->executeStatement($statement))
             {
-               print "ok (new $threadID)\n";
-               $threadIDSet = 1;
-               # IMPORTANT - clear the session information for this previous use of this thread, if still defined
-               # otherwise it might think it needs to recover from a previous position
-               $sessionProgressTable = SessionProgressTable::new($sqlClient);
-               $sessionProgressTable->releaseSession($threadID);
-               
-               # IMPORTANT - clear the URLstack previously used for this thread, if still defined
-               # otherwise it might think it needs to recover from that position
-               $sessionURLStack = SessionURLStack::new($sqlClient);
-               $sessionURLStack->releaseSession($threadID);
+               # 16Jun05 - get the number of rows affected
+               if ($sqlClient->rows() == 0)
+               {
+                  print "threadID $threadID snatched by another instance...retrying\n";
+               }
+               else
+               {
+                  print "ok (new $threadID)\n";
+                  $threadIDSet = 1;
+                  # IMPORTANT - clear the session information for this previous use of this thread, if still defined
+                  # otherwise it might think it needs to recover from a previous position
+                  $sessionProgressTable = SessionProgressTable::new($sqlClient);
+                  $sessionProgressTable->releaseSession($threadID);
+                  
+                  # IMPORTANT - clear the URLstack previously used for this thread, if still defined
+                  # otherwise it might think it needs to recover from that position
+                  $sessionURLStack = SessionURLStack::new($sqlClient);
+                  $sessionURLStack->releaseSession($threadID);
+               }
             
             }
             else
@@ -223,13 +250,13 @@ sub requestNewThread
          }
          else
          {
-            if (!$triedCleanup)
+            if (!$triedHardCleanup)
             {
-               print " cleaning up threads inactive more than 1 day...\n";
+               print " cleaning up threads inactive more than 1 hour...\n";
                # there's no unallocated threads - this is probably because they've all exited abnormally.  Clean up
                # the table instead
-               $triedCleanup = 1;
-               $statementText = "update $tableName set allocated=0 where lastActive < date_add(now(), interval -1 day)";
+               $triedHardCleanup = 1;
+               $statementText = "update $tableName set allocated=0 where lastActive < date_add(now(), interval -2 hour)";
                
                $statement = $sqlClient->prepareStatement($statementText);
                      
@@ -240,29 +267,11 @@ sub requestNewThread
             }
             else
             {
-               if (!$triedHardCleanup)
-               {
-                  print " cleaning up threads inactive more than 1 hour...\n";
-                  # there's no unallocated threads - this is probably because they've all exited abnormally.  Clean up
-                  # the table instead
-                  $triedHardCleanup = 1;
-                  $statementText = "update $tableName set allocated=0 where lastActive < date_add(now(), interval -2 hour)";
-                  
-                  $statement = $sqlClient->prepareStatement($statementText);
-                        
-                  if ($sqlClient->executeStatement($statement))
-                  {       
-                     $success = 1;
-                  }
-               }
-               else
-               {
-                  # abort - can't imagine it every getting here, but possible... the return a threadID of -1
-                  # to indicate failure
-                  print " failed again.  Aborting.\n";
-                  $threadID = -1;
-                  $threadIDSet = 1;
-               }
+               # abort - can't imagine it every getting here, but possible... the return a threadID of -1
+               # to indicate failure
+               print " failed again.  Aborting.\n";
+               $threadID = -1;
+               $threadIDSet = 1;
             }
          }      
       }

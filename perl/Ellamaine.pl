@@ -36,7 +36,14 @@
 #  19 January 2005 - added support for the StatusTable
 #  13 March 2005 - added maintenance task for generating suburbAnalysisTable
 #  20 May 2005   - modified to use AdvertisedPropertyProfiles (Common code for rental and sale records) 
-#
+#  14 June 2005  - renamed to Ellamaine (from PublishedMaterialScanner)
+#  16 June 2005  - modified to load tableObjects from the tables.properties files (dynamic loading)
+#                - modified to load parsers from the parsers.properties file (symblic references to callbacks)
+#                  The above two changes greatly simplify the code by moving the implementation information into 
+#                  configuration files.  (this is part of the process to make Ellamaine adaptable to other apps)
+#                - added support for the ConfigTable that contains all of the configuration data for each instance
+#  rather than having multiople.config files - the config is loaded from the database (but note, when the ConfigTable
+#  is created, it reads the templates for data from the ./configs/*.config files
 # To do:
 #
 #  RUN PARSERS IN A SEPARATE PROCESS | OR RUN DECODER (eg. htmlsyntaxtree) in separate process - need way to pass data in and out of the
@@ -54,27 +61,13 @@ use CGI qw(:standard);
 use Ellamaine::DocumentReader;
 use Ellamaine::HTMLSyntaxTree;
 use Ellamaine::StatusTable;
+use ConfigTable;
 
 use LoadProperties;
 use PrintLogger;
 use SQLTable;
 use HTTPClient;
 use DebugTools;
-
-#use AdvertisedPropertyProfiles;
-#use AgentStatusServer;
-#use PropertyTypes;
-#use WebsiteParser_Common;
-#use WebsiteParser_REIWA;
-#use WebsiteParser_REIWASuburbs;
-#use WebsiteParser_RealEstate;
-#use WebsiteParser_Domain;
-#use DomainRegions;
-#use Validator_RegExSubstitutes;
-#use MasterPropertyTable;
-#use SuburbAnalysisTable;
-#use SuburbProfiles;
-
 
 # -------------------------------------------------------------------------------------------------    
 my %parameters = undef;
@@ -84,8 +77,11 @@ my %myParsers;
 # initialise the SQL client
 $sqlClient = SQLClient::new();
 
+print("Connecting to database...\n");
+$sqlClient->connect();
+
 # load/read parameters for the application
-($parseSuccess, $parameters) = parseParameters();
+($parseSuccess, $parameters) = parseParameters($sqlClient);
 my $printLogger = PrintLogger::new($$parameters{'agent'}, $$parameters{'instanceID'}.".stdout", 1, $$parameters{'useText'}, $$parameters{'useHTML'});
 $$parameters{'printLogger'} = $printLogger;
 
@@ -197,8 +193,6 @@ if (($parseSuccess) && ($customProperties))
                      # load the package required for this parser
                      require "$packageName.pm";
                      $packageName->import();
-          
-                     ($packageName . "::parseDomainPropertyDetails")->($sqlClient);
                      
                      # record which packages have already been loaded - don't need to do multiple times
                      $packageList{$packageName} = 1;
@@ -225,8 +219,7 @@ if (($parseSuccess) && ($customProperties))
 # start the document reader...
 if (($parseSuccess) && (!($$parameters{'command'} =~ /maintenance/i)))
 {   
-   $printLogger->print("Connecting to database...\n");
-   $sqlClient->connect();
+   
    
    $printLogger->print("Starting DocumentReader...\n");
    my $myDocumentReader = DocumentReader::new($$parameters{'agent'}, $$parameters{'instanceID'}, $$parameters{'url'}, $sqlClient, 
@@ -234,7 +227,6 @@ if (($parseSuccess) && (!($$parameters{'command'} =~ /maintenance/i)))
       
    $myDocumentReader->run($$parameters{'command'});
    
-   $sqlClient->disconnect();
  
 }
 else
@@ -249,6 +241,8 @@ else
    }
 }
 
+$sqlClient->disconnect();
+  
 $printLogger->printFooter("Finished\n");
 
 # -------------------------------------------------------------------------------------------------
@@ -320,6 +314,7 @@ sub parseOptionalParameters
 # and OPTIONAL parameters for 'command'
 sub parseParameters
 {      
+   my $sqlClient = shift;
    my $parameters;  # reference to a hash
    my $success = 0;
    my @startCommands = ('url', 'state', 'source', 'parser');
@@ -344,15 +339,24 @@ sub parseParameters
       
    if (CGI::param("config"))
    {
-      # fetch the configuration fromt the ConfigTable... 
-      # load the specified configuration file
-      print "Loading configuration '", CGI::param("config"), ".config'...\n";
-      $parameters = loadProperties(CGI::param("config").".config");
-      
-      if ($$parameters{'loadconfiguration.error'})
+      # fetch the configuration from the ConfigTable...
+      print "Fetching configuration '", CGI::param("config"), "' from database...\n";
+      $configTable = ConfigTable::new($sqlClient);
+      $parameters = $configTable->fetchConfig(CGI::param("config"));
+     
+      if (!$parameters)
       {
-         print "   ", $$parameters{'loadconfiguration.error.description'}, "\n";
+         print "   failed to fetch configuration.\n";
       }
+     
+      # load the specified configuration file
+      #print "Loading configuration '", CGI::param("config"), ".config'...\n";
+      #$parameters = loadProperties(CGI::param("config").".config");
+      #
+      #if ($$parameters{'loadconfiguration.error'})
+      #{
+      #   print "   ", $$parameters{'loadconfiguration.error.description'}, "\n";
+      #}
    }
    else
    {

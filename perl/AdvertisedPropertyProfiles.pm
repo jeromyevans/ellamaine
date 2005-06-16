@@ -89,7 +89,7 @@ sub new
 
    $tableName = 'AdvertisedPropertyProfiles';
    $originatingHTML = OriginatingHTML::new($sqlClient);
-   
+ 
    my $advertisedPropertyProfiles = { 
       sqlClient => $sqlClient,
       tableName => $tableName,

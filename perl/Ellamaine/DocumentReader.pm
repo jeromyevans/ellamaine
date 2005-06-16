@@ -136,7 +136,6 @@ sub new ($ $ $ $ $ $ $ $ $)
    $sessionURLStack = SessionURLStack::new($sqlClient);
    $$tablesHashRef{'sessionURLStack'} = $sessionURLStack;
    
-   
    if ($threadID > 0)
    {
       # threadID has been specified - continue an existing session
@@ -668,11 +667,8 @@ sub _parseDocument
 		   # the value in the hash is a symbolic reference to the callback function
          # ie. a string like "packagename::function"
 		   my $callbackFunction = $$parserHashRef{$parserPatternList[$parserIndex]};		  		
-         print "callbackFunction=$callbackFunction\n";        
-         #my @callbackTransactionStack = ("$callbackFunction")->($this, $htmlSyntaxTree, $url, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel());
-		   #("WebsiteParser_Domain::parseDomainPropertyDetails")->($this, $htmlSyntaxTree, $url, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel());
-         require WebsiteParser_Domain;
-         WebsiteParser_Domain::parseDomainPropertyDetails($this, $htmlSyntaxTree, $url, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel());
+         my @callbackTransactionStack = ($callbackFunction)->($this, $htmlSyntaxTree, $url, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel());
+
          $endTime = time;
          $runningTime = $endTime - $startTime;
            #print "Transaction $transactionNo took $runningTime seconds\n";

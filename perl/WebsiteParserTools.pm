@@ -25,7 +25,10 @@
 # 20 May 2005 - major update
 #             - added populatePropertyProfileHash that includes common code for populating the hash, then tidying it
 #  up and calculating the checksum.  This is needed for the re-architecting to combine sales and rentals.
-# 16 June 2005 - converted to a superclass for WebsiteParsers
+# 16 June 2005 - renamed to WebsiteParserTools (for a moment decided to make this a superclass for WebsiteParsers
+#   but have since decided that's not necessary)
+package WebsiteParserTools;
+
 use CGI qw(:standard);
 use Ellamaine::HTMLSyntaxTree;
 use Ellamaine::DocumentReader;
@@ -35,140 +38,12 @@ use SQLClient;
 use SuburbProfiles;
 use DebugTools;
 use AdvertisedPropertyProfiles;
+use TrimWhitespace;
+use PrettyPrint;
 
+require Exporter;
 @ISA = qw(Exporter);
-
-
-# -------------------------------------------------------------------------------------------------
-
-# removes leading and trailing whitespace from parameter
-# parameters:
-#  string to trim
-sub trimWhitespace
-{
-   my $string = shift;
-   
-   # --- remove leading and trailing whitespace ---
-   # substitute trailing whitespace characters with blank
-   # s/whitespace from end-of-line/all occurances
-   # s/\s*$//g;      
-   $string =~ s/\s*$//g;
-
-   # substitute leading whitespace characters with blank
-   # s/whitespace from start-of-line,multiple single characters/blank/all occurances
-   #s/^\s*//g;    
-   $string =~ s/^\s*//g;
-
-   return $string;     
-}
-
-
-# -------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------
-# change all characters to lowercase except the first character following a full stop, or the first character in the string
-# if the allFirstUpper flag is set, then the first letter of all words is changed to uppercase, otherwise only the
-# first letter of a sentance is changed to uppercase.
-sub prettyPrint
-
-{
-   my $inputText = shift;
-   my $allFirstUpper = shift;
-   my $SEEKING_DOT = 0;
-   my $SEEKING_NEXT_ALPHA = 1;
-   my $SEEKING_FIRST_ALPHA = 2;
-   my $state;
-    
-   if ($inputText)
-   {
-      # --- remove leading and trailing whitespace ---
-      # substitute trailing whitespace characters with blank
-      # s/whitespace from end-of-line/all occurances
-      # s/\s*$//g;      
-      $inputText =~ s/\s*$//g;
-   
-      # substitute leading whitespace characters and leading non-word characters with blank
-      # s/whitespace from start-of-line,multiple single characters/blank/all occurances
-      #s/^\s*//g;    
-      $inputText =~ s/^[\s|\W]*//g; 
-      
-      # change all to lowercase
-      $inputText =~ tr/[A-Z]/[a-z]/;
-      
-      
-      # if the first upper flag has been set then the first alpha character of every word is to be uppercase
-      if ($allFirstUpper)
-      {
-         # this expression works but it seems overly complicated
-         # first it uses a substitution to match a single lowercase character at the start of each word (stored in $1)
-         # then it evaluates the second expression which returns $1 in uppercase using sprintf
-         # the ge modifiers ensure it's performed for every word and instructs the parser to evalutation the expression
-        
-         $inputText =~ s/(\b[a-z])/sprintf("\U$1")/ge;
-         
-         # note the above expression isn't perfect because the boundary of a word isn't just whitespace
-         # for example, the above expresion would make isn't into Isn'T and i'm into I'M.
-         # the expression below corrects for apostraphies.
-         $inputText =~ s/(\'[A-Z])/sprintf("\L$1")/ge;
-      }
-      else
-      {
-         # --- change first character in a sentance to uppercase ---
-         
-         # a state machine is used to perform the special processing of the string.  This should be 
-         # possible using a regular expression but I couldn't get it to work in every case.  
-         # Instead the string is split into a list of characters...
-         @charList = split //, $inputText;
-      
-         # then set the state machine to search for the next alpha character.  It sets this to uppercase
-         # then searches for the next alphacharacter following a full-stop and sets that to uppercase, then 
-         # repeats the search
-         $state = $SEEKING_NEXT_ALPHA;
-         $index = 0;
-         foreach (@charList)
-         {
-           
-            if ($state == $SEEKING_DOT)
-            {
-               if ($_ =~ m/[\.|\?|\!]/g)
-               {
-                  $state = $SEEKING_NEXT_ALPHA;
-               }
-            }
-            else
-            {
-               if ($state == $SEEKING_NEXT_ALPHA)
-               {
-                  if ($_ =~ m/[a-z]/gi)
-                  {
-                     $_ =~ tr/[a-z]/[A-Z]/;
-                     $charList[$index] = $_;
-                     $state = $SEEKING_DOT;
-                  }
-               }
-            }
-          
-            $index++;
-         }
-      
-         # rejoin the array into a string
-         $inputText = join '', @charList;
-          
-      }
-     
-      # special cases
-      $inputText =~ s/(i\'m)/I\'m/gi;
-      $inputText =~ s/(\si\s)/ I /gi;
-      $inputText =~ s/(i\'ve)/I\'ve/gi;
-      $inputText =~ s/(i\'d)/I\'d/gi;
-         
-      # remove multiple whitespaces
-      $inputText =~ s/\s+/ /g;
-   }
-   
-   return $inputText;
-}
-
+@EXPORT = qw(matchSuburbName tidyRecord repairSuburbName regexEscape repairStreetName assessRecordValidity mergeChanges validateRecord isSuburbNameInRange extractOnlyParentName populatePropertyProfileHash);
 # -------------------------------------------------------------------------------------------------
 
 # searches the postcode list for a suburb matching the name specified
@@ -1025,4 +900,4 @@ sub populatePropertyProfileHash
 }
 
 # -------------------------------------------------------------------------------------------------
-
+1;
