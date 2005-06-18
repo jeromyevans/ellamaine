@@ -34,6 +34,11 @@ use Ellamaine::SessionURLStack;
 
 @ISA = qw(Exporter);
 
+$ORDER_BY_THREAD_ID = 0;
+$ORDER_BY_STARTED   = 1;
+$ORDER_BY_LAST_ACTIVE  = 2;
+$ORDER_BY_INSTANCE_ID  = 3; 
+
 #@EXPORT = qw(&parseContent);
 
 # -------------------------------------------------------------------------------------------------
@@ -137,6 +142,7 @@ sub createTable
    
    return $success;   
 }
+
 
 # -------------------------------------------------------------------------------------------------
 # requestNewThread
@@ -626,5 +632,77 @@ sub dropTable
 }
 
 # -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+
+
+
+# -------------------------------------------------------------------------------------------------
+# lookupAllocatedThreads
+# returns information on all of the threads that are currently allocated
+#
+# Purpose:
+#  Storing information in the database
+#
+# Parameters:
+#  Enumeration to specify how to order the information
+#  BOOL reverseFlag (order in reverse order if set)
+#
+# Returns:
+#   reference to a list of hashes
+#        
+sub lookupAllocatedThreads
+
+{
+   my $this = shift;
+   my $orderByEnum = shift;
+   my $reverse = shift;
+
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $tableName = $this->{'tableName'};
+   my $localTime;
+   my $instanceID = undef;
+   my $orderBy = "ThreadID";
+   
+   if ($sqlClient)
+   {
+      if ($orderByEnum == $ORDER_BY_THREAD_ID)
+      {
+         $orderBy = "ThreadID";
+      }
+      elsif ($orderByEnum == $ORDER_BY_STARTED)
+      {
+         $orderBy = "Created";
+      }
+      elsif ($orderByEnum == $ORDER_BY_LAST_ACTIVE)
+      {
+         $orderBy = "LastActive";
+      }
+      elsif ($orderByEnum == $ORDER_BY_INSTANCE_ID)
+      {
+         $orderBy = "InstanceID";
+      }
+      else
+      {
+         $orderBy = "ThreadID";
+      }
+      
+      # if reverse is set, add desc suffice
+      if ($reverse)
+      {
+         $orderBy .= " DESC";
+      }
+    
+      # select the threadID of the least-recently used unallocated thread
+      $sqlStatement = "SELECT * FROM $tableName WHERE Allocated=1 ORDER BY $orderBy";
+       
+      @selectResults = $sqlClient->doSQLSelect($sqlStatement);
+    
+   }
+   
+   return \@selectResults;
+}        
+
 # -------------------------------------------------------------------------------------------------
 

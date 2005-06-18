@@ -46,11 +46,8 @@
 #  is created, it reads the templates for data from the ./configs/*.config files
 # To do:
 #
-#  RUN PARSERS IN A SEPARATE PROCESS | OR RUN DECODER (eg. htmlsyntaxtree) in separate process - need way to pass data in and out of the
-#   process though
-#  USE DATABASE TO SPECIFY PARSERS AND RECOVERY POINTS
-#   NEED TO GET AGENT NAME
 #  - front page for monitoring progress
+#  - warnings and error tracking
 #
 # ---CVS---
 # Version: $Revision$

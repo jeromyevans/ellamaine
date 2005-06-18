@@ -1,0 +1,31 @@
+<html>
+<head>
+<title>Ellamaine Administration Tool</title>
+</head>
+
+<body>
+<table>
+<tr>
+<td>Allocated Threads (%%statustable.allocated.rows%% total)</td>
+<td><form target='/cgi-bin/admin.pl' method='get'>Order By: %%html.orderby.select%%</td>
+<td>%%html.reverse.select%%</td>
+<td><input type='submit' value='Change'></td>
+</form>
+</tr>
+</table>
+
+<br/>
+<table border='1'>
+<tr><th  rowspan='2' valign='center'>Row#</th><th rowspan='2' valign='center'>ThreadID</th><th rowspan='2' valign='center'>Started</th><th rowspan='2' valign='center'>Last Active</th><th rowspan='2' valign='center'>InstanceID</th><th rowspan='2' valign='center'>No. of restarts</th><th colspan='3'align='center'>Records</th></tr>
+<tr><th>Encounterd</th><th>Parsed</th><th>Added</th></tr>
+%%foreach::statustable.allocated%%
+<tr><td>%%simplemvc.foreach.rowno%%</td><td>%%ThreadID%%</td><td>%%Created%%</td><td>%%LastActive%%</td><td>%%InstanceID%%</td><td>%%Restarts%%</td><td>%%RecordsEncountered%%</td><td>%%RecordsParsed%%</td><td>%%RecordsAdded%%</td></tr>
+%%endforeach::statustable.allocated%%
+</table>
+
+<table><tr><td>%%simplemvc.action%%</td></tr></table>
+<strong>MVC response:</strong>%%simplemvc.error.description%%<br/>
+
+</body>
+
+</html>
