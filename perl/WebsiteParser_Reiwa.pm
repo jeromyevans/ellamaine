@@ -36,6 +36,7 @@ use PropertyTypes;
 use WebsiteParserTools;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;
+use StringTools;
 
 @ISA = qw(Exporter);
 
@@ -115,7 +116,7 @@ sub extractREIWAProfile
    
    if ($sourceID) 
    {
-      $propertyProfile{'SourceID'} = $documentReader->trimWhitespace($sourceID);
+      $propertyProfile{'SourceID'} = trimWhitespace($sourceID);
    }
    
    # --- extract the price string ---
@@ -125,7 +126,7 @@ sub extractREIWAProfile
       
    if ($priceString) 
    {
-      $propertyProfile{'AdvertisedPriceString'} = $documentReader->trimWhitespace($priceString);
+      $propertyProfile{'AdvertisedPriceString'} = trimWhitespace($priceString);
    }
    
    # --- for REIWA.com.au the titleString is the priceString prefixed by Sold or Under Offer if applicable ---
@@ -136,12 +137,12 @@ sub extractREIWAProfile
    $title = $$tagHash{'title'};
    if ($title =~ /Sold/gi)
    {
-      $titleString = "Sold ".$documentReader->trimWhitespace($priceString);
+      $titleString = "Sold ".trimWhitespace($priceString);
    }
    elsif ($title =~ /Under/gi)
    {
       # use only the pricesString for the title
-      $titleString = "Under Offer ".$documentReader->trimWhitespace($priceString);   
+      $titleString = "Under Offer ".trimWhitespace($priceString);   
    }
    else
    {
@@ -151,7 +152,7 @@ sub extractREIWAProfile
    
    if ($titleString) 
    {
-      $propertyProfile{'TitleString'} = $documentReader->trimWhitespace($titleString);
+      $propertyProfile{'TitleString'} = trimWhitespace($titleString);
    }
    
    # --- extract suburb name --- 
@@ -161,7 +162,7 @@ sub extractREIWAProfile
    
    if ($suburb) 
    {
-      $propertyProfile{'SuburbName'} = $documentReader->trimWhitespace($suburb);
+      $propertyProfile{'SuburbName'} = trimWhitespace($suburb);
    }     
    
    # --- extract address  --- 
@@ -171,7 +172,7 @@ sub extractREIWAProfile
    
    if ($addressString) 
    {
-      $propertyProfile{'StreetAddress'} = $documentReader->trimWhitespace($addressString);
+      $propertyProfile{'StreetAddress'} = trimWhitespace($addressString);
    }     
    
    
@@ -182,7 +183,7 @@ sub extractREIWAProfile
    
    if ($yearBuilt) 
    {
-      $propertyProfile{'YearBuilt'} = $documentReader->trimWhitespace($yearBuilt);
+      $propertyProfile{'YearBuilt'} = trimWhitespace($yearBuilt);
    }     
   
    # --- extract type --- 
@@ -191,7 +192,7 @@ sub extractREIWAProfile
    
    if ($type) 
    {
-      $propertyProfile{'Type'} = $documentReader->trimWhitespace($type);
+      $propertyProfile{'Type'} = trimWhitespace($type);
    }     
    
 
@@ -201,7 +202,7 @@ sub extractREIWAProfile
    
    if ($bedrooms) 
    {
-      $propertyProfile{'Bedrooms'} = $documentReader->parseNumber($bedrooms);
+      $propertyProfile{'Bedrooms'} = parseNumber($bedrooms);
    }   
    
    # --- extract bedrooms --- 
@@ -210,7 +211,7 @@ sub extractREIWAProfile
    
    if ($bathrooms) 
    {
-      $propertyProfile{'Bathrooms'} = $documentReader->parseNumber($bathrooms);
+      $propertyProfile{'Bathrooms'} = parseNumber($bathrooms);
    }   
 
    # --- extract features ---
@@ -269,7 +270,7 @@ sub extractREIWAProfile
       
    if ($features)
    {
-      $propertyProfile{'Features'} = $documentReader->trimWhitespace($features);
+      $propertyProfile{'Features'} = trimWhitespace($features);
    }
    
       
@@ -287,7 +288,7 @@ sub extractREIWAProfile
       
    if ($description)
    {
-      $propertyProfile{'Description'} = $documentReader->trimWhitespace($description);
+      $propertyProfile{'Description'} = trimWhitespace($description);
    }
      
    # --- extract agent details ---
@@ -304,12 +305,12 @@ sub extractREIWAProfile
    }
    if ($contactName) 
    {
-      $propertyProfile{'ContactName'} = $documentReader->trimWhitespace($contactName);
+      $propertyProfile{'ContactName'} = trimWhitespace($contactName);
    }     
   
    if ($mobilePhone) 
    {
-      $propertyProfile{'MobilePhone'} = $documentReader->trimWhitespace($mobilePhone);
+      $propertyProfile{'MobilePhone'} = trimWhitespace($mobilePhone);
    }
    
    # --- extract agency name ---
@@ -321,7 +322,7 @@ sub extractREIWAProfile
    $agencyName = $htmlSyntaxTree->getNextText();
    if ($agencyName) 
    {
-      $propertyProfile{'AgencyName'} = $documentReader->trimWhitespace($agencyName);
+      $propertyProfile{'AgencyName'} = trimWhitespace($agencyName);
    }     
      
    # --- extract agency phone number ---
@@ -336,11 +337,11 @@ sub extractREIWAProfile
    {
       if ($salesOrRentalFlag == 0)
       {
-         $propertyProfile{'SalesPhone'} = $documentReader->trimWhitespace($contactPhone);
+         $propertyProfile{'SalesPhone'} = trimWhitespace($contactPhone);
       }
       elsif ($salesOrRentalFlag == 1)
       {
-          $propertyProfile{'RentalsPhone'} = $documentReader->trimWhitespace($contactPhone);
+          $propertyProfile{'RentalsPhone'} = trimWhitespace($contactPhone);
       }
    }     
    
@@ -353,7 +354,7 @@ sub extractREIWAProfile
    $website = $htmlSyntaxTree->getNextAnchorContainingPattern("Visit our Website");
    if ($website) 
    {
-      $propertyProfile{'Website'} = $documentReader->trimWhitespace($website);
+      $propertyProfile{'Website'} = trimWhitespace($website);
    }     
    
    populatePropertyProfileHash($sqlClient, $documentReader, \%propertyProfile);
@@ -443,7 +444,7 @@ sub extractLegacyREIWAProfile
    
    if ($sourceID)
    {
-      $propertyProfile{'SourceID'} = $documentReader->trimWhitespace($sourceID);
+      $propertyProfile{'SourceID'} = trimWhitespace($sourceID);
    }
    
    if ($suburb) 
@@ -453,13 +454,13 @@ sub extractLegacyREIWAProfile
      
    if ($priceString) 
    {
-      $propertyProfile{'AdvertisedPriceString'} = $documentReader->trimWhitespace($priceString);
+      $propertyProfile{'AdvertisedPriceString'} = trimWhitespace($priceString);
    }
    
    $titleString = $priceString;
    if ($titleString) 
    {
-      $propertyProfile{'TitleString'} = $documentReader->trimWhitespace($titleString);
+      $propertyProfile{'TitleString'} = trimWhitespace($titleString);
    }
    
    
@@ -478,13 +479,13 @@ sub extractLegacyREIWAProfile
    $bedrooms = $htmlSyntaxTree->getNextTextContainingPattern("Bedrooms");    # sometimes undef     
    if ($bedrooms)
    {
-      $propertyProfile{'Bedrooms'} = $documentReader->parseNumber($bedrooms);
+      $propertyProfile{'Bedrooms'} = parseNumber($bedrooms);
    }
    
    $bathrooms = $htmlSyntaxTree->getNextTextContainingPattern("Bath");       # sometimes undef
    if ($bathrooms)
    {
-      $propertyProfile{'Bathrooms'} = $documentReader->parseNumber($bathrooms);
+      $propertyProfile{'Bathrooms'} = parseNumber($bathrooms);
    }
    
    $land = $htmlSyntaxTree->getNextTextContainingPattern("sqm");             # sometimes undef
@@ -535,7 +536,7 @@ sub extractLegacyREIWAProfile
       
    if ($features)
    {
-      $propertyProfile{'Features'} = $documentReader->trimWhitespace($features);
+      $propertyProfile{'Features'} = trimWhitespace($features);
    }
 
    $propertyProfile{'State'} = 'WA';  
@@ -721,7 +722,8 @@ sub parseREIWASearchList
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sourceName =  $documentReader->getGlobalParameter('source');
    
-   my @urlList;        
+   my @urlList;   # DO NOT SET TO UNDEF - it'll break the union later
+   my @anchorList;
    my $firstRun = 1;
    my $statusTable = $documentReader->getStatusTable();
    my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
@@ -759,7 +761,7 @@ sub parseREIWASearchList
          # if the substring includes the price, append it to the title string 
          if ($nextString =~ /\$/)
          {
-            $titleString = $documentReader->trimWhitespace($nextString);
+            $titleString = trimWhitespace($nextString);
          }
          else
          {

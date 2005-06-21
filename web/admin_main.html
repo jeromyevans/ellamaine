@@ -4,10 +4,12 @@
 </head>
 
 <body>
+<a href='/cgi-bin/admin.pl?action=main'>Status Table</a>&nbsp<a href='/cgi-bin/admin.pl?action=regex'>RegEx</a><br/>
+<h1>Status Table</h1>
 <table>
 <tr>
 <td>Allocated Threads (%%statustable.allocated.rows%% total)</td>
-<td><form target='/cgi-bin/admin.pl' method='get'>Order By: %%html.orderby.select%%</td>
+<td><form action='/cgi-bin/admin.pl' method='get'>Order By: %%html.orderby.select%%</td>
 <td>%%html.reverse.select%%</td>
 <td><input type='submit' value='Change'></td>
 </form>

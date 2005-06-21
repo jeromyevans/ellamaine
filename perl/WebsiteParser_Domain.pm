@@ -52,7 +52,7 @@ use DomainRegions;
 use OriginatingHTML;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;
-use TrimWhitespace;
+use StringTools;
 use PrettyPrint;
 
 require Exporter;
@@ -167,7 +167,7 @@ sub extractDomainProfile
    
    if ($titleString)
    {
-      $propertyProfile{'TitleString'} = $documentReader->trimWhitespace($titleString);
+      $propertyProfile{'TitleString'} = trimWhitespace($titleString);
    }
    
    # --- extract the suburb name ---   
@@ -176,7 +176,7 @@ sub extractDomainProfile
    
    # remove any price information from the string...
    ($suburbNameString, $crud) = split(/\$/, $suburbAndPriceString, 2);
-   $suburbNameString = $documentReader->trimWhitespace($suburbNameString);
+   $suburbNameString = trimWhitespace($suburbNameString);
     
    if ($suburbNameString) 
    {
@@ -222,7 +222,7 @@ sub extractDomainProfile
       }
    }
 
-   $priceString = $documentReader->trimWhitespace($priceString);      
+   $priceString = trimWhitespace($priceString);      
 
    
    if ($priceString) 
@@ -232,7 +232,7 @@ sub extractDomainProfile
    
    # --- extract source ID ---
 
-   $sourceID = $documentReader->trimWhitespace($htmlSyntaxTree->getNextTextAfterPattern("Property ID:"));
+   $sourceID = trimWhitespace($htmlSyntaxTree->getNextTextAfterPattern("Property ID:"));
    
    if ($sourceID)
    {
@@ -255,7 +255,7 @@ sub extractDomainProfile
    
    # --- extract property type ---
    
-   $type = $documentReader->trimWhitespace($htmlSyntaxTree->getNextText());  # always set (contains at least TYPE)
+   $type = trimWhitespace($htmlSyntaxTree->getNextText());  # always set (contains at least TYPE)
    $type =~ s/\://gi;   
    
    if ($type)
@@ -265,7 +265,7 @@ sub extractDomainProfile
    
    # --- extract bedrooms and bathrooms ---
    
-   $infoString = $documentReader->trimWhitespace($htmlSyntaxTree->getNextText());
+   $infoString = trimWhitespace($htmlSyntaxTree->getNextText());
    $bedroomsString = undef;
    $bathroomsString = undef;
    
@@ -300,8 +300,8 @@ sub extractDomainProfile
       $index++;
    }
    
-   $bedrooms = $documentReader->strictNumber($documentReader->parseNumber($bedroomsString));
-   $bathrooms = $documentReader->strictNumber($documentReader->parseNumber($bathroomsString));
+   $bedrooms = strictNumber(parseNumber($bedroomsString));
+   $bathrooms = strictNumber(parseNumber($bathroomsString));
    
    if ($bedrooms)
    {
@@ -346,7 +346,7 @@ sub extractDomainProfile
          
          $description .= $nextPara;
       }
-      $description = $documentReader->trimWhitespace($description);   
+      $description = trimWhitespace($description);   
    }
    
    if ($description)
@@ -370,7 +370,7 @@ sub extractDomainProfile
          
          $features .= $nextFeature;
       }
-      $features = $documentReader->trimWhitespace($features);
+      $features = trimWhitespace($features);
       
    }
    
@@ -660,7 +660,8 @@ sub parseDomainSearchResults
    my $threadID = shift;
    my $parentLabel = shift;
    
-   my @urlList;        
+   my @urlList;   # DO NOT SET TO UNDEF - it'll break the union later
+   my @anchorList;   
    my $firstRun = 1;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sourceName = $documentReader->getGlobalParameter('source');
@@ -921,7 +922,7 @@ sub parseDomainChooseSuburbs
                         if (!$sessionProgressTable->hasSuburbBeenProcessed($threadID, $value))
                         {  
                         
-                           $printLogger->print("  $currentRegion:", $_->{'text'}, "\n");
+                           #$printLogger->print("  $currentRegion:", $_->{'text'}, "\n");
    
                            # set the suburb name in the form   
                            $htmlForm->setInputValue('_ctl0:listboxSuburbs', $_->{'value'});            

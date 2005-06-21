@@ -102,7 +102,7 @@ sub createTable
    my $tableName = $this->{'tableName'};
  
    my $SQL_CREATE_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS $tableName (";
-   my $SQL_CREATE_TABLE_SUFFIX = ", INDEX (ThreadID, Region(10), Suburb(10))";
+   my $SQL_CREATE_TABLE_SUFFIX = ", INDEX (ThreadID, Region(10), Suburb(10)))";
    
    if ($sqlClient)
    {

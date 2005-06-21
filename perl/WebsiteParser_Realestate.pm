@@ -40,6 +40,7 @@ use PropertyTypes;
 use WebsiteParserTools;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;   # 23Jan05
+use StringTools;
 
 @ISA = qw(Exporter);
 
@@ -223,14 +224,14 @@ sub extractRealEstateProfile
    
    if ($priceString) 
    {
-      $propertyProfile{'AdvertisedPriceString'} = $documentReader->trimWhitespace($priceString);
+      $propertyProfile{'AdvertisedPriceString'} = trimWhitespace($priceString);
    }
    
    # --- for realestate.com.au the titleString is the same as the priceString --- 
    $titleString = $priceString;
    if ($titleString) 
    {
-      $propertyProfile{'TitleString'} = $documentReader->trimWhitespace($titleString);
+      $propertyProfile{'TitleString'} = trimWhitespace($titleString);
    }
    
    # --- extract the description ---
@@ -247,7 +248,7 @@ sub extractRealEstateProfile
       
    if ($description)
    {
-      $propertyProfile{'Description'} = $documentReader->trimWhitespace($description);
+      $propertyProfile{'Description'} = trimWhitespace($description);
    }
    
    # --- extact other attributes ---
@@ -266,7 +267,7 @@ sub extractRealEstateProfile
    $htmlSyntaxTree->setSearchStartConstraintByText("Search Homes for Sale");
    $htmlSyntaxTree->setSearchEndConstraintByTag("Back to Search Results"); # until the next table
    $sourceIDString = $htmlSyntaxTree->getNextTextContainingPattern("Property No");     
-   $sourceID = $documentReader->parseNumberSomewhereInString($sourceIDString);
+   $sourceID = parseNumberSomewhereInString($sourceIDString);
             
    if ($sourceID)
    {
@@ -281,12 +282,12 @@ sub extractRealEstateProfile
    
    if ($bedrooms)
    {
-      $propertyProfile{'Bedrooms'} = $documentReader->parseNumber($bedrooms);
+      $propertyProfile{'Bedrooms'} = parseNumber($bedrooms);
    }
    
    if ($bathrooms)
    {
-      $propertyProfile{'Bathrooms'} = $documentReader->parseNumber($bathrooms);
+      $propertyProfile{'Bathrooms'} = parseNumber($bathrooms);
    }
    
    if ($land)
@@ -325,7 +326,7 @@ sub extractRealEstateProfile
    $contactNameAndNumber = $htmlSyntaxTree->getNextTextAfterPattern('Sales Person');
    
    ($contactName, $crud) = split /\d/, $contactNameAndNumber;
-   $contactName = $documentReader->trimWhitespace($contactName);
+   $contactName = trimWhitespace($contactName);
    
    $mobilePhone = $contactNameAndNumber;
    # remove non-digits
@@ -493,7 +494,8 @@ sub parseRealEstateSearchResults
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sourceName =  $documentReader->getGlobalParameter('source');
    my $length = 0;
-   my @urlList;        
+   my @urlList;
+   my @anchorList;
    my $firstRun = 1;
    my $statusTable = $documentReader->getStatusTable();
    my $recordsEncountered = 0;
@@ -518,6 +520,9 @@ sub parseRealEstateSearchResults
       if (!$htmlSyntaxTree->containsTextPattern("No exact matches found"))
       {
          # determine if these are RENT or SALE results
+         # 20 June 2005 - all pages now contain Homes for Sale in the title bar - setting a search constraint
+         # to the first h1 tag
+         $htmlSyntaxTree->setSearchStartConstraintByTag("h1");
          if ($htmlSyntaxTree->containsTextPattern("Homes for Sale"))
          {
             $saleOrRentalFlag = 0;
@@ -527,7 +532,12 @@ sub parseRealEstateSearchResults
             $saleOrRentalFlag = 1;
          }
          
-         $htmlSyntaxTree->setSearchStartConstraintByText("properties found");
+         #20Jun2005 - page has been re-designed - try old and new patterns
+         
+         if (!$htmlSyntaxTree->setSearchStartConstraintByText("properties found"))
+         {
+            $htmlSyntaxTree->setSearchStartConstraintByText("Your search returned");
+         }
          $htmlSyntaxTree->setSearchEndConstraintByText("Page:");
             
          $state = $SEEKING_FIRST_RESULT;
@@ -543,14 +553,15 @@ sub parseRealEstateSearchResults
                $parsedThisLine = 1;
                $endOfList = 1;
             }
-            #print "START: state=$state: '$thisText' parsed=$parsedThisLine\n";
+            #print "START: state=$state: Line:'$thisText' parsed=$parsedThisLine\n";
             
             if ((!$parsedThisLine) && ($state == $SEEKING_FIRST_RESULT))
             {
                # if this text is the suburb name, we're in a new record
                if ($thisText =~ /$suburbName/i)
                {
-                  $state = $PARSING_RESULT_TITLE;
+                  #$state = $PARSING_RESULT_TITLE;
+                  $state = $PARSING_SUB_LINE;        #20Jun05 - no title following anymore
                }
                $parsedThisLine = 1;
             }
@@ -609,6 +620,7 @@ sub parseRealEstateSearchResults
                {
                   # check if the cache already contains this unique id
                   # $_ is a reference to a hash
+                  
                   if (!$advertisedPropertyProfiles->checkIfResultExists($saleOrRentalFlag, $sourceName, $sourceID, $titleString))                              
                   {   
                      $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, "...\n");
@@ -635,12 +647,13 @@ sub parseRealEstateSearchResults
                
                if ($thisText eq $suburbName)
                {
-                  $state = $PARSING_RESULT_TITLE;
+                  #$state = $PARSING_RESULT_TITLE;   # 20June05 - no title anymore
+                  $state = $PARSING_SUB_LINE;
                }
                $parsedThisLine = 1;
             }
             
-            #print "  END: state=$state: '$thisText' parsed=$parsedThisLine\n";
+            #print "  END: state=$state: Line:'$thisText' ts:'$titleString' sid:'$sourceID' parsed=$parsedThisLine\n";
             $recordsEncountered++;  # count records seen
             # 23Jan05:save that this suburb has had some progress against it
             $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
@@ -783,7 +796,7 @@ sub parseRealEstateSearchForm
                }
                else
                {
-                  $htmlForm->setInputValue('u', DocumentReader->trimWhitespace($_->{'text'}));
+                  $htmlForm->setInputValue('u', trimWhitespace($_->{'text'}));
    
                   # determine if the suburbname is in the specific letter constraint
                   $acceptSuburb = isSuburbNameInRange($_->{'text'}, $startLetter, $endLetter);  # 23Jan05
@@ -799,7 +812,7 @@ sub parseRealEstateSearchForm
                { 
                   
                   #print "accepted\n";               
-                  my $newHTTPTransaction = HTTPTransaction::new($htmlForm, $url, $parentLabel.".".DocumentReader->trimWhitespace($_->{'text'}));
+                  my $newHTTPTransaction = HTTPTransaction::new($htmlForm, $url, $parentLabel.".".trimWhitespace($_->{'text'}));
                   #print $htmlForm->getEscapedParameters(), "\n";
                
                   # add this new transaction to the list to return for processing

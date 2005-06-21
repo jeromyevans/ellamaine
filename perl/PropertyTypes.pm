@@ -8,15 +8,12 @@
 # Description:
 #   Module that encapsulate the PropertyTypes database component
 # 
-#   TYPE_HOUSE=4   (houses)
-#   TYPE_UNIT=1    (units, flats, villas, etc)
-#   TYPE_LAND=5    (land)
-#   TYPE_ALL=9     (houses, units, tourist, non-commercial, non-rural)
-#   TYPE_UNKNOWN=0
 #
 # History:
 #  13 November 2004 - this module isn't working yet.
 #  13 March 2005 - Major change for use by SuburbPerformanceTable
+#  18 June 2005 - Modified so the SQLTable is populated with the type indexes so it can be used as 
+#    a foreign key in other tables
 #
 # CONVENTIONS
 # _ indicates a private variable or method
@@ -48,7 +45,6 @@ use SQLClient;
 # PUBLIC
 sub new
 {   
-   my $sqlClient = shift;
    my $typeDefinitions = 
    {
       TYPE_UNKNOWN => 0,
@@ -64,7 +60,6 @@ sub new
    };
    
    my $propertyTypes = { 
-      sqlClient => $sqlClient,
       tableName => "PropertyTypes",
       typeDefinitions => $typeDefinitions
    }; 
@@ -73,6 +68,9 @@ sub new
    
    return $propertyTypes;   # return this
 }
+
+# -------------------------------------------------------------------------------------------------
+
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
@@ -236,73 +234,65 @@ sub mapPropertyType
    my $typeName;
    my $matchedType;
    
-   my $sqlClient = $this->{'sqlClient'};
    $typeDefinitions = $this->{'typeDefinitions'};
    
-   if ($sqlClient)
+   if ($typeDescription)
    {
-      if ($typeDescription)
+      if ($typeDescription =~ /Apartment|Flat|Unit|Duplex|Semi|Studio|Terrace|Townhouse|Villa/i) 
       {
-         if ($typeDescription =~ /Apartment|Flat|Unit|Duplex|Semi|Studio|Terrace|Townhouse|Villa/i) 
-         {
-            # apartment/unit-like properties
-            $typeIndex = $typeDefinitions->{'TYPE_UNIT'};
-         }
-         else
-         {
-             if ($typeDescription =~ /Commercial|Warehouse/i)
-             {
-                # commercial/industrial
-                $typeIndex = $typeDefinitions->{'TYPE_COMMERCIAL'};
-             }
-             else
-             {
-                if ($typeDescription =~ /Farm|Rural/i) 
-                {
-                   $typeIndex = $typeDefinitions->{'TYPE_RURAL'};
-                }
-                else
-                {
-                   if ($typeDescription =~ /Leisure|Tourist/i) 
-                   {
-                      $typeIndex = $typeDefinitions->{'TYPE_TOURIST'};
-                   }
-                   else
-                   {
-                      if ($typeDescription =~ /House/i) 
-                      {
-                          $typeIndex = $typeDefinitions->{'TYPE_HOUSE'};
-                      }
-                      else
-                      {
-                         if ($typeDescription =~ /Land/i) 
-                         {
-                             $typeIndex = $typeDefinitions->{'TYPE_LAND'};
-                         }
-                         else
-                         {
-                            if ($typeDescription =~ /Retirement|Seniors/i) 
-                            {
-                               $typeIndex = $typeDefinitions->{'TYPE_SENIORS'};
-                            }
-                            else  
-                            {   
-                               $typeIndex = $typeDefinitions->{'TYPE_UNKNOWN'};
-                            }
-                         }
-                      }
-                   }
-                }
-             }
-         }
+         # apartment/unit-like properties
+         $typeIndex = $typeDefinitions->{'TYPE_UNIT'};
       }
       else
       {
-         $typeIndex = $typeDefinitions->{'TYPE_UNKNOWN'};
+          if ($typeDescription =~ /Commercial|Warehouse/i)
+          {
+             # commercial/industrial
+             $typeIndex = $typeDefinitions->{'TYPE_COMMERCIAL'};
+          }
+          else
+          {
+             if ($typeDescription =~ /Farm|Rural/i) 
+             {
+                $typeIndex = $typeDefinitions->{'TYPE_RURAL'};
+             }
+             else
+             {
+                if ($typeDescription =~ /Leisure|Tourist/i) 
+                {
+                   $typeIndex = $typeDefinitions->{'TYPE_TOURIST'};
+                }
+                else
+                {
+                   if ($typeDescription =~ /House/i) 
+                   {
+                       $typeIndex = $typeDefinitions->{'TYPE_HOUSE'};
+                   }
+                   else
+                   {
+                      if ($typeDescription =~ /Land/i) 
+                      {
+                          $typeIndex = $typeDefinitions->{'TYPE_LAND'};
+                      }
+                      else
+                      {
+                         if ($typeDescription =~ /Retirement|Seniors/i) 
+                         {
+                            $typeIndex = $typeDefinitions->{'TYPE_SENIORS'};
+                         }
+                         else  
+                         {   
+                            $typeIndex = $typeDefinitions->{'TYPE_UNKNOWN'};
+                         }
+                      }
+                   }
+                }
+             }
+          }
       }
    }
    else
-   {   
+   {
       $typeIndex = $typeDefinitions->{'TYPE_UNKNOWN'};
    }
    

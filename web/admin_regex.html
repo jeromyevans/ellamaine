@@ -1,0 +1,106 @@
+<html>
+<head>
+<title>Ellamaine Administration Tool</title>
+</head>
+
+<body>
+<a href='/cgi-bin/admin.pl?action=main'>Status Table</a>&nbsp<a href='/cgi-bin/admin.pl?action=regex'>RegEx</a><br/>
+<h1>Regular Expressions</h1>
+<table>
+<tr><td>Add A Pattern</td></tr>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="regex"/>
+<input type="hidden" name="subAction" value="add"/>
+<tr><td>Field Name</td><td>%%html.regex.select.fieldname%%</td></tr>
+<tr><td>Description</td><td><input type='text' name='description'/></td></tr>
+<tr><td>RegEx</td><td><input type='text' name='regEx'/></td></tr>
+<tr><td>Substitution</td><td><input type='text' name='substitution'/></td></tr>
+<tr><td>APL Index</td><td><input type='text' name='aplIndex'/></td></tr>
+<tr><td>APU Index</td><td><input type='text' name='apuIndex'/></td></tr>
+<tr><td>AWR Index</td><td><input type='text' name='awrIndex'/></td></tr>
+<tr><td>Flag</td><td><select name='flag'><option value='' selected>None</option><option value='1'>APU=APL+20%</option><option value='2'>All street name</option></select></td></tr>
+<tr><td>Order</td><td><input type='text' name='order'/></td></tr>
+<tr><td colspan='2'><input type='submit' value='Add'/></td></tr>
+</form>
+</table>
+%%admin.error.description%%<br/>
+<hr/>
+<table>
+<tr>
+<td>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="regex"/>
+<input type="hidden" name="subAction" value="export"/>
+<input type='submit' value='Export Table'/>
+</form>
+</td>
+<td>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="regex"/>
+<input type="hidden" name="subAction" value="import"/>
+<input type='submit' value='Import Table'/>
+</form>
+</td>
+<td>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="regex"/>
+<input type="hidden" name="subAction" value="create"/>
+<input type='submit' value='Create Table'/>
+</form>
+</td>
+<td>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="regex"/>
+<input type="hidden" name="subAction" value="clear"/>
+<input type='submit' value='Clear Table'/>
+</form>
+</td>
+<td>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="regex"/>
+<input type="hidden" name="subAction" value="drop"/>
+<input type='submit' value='Drop Table'/>
+</form>
+</td>
+</tr>
+</table>
+%%admin.regex.msg%%<br/>
+<hr/>
+<table>
+<tr>
+<td>RegEx Patterns for FieldName:</td>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="regex"/>
+<td>%%html.regex.select.fieldname%%</td><td><input type='submit' value='Go'/></td>
+<td></form>(%%regexpatterns.rows%% total)</td>
+</tr>
+</table>
+
+<br/>
+
+<form action='/cgi-bin/admin.pl' method='get'>
+<input type="hidden" name="action" value="regex"/>
+<input type="hidden" name="subAction" value="del"/>
+<table border='1'>
+<tr><th  rowspan='1' valign='center'><input type="submit" value="Delete"/></th>
+<th rowspan='1' valign='center'>Field Name</th>
+<th rowspan='1' valign='center'>Description</th>
+<th rowspan='1' valign='center'>Pattern</th>
+<th rowspan='1' valign='center'>Substitution</th>
+<th rowspan='1' valign='center'>APL Index</th>
+<th rowspan='1' valign='center'>APU Index</th>
+<th rowspan='1' valign='center'>AWR Index</th>
+<th rowspan='1' valign='center'>Flag</th>
+<th rowspan='1' valign='center'>SequenceNo</th></tr>
+%%foreach::regexpatterns%%
+<tr><td align="center"><input type='checkbox' name='patternID' value='%%PatternID%%'/>%%simplemvc.foreach.rowno%%</td><td>%%FieldName%%</td><td>%%Description%%</td><td><code>/%%RegEx%%/</code></td><td><code>%%Substitute%%</code></td><td>%%APLIndex%%</td><td>%%APUIndex%%</td><td>%%AWRIndex%%</td><td>%%Flag%%</td><td>%%SequenceNo%%</td></tr>
+%%endforeach::regexpatterns%%
+</table>
+</form>
+
+<table><tr><td>%%simplemvc.action%%</td></tr></table>
+<strong>MVC response:</strong>%%simplemvc.error.description%%<br/>
+
+</body>
+
+</html>
