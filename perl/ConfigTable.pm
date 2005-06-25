@@ -7,7 +7,8 @@
 #   Previously configuration was maintained in separate files - now its in a table
 #
 # History:
-#   
+# 24 Jun 2005 - added ignore keyword to insert statement used during table creation so if the table
+#  is already populated the insert doesn't fail with a duplicate key error
 #
 # CONVENTIONS
 # _ indicates a private variable or method
@@ -209,7 +210,7 @@ sub addRecord
    
    if ($sqlClient)
    {
-      $statementText = "INSERT INTO ConfigTable ";
+      $statementText = "INSERT IGNORE INTO ConfigTable ";
          
       @columnNames = keys %$parametersRef;
       

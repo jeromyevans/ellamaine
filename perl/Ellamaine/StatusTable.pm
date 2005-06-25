@@ -17,6 +17,12 @@
 #              - Modified the statement that allocates a thread to this instance to check that the
 #  selected threadID hasn't been snatched by another instance in a race-condition. If it has been 
 #  snatched then it simply tries again
+# 24 June 2005 - added a RecordsSkipped field to the status table for counting how many records were
+#  seen but not followed because they were already in the database.  
+#  In theory RecordsEncountered = RecordsSkipped+RecordsParsed.
+#              - added ignore keyword to insert statement used during table creation so if the table
+#  is already populated the insert doesn't fail with a duplicate key error
+#
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -97,6 +103,7 @@ my $SQL_CREATE_STATUS_TABLE =
    "InstanceID TEXT, ".
    "Restarts INTEGER, ".
    "RecordsEncountered INTEGER, ".
+   "RecordsSkipped INTEGER, ".
    "RecordsParsed INTEGER, ".
    "RecordsAdded INTEGER, ".
    "LastURL TEXT";
@@ -121,28 +128,60 @@ sub createTable
       
       if ($sqlClient->executeStatement($statement))
       {
-         $success = 1;
-         
-         # populate the table with 127 default threads
-         for ($threadID = 1; $threadID < 128; $threadID++)
-         {
-            
-            $statementText = "INSERT INTO ".$this->{'tableName'}.
-                             "(threadID, created, lastActive, allocated, instanceID, restarts, recordsEncountered, recordsParsed, recordsAdded, lastURL) VALUES ".
-                             "($threadID, null, null, 0, null, 0, 0, 0, 0, null)";
-            
-            $statement = $sqlClient->prepareStatement($statementText, { RaiseError => 0, PrintError => 0, Warn => 0, AutoCommit => 1});
-            
-            if ($sqlClient->executeStatement($statement))
-            {
-            }
-         }
+         $success = $this->clearTable();
       }
    }
    
    return $success;   
 }
 
+# -------------------------------------------------------------------------------------------------
+# clearTable
+# this function clears the contents of the StatusTable and then 
+# creates 127 blank thread entries ready for use
+#
+# Parameters: 
+#   nil
+#
+# Returns
+#   TRUE if successful
+sub clearTable
+
+{
+   my $this = shift;
+   my $sqlClient = $this->{'sqlClient'};
+   my $success = 0;
+  
+   if ($sqlClient)
+   {
+      # erase content of the table first
+      $statementText = "DELETE FROM ".$this->{'tableName'};
+         
+      $statement = $sqlClient->prepareStatement($statementText);
+      
+      if ($sqlClient->executeStatement($statement))
+      {
+         
+         # populate the table with 127 default threads
+         for ($threadID = 1; $threadID < 128; $threadID++)
+         {
+            
+            $statementText = "INSERT IGNORE INTO ".$this->{'tableName'}.
+                             "(threadID, created, lastActive, allocated, instanceID, restarts, recordsEncountered, recordsSkipped, recordsParsed, recordsAdded, lastURL) VALUES ".
+                             "($threadID, null, null, 0, null, 0, 0, 0, 0, 0, null)";
+            
+            $statement = $sqlClient->prepareStatement($statementText);
+            
+            if ($sqlClient->executeStatement($statement))
+            {
+               $success = 1;  # success if any worked
+            }
+         }
+      }
+   }
+   
+   return $success;
+}
 
 # -------------------------------------------------------------------------------------------------
 # requestNewThread
@@ -481,6 +520,7 @@ sub lookupInstance
 # Parameters:
 #  integer threadID
 #  integer recordsEncountered
+#  integer recordsSkipped
 #  string lastURL
 #
 # Constraints:
@@ -500,7 +540,8 @@ sub addToRecordsEncountered
 {
    my $this = shift;
    my $threadID = shift;
-   my $recordsAdded = shift;
+   my $recordsEncountered = shift;
+   my $recordsSkipped = shift;
    my $lastURL = shift;
    
    my $success = 0;
@@ -514,7 +555,7 @@ sub addToRecordsEncountered
       # update the recordsEncounted value
       $triedCleanup = 1;
       $quotedURL = $sqlClient->quote($lastURL);
-      $statementText = "update $tableName set lastActive=now(), recordsEncountered=recordsEncountered+$recordsAdded, lastURL=$quotedURL where threadID = $threadID";
+      $statementText = "update $tableName set lastActive=now(), recordsEncountered=recordsEncountered+$recordsEncountered, recordsSkipped=recordsSkipped+$recordsSkipped,lastURL=$quotedURL where threadID = $threadID";
       
       $statement = $sqlClient->prepareStatement($statementText);
             

@@ -1,0 +1,26 @@
+<html>
+<head>
+<title>Ellamaine Originating HTML: %%originatinghtml.identifier%%</title>
+</head>
+
+<body>
+<h1>View Originating HTML</h1>
+<table>
+<tr><td>Identifier</td><td><code>%%originatinghtml.identifier%%</code></td></tr>
+<tr><td>Timestamp</td><td><code>%%originatinghtml.timestamp%%</code></td></tr>
+<tr><td>SourceURL</td><td><code>%%originatinghtml.sourceurl%%</code></td></tr>
+<form action='/cgi-bin/admin.pl' method='post'>
+<input type="hidden" name="action" value="reparse"/>
+<input type="hidden" name="identifier" value="%%originatinghtml.identifier%%"/>
+<input type="submit" value='Dry Run (re)parsing this record'>
+</table>
+%%admin.error.description%%<br/>
+<hr/>
+%%originatinghtml.content%%
+<hr/>
+<table><tr><td>%%simplemvc.action%%</td></tr></table>
+<strong>MVC response:</strong>%%simplemvc.error.description%%<br/>
+
+</body>
+
+</html>

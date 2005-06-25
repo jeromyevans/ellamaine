@@ -361,9 +361,16 @@ sub parseParameters
       $parameters = \%newHash;  # initialise reference to empty hash 
    }
    
-   # see which command is specified
-   $$parameters{'command'} = CGI::param("command");
-   $$parameters{'config'} = CGI::param("config");
+   # see which commands are specified on the command line or via CGI:
+   @CGIparamerters = CGI::param();
+   print "Other parameters:\n";
+   foreach (@CGIparamerters)
+   {
+      $$parameters{$_} = CGI::param($_);
+      print "   $_=", $$parameters{$_}, "\n";
+   }
+   #$$parameters{'command'} = CGI::param("command");
+   #$$parameters{'config'} = CGI::param("config");
 
    if ($$parameters{'command'})
    {

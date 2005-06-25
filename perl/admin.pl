@@ -19,12 +19,18 @@ use SQLClient;
 use Ellamaine::StatusTable;
 use RegExPatterns;
 use StringTools;
+use AdvertisedPropertyProfiles;
 
 # -------------------------------------------------------------------------------------------------
 # define the actions available to the Simple model view controller    
 my %supportedActions = (
       'main' => \&fetchStatus,
       'regex' => \&updateRegExPatterns,
+      'exceptions' => \&fetchExceptions,
+      'adview' => \&fetchProfile,
+      'orightml' => \&loadOriginatingHTML,
+      'browse' => \&browseProperties
+      'reparse' => \&reparseOriginatingHTML
 );
 
 # -------------------------------------------------------------------------------------------------
@@ -32,7 +38,12 @@ my %supportedActions = (
 my %supportedViews = (
       'main' => 'admin_main.html',
       'error' => 'admin_error.html',
-      'regex' => 'admin_regex.html'
+      'regex' => 'admin_regex.html',
+      'exceptions' => 'admin_exceptions.html',
+      'adview' => 'admin_adview.html',
+      'orightml' => 'admin_orightml.html',
+      'browse' => 'admin_browse.html'
+      'reparse' => 'admin_reparse.html'
       );
 
 # -------------------------------------------------------------------------------------------------
@@ -103,8 +114,19 @@ sub fetchStatus
    }
    setHtmlOrderBySelect($customProperties, $orderBy);
    setHtmlReverseSelect($customProperties, $reverse);
+   
    # connect to the database...
    $sqlClient->connect();
+   
+   # if the clearTable command is set, do a clear table operation first
+   $subAction = CGI::param('subAction');
+   if ($subAction)
+   {
+      if ($subAction =~ /clear/i)
+      {
+         $statusTable->clearTable();
+      }
+   }
    
    # fetch the status of the allocated threads
    $allocatedThreads = $statusTable->lookupAllocatedThreads($orderBy, $reverse);
@@ -442,6 +464,411 @@ sub setHtmlRegExSelectFieldName
                      "<option value='6' ".$selected[6].">AddressString</option></select>";
    $$customProperties{'html.regex.select.fieldname'} = $propertyValue;
 }
+
+# -------------------------------------------------------------------------------------------------
+
+# this is an action callback function for the simpleMVC
+# it fetches the exceptions reported in the database
+#
+#   
+#
+# Parameters
+#   Reference to hash of custom properties
+#
+# Returns
+#   'exceptions' View
+#
+sub fetchExceptions
+{
+   my $customProperties = shift;
+   my $sqlClient = SQLClient::new();
+   my $advertisedPropertyProfiles = AdvertisedPropertyProfiles::new($sqlClient);
+   my %parametersHash;
+   
+   # check the CGI parameters
+   $table = CGI::param('table');
+   $offset = CGI::param('offset');
+   $limit = CGI::param('limit');
+   
+   if ((!defined $offset) || ($offset < 1))
+   {
+      $offset = 0;
+   }
+   
+   if ((!defined $limit) || ($limit < 1))
+   {
+      $limit = 50;
+   }
+  
+   # process lists   
+   @parameters = CGI::param();      
+   # loop through all the parameters to extract all of the patternID values 
+   foreach (@parameters)
+   {
+      if ($_ =~ /patternID/)
+      {
+         push @patternIDList, CGI::param($_);
+      }
+   }
+   
+   $$customProperties{"admin.exceptions.msg"} = "";
+   $$customProperties{"admin.error.description"} = "";
+   $$customProperties{'exceptions.table.total.rows'} = 0;
+   
+   $sqlClient->connect();
+   $selectResults = undef;
+   
+   $$customProperties{'exceptions.missing.suburb.name.count'} = $advertisedPropertyProfiles->countExceptions(0);
+   $$customProperties{'exceptions.missing.sale.or.rental.flag.count'} = $advertisedPropertyProfiles->countExceptions(1);
+   $$customProperties{'exceptions.unknown.suburb.name.count'} = $advertisedPropertyProfiles->countExceptions(2);
+   
+   $$customProperties{'exceptions.selected.table.name'} = "";
+   $$customProperties{'exceptions.selected.table.abbr'} = "";
+   # table is to list of missing suburb names
+   if ($table =~ /msn/i)
+   {
+      $$customProperties{'exceptions.selected.table.name'} = "Index of Missing Suburb Names";
+      $$customProperties{'exceptions.selected.table.abbr'} = "msn";
+      $selectResults = $advertisedPropertyProfiles->lookupProfilesByException(0, $offset, $limit);
+      $$customProperties{'exceptions.table.total.rows'} = $$customProperties{'exceptions.missing.suburb.name.count'};
+   }
+   elsif ($table =~ /msorf/i)
+   {
+      $$customProperties{'exceptions.selected.table.name'} = "Index of Missing Sale or Rental Flag";
+      $$customProperties{'exceptions.selected.table.abbr'} = "msorf";
+
+      $selectResults = $advertisedPropertyProfiles->lookupProfilesByException(1, $offset, $limit);
+      $$customProperties{'exceptions.table.total.rows'} = $$customProperties{'exceptions.missing.sale.or.rental.flag.count'};
+   }
+   elsif ($table =~ /usn/i)
+   {
+      $$customProperties{'exceptions.selected.table.name'} = "Index of Unknown Suburb Names";
+      $$customProperties{'exceptions.selected.table.abbr'} = "usn";
+      
+      # fetch the status of the allocated threads
+      $selectResults = $advertisedPropertyProfiles->lookupProfilesByException(2, $offset, $limit);
+      $$customProperties{'exceptions.table.total.rows'} = $$customProperties{'exceptions.unknown.suburb.name.count'};
+   }
+   else
+   {
+      if ($table)
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = $$myProperties{'error.admin.exceptions.table.not.recognised'};
+      }
+   }
+   
+   $$customProperties{'exceptions.table.first'} = $offset;
+   $$customProperties{'exceptions.table.last'} = ($offset+$limit-1);
+   $$customProperties{'exceptions.table.limit'} = $limit;
+   $$customProperties{'exceptions.table.next.offset'} = $offset+$limit;
+   $$customProperties{'exceptions.table.prev.offset'} = ($offset-$limit >= 0 ? $offset-$limit : 0); 
+
+   # populate the table into the customproperties
+   SimpleMVC::populateTable($customProperties, 'exceptions.table', $selectResults);
+   $sqlClient->disconnect();
+   
+  # DebugTools::printHash("cp", $customProperties);
+   
+   return 'exceptions';
+}
+
+# -------------------------------------------------------------------------------------------------
+
+# fetchProfile
+# this is an action callback function for the simpleMVC
+# it fetches the data for a selected profile from the AdvertisedPropertyProfiles table
+#
+# Parameters
+#   Reference to hash of custom properties
+#
+# Returns
+#   'adview' View
+#
+sub fetchProfile
+{
+   my $customProperties = shift;
+   my $sqlClient = SQLClient::new();
+   my $advertisedPropertyProfiles = AdvertisedPropertyProfiles::new($sqlClient);
+   my %parametersHash;
+   
+   # check the CGI parameters
+   $identifier = CGI::param('identifier');
+   
+   $$customProperties{"admin.adview.msg"} = "";
+   $$customProperties{"admin.error.description"} = "";
+   
+   if ($identifier)
+   {
+      $sqlClient->connect();
+      
+      # lookup source data
+      
+      $profileRef = $advertisedPropertyProfiles->lookupSourcePropertyProfile($identifier);
+    
+      # transfer the profile into the custom properties
+      foreach (keys %$profileRef)
+      {
+         $$customProperties{"SourceView.".$_} = $$profileRef{$_};
+      }
+      
+      # lookup working view data
+      
+      $profileRef = $advertisedPropertyProfiles->lookupPropertyProfile($identifier);
+    
+      # transfer the profile into the custom properties
+      foreach (keys %$profileRef)
+      {
+         $$customProperties{"WorkingView.".$_} = $$profileRef{$_};
+      }
+      
+      $sqlClient->disconnect();
+   }
+   
+  # DebugTools::printHash("cp", $customProperties);
+   
+   return 'adview';
+}
+
+
+# -------------------------------------------------------------------------------------------------
+
+# loadOriginatingHTML
+# this is an action callback function for the simpleMVC
+# it fetches an OriginatingHTML file for display
+#
+# Parameters
+#   Reference to hash of custom properties
+#
+# Returns
+#   'orightml' View
+#
+sub loadOriginatingHTML
+{
+   my $customProperties = shift;
+   my $sqlClient = SQLClient::new();
+   my $originatingHTML = OriginatingHTML::new($sqlClient);
+   my %parametersHash;
+   
+   # check the CGI parameters
+   $identifier = CGI::param('identifier');
+   
+   # convert identifier to an integer (from a string with leading zeros)
+   $originatingHTMLID = sprintf("%d", $identifier);
+   
+   $$customProperties{"admin.orightml.msg"} = "";
+   $$customProperties{"admin.error.description"} = "";
+   
+   if ($identifier)
+   {
+      $sqlClient->connect();
+      $originatingHTML->overrideBasePath("f:\\projects\\changeeffect\\originatinghtml");
+      ($content, $sourceURL, $timeStamp) = $originatingHTML->readHTMLContentWithHeader($originatingHTMLID, 1);
+    
+      $$customProperties{'originatinghtml.identifier'} = $identifier;
+      if ($content)
+      {
+         # transfer the content into the custom properties
+         $$customProperties{'originatinghtml.content'} = $content;
+         $$customProperties{'originatinghtml.sourceurl'} = $sourceURL;
+         $$customProperties{'originatinghtml.timestamp'} = $timeStamp;
+      }
+      else
+      {
+         $$customProperties{"admin.error.description"} = "Failed loading OriginatingHTML file. Check path and permissions to '".$originatingHTML->targetPath($identifier)."'";
+      }
+      
+      $sqlClient->disconnect();
+   }
+   
+  # DebugTools::printHash("cp", $customProperties);
+   
+   return 'orightml';
+}
+
+
+# -------------------------------------------------------------------------------------------------
+# browseProperties
+# this is an action callback function for the simpleMVC
+# it fetches the tables of properties from the database (no conditions)
+#
+# Parameters
+#   Reference to hash of custom properties
+#
+# Returns
+#   'browse' View
+#
+sub browseProperties
+{
+   my $customProperties = shift;
+   my $sqlClient = SQLClient::new();
+   my $advertisedPropertyProfiles = AdvertisedPropertyProfiles::new($sqlClient);
+   my %parametersHash;
+   
+   # check the CGI parameters
+   $offset = CGI::param('offset');
+   $limit = CGI::param('limit');
+   $orderByParam = CGI::param('orderby');
+   $reverse = CGI::param('reverse');
+
+   if ((!defined $offset) || ($offset < 1))
+   {
+      $offset = 0;
+   }
+   
+   if ((!defined $limit) || ($limit < 1))
+   {
+      $limit = 50;
+   }
+      
+   $$customProperties{"admin.exceptions.msg"} = "";
+   $$customProperties{"admin.error.description"} = "";
+   $$customProperties{'browse.table.total.rows'} = 0;
+   
+   # determine how to order the table 
+   if (($orderByParam >= 0) && ($orderByParam <= 4))
+   {
+      $orderBy = $orderByParam;
+   }
+   
+   if (!defined $reverse)
+   {
+      $reverse = 0;
+   }
+   
+   setHtmlBrowseOrderBySelect($customProperties, $orderBy);
+   setHtmlBrowseReverseSelect($customProperties, $reverse);
+   
+   $sqlClient->connect();
+   $selectResults = undef;
+   
+   $$customProperties{'browse.table.name'} = "Advertised Property Profiles";
+   $$customProperties{'browse.table.abbr'} = "app";
+   $$customProperties{'browse.table.total.rows'} = $advertisedPropertyProfiles->countEntries();
+   
+   $selectResults = $advertisedPropertyProfiles->lookupSourcePropertyProfiles($orderBy, $reverse, $offset, $limit);
+
+   $sqlClient->disconnect();
+   
+   $$customProperties{'browse.table.first'} = $offset;
+   $$customProperties{'browse.table.last'} = ($offset+$limit-1);
+   $$customProperties{'browse.table.limit'} = $limit;
+   $$customProperties{'browse.table.next.offset'} = $offset+$limit;
+   $$customProperties{'browse.table.prev.offset'} = ($offset-$limit >= 0 ? $offset-$limit : 0); 
+
+   # populate the table into the customproperties
+   SimpleMVC::populateTable($customProperties, 'browse.table', $selectResults);
+      
+   return 'browse';
+}
+
+# -------------------------------------------------------------------------------------------------
+
+#sets the property html.browse.orderby.select
+sub setHtmlBrowseOrderBySelect
+{
+   my $customProperties = shift;
+   my $orderBy = shift;   
+   
+   my @selected;
+   
+   # clear selected flag for all options, then set for the orderby state
+   for ($i = 0; $i < 5; $i++)
+   {
+      $selected[$i] = "";
+   }
+   $selected[$orderBy] = "selected";
+
+   $propertyValue =  "<select name='orderby'>".
+                     "<option value='0' ".$selected[0].">Identifier</option>".
+                     "<option value='1' ".$selected[1].">Date Entered</option>".
+                     "<option value='2' ".$selected[2].">Last Encountered</option>".
+                     "<option value='3' ".$selected[3].">Source</option>".
+                     "<option value='4' ".$selected[4].">Suburb</option></select>";
+      
+   $$customProperties{'html.browse.orderby.select'} = $propertyValue;
+}
+
+# -------------------------------------------------------------------------------------------------
+
+
+#sets the property html.reverse.select
+sub setHtmlBrowseReverseSelect
+{
+   my $customProperties = shift;
+   my $reverse = shift;   
+   
+   my @selected;
+   # clear selected flag for all options, then set for the reverse state
+   for ($i = 0; $i < 2; $i++)
+   {
+      $selected[$i] = "";
+   }
+   $selected[$reverse] = "selected";
+
+   $propertyValue =  "<select name='reverse'>".
+                     "<option value='0' ".$selected[0].">Ascending</option>".
+                     "<option value='1' ".$selected[1].">Descending</option></select>";
+      
+   $$customProperties{'html.browse.reverse.select'} = $propertyValue;
+}
+
+
+# -------------------------------------------------------------------------------------------------
+
+# reparseOriginatingHTML
+# this is an action callback function for the simpleMVC
+# it performs a dry-run of the website parser for the specified originating html
+#
+# Parameters
+#   Reference to hash of custom properties
+#
+# Returns
+#   'reparse' View
+#
+sub reparseOriginatingHTML
+{
+   my $customProperties = shift;
+   my $sqlClient = SQLClient::new();
+   my $originatingHTML = OriginatingHTML::new($sqlClient);
+   my %parametersHash;
+   
+   # check the CGI parameters
+   $identifier = CGI::param('identifier');
+   
+   # convert identifier to an integer (from a string with leading zeros)
+   $originatingHTMLID = sprintf("%d", $identifier);
+   
+   $$customProperties{"admin.reparse.msg"} = "";
+   $$customProperties{"admin.error.description"} = "";
+   
+   if ($identifier)
+   {
+      $sqlClient->connect();
+      $originatingHTML->overrideBasePath("f:\\projects\\changeeffect\\originatinghtml");
+      ($content, $sourceURL, $timeStamp) = $originatingHTML->readHTMLContentWithHeader($originatingHTMLID, 1);
+    
+      $$customProperties{'originatinghtml.identifier'} = $identifier;
+      if ($content)
+      {
+         # transfer the content into the custom properties
+         $$customProperties{'originatinghtml.content'} = $content;
+         $$customProperties{'originatinghtml.sourceurl'} = $sourceURL;
+         $$customProperties{'originatinghtml.timestamp'} = $timeStamp;
+      }
+      else
+      {
+         $$customProperties{"admin.error.description"} = "Failed loading OriginatingHTML file. Check path and permissions to '".$originatingHTML->targetPath($identifier)."'";
+      }
+      
+      $sqlClient->disconnect();
+   }
+   
+  # DebugTools::printHash("cp", $customProperties);
+   
+   return 'orightml';
+}
+
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------

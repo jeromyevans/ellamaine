@@ -15,6 +15,9 @@
 #  in the table.  Should prevent procesing of suburbs more than once if the server returns the same suburb under
 #  multiple searches.  Note: completed indicates the propertylist has been parsed, not necessarily all the details.
 # 25 May 2005      - REIWA website has undergone significant redesign
+# 24 June 2005     - added support for RecordsSkipped field in status table - to track how many records
+#  are deliberately skipped because they're likely to be in the db already.
+#  in theory: recordsEncountered = recordsSkipped+recordsParsed
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -639,40 +642,53 @@ sub parseREIWASearchDetails
       
    if ($htmlSyntaxTree->containsTextPattern("Property Details"))
    {
-      # --- now extract the property information for this page ---
-      # parse the HTML Syntax tree to obtain the advertised sale information
-      $propertyProfile = extractREIWAProfile($documentReader, $htmlSyntaxTree, $url, $parentLabel);
-      
-      # CRITICAL - if the sourceID isn't set, then it's probable that this is an LEGACY REIWA record
-      # legacy records are encountered only when rebuilding from achieves - and support for them has
-      # to be maintained (for now)
-      if ((!$$propertyProfile{'SourceID'}) || (!$$propertyProfile{'SourceName'}))
+      # 25June2005 - some responses that are provided to this parser are actually not the property details
+      # but in fact the property list again. Do a second check to make sure this isn't the property listing
+      if (!$htmlSyntaxTree->containsTextPattern("matching listings"))
       {
-         $propertyProfile = extractLegacyREIWAProfile($documentReader, $htmlSyntaxTree, $url, $parentLabel);
-      }
-
-      if ($sqlClient->connect())
-      {		 	 
-         # check if the log already contains this checksum - if it does, assume the tuple already exists                  
-         if ($advertisedPropertyProfiles->checkIfProfileExists($propertyProfile))
+         
+         # determine which version of the REIWA site is being parsed - backwards compatibility is
+         # maintained for processing the archives
+         
+         # --- now extract the property information for this page ---
+         # parse the HTML Syntax tree to obtain the advertised sale information
+         $propertyProfile = extractREIWAProfile($documentReader, $htmlSyntaxTree, $url, $parentLabel);
+         
+         # CRITICAL - if the sourceID isn't set, then it's probable that this is an LEGACY REIWA record
+         # legacy records are encountered only when rebuilding from achives - and support for them has
+         # to be maintained (for now)
+         if ((!$$propertyProfile{'SourceID'}) || (!$$propertyProfile{'SourceName'}))
          {
-            # this tuple has been previously extracted - it can be dropped
-            # record that it was encountered again
-            $printLogger->print("   parseSearchDetails: identical record already encountered at ", $$propertyProfile{'SourceName'}, ".\n");
-            $advertisedPropertyProfiles->addEncounterRecord($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'});
-            $statusTable->addToRecordsParsed($threadID, 1, 0, $url);    
+            $propertyProfile = extractLegacyREIWAProfile($documentReader, $htmlSyntaxTree, $url, $parentLabel);
+         }
+   
+         if ($sqlClient->connect())
+         {		 	 
+            # check if the log already contains this checksum - if it does, assume the tuple already exists                  
+            if ($advertisedPropertyProfiles->checkIfProfileExists($propertyProfile))
+            {
+               # this tuple has been previously extracted - it can be dropped
+               # record that it was encountered again
+               $printLogger->print("   parseSearchDetails: identical record already encountered at ", $$propertyProfile{'SourceName'}, ".\n");
+               $advertisedPropertyProfiles->addEncounterRecord($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'});
+               $statusTable->addToRecordsParsed($threadID, 1, 0, $url);    
+            }
+            else
+            {
+               $printLogger->print("   parseSearchDetails: unique checksum/url - adding new record.\n");
+               # this tuple has never been extracted before - add it to the database
+               $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
+               $statusTable->addToRecordsParsed($threadID, 1, 1, $url);    
+            }
          }
          else
          {
-            $printLogger->print("   parseSearchDetails: unique checksum/url - adding new record.\n");
-            # this tuple has never been extracted before - add it to the database
-            $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
-            $statusTable->addToRecordsParsed($threadID, 1, 1, $url);    
+            $printLogger->print("   parseSearchDetails:", $sqlClient->lastErrorMessage(), "\n");
          }
       }
       else
       {
-         $printLogger->print("   parseSearchDetails:", $sqlClient->lastErrorMessage(), "\n");
+         $printLogger->print("   parseSearchDetails: page identifier not found (this was a list, not details)\n");
       }
    }
    else
@@ -728,6 +744,7 @@ sub parseREIWASearchList
    my $statusTable = $documentReader->getStatusTable();
    my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
    my $recordsEncountered = 0;
+   my $recordsSkipped = 0;
    
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
@@ -814,14 +831,15 @@ sub parseREIWASearchList
             {
                $printLogger->print("   parseSearchList: id ", $sourceID , " in database. Updating last encountered field...\n");
                $advertisedPropertyProfiles->addEncounterRecord($saleOrRentalFlag, $sourceName, $sourceID, undef);
+               $recordsSkipped++;
             }
             $recordsEncountered++;  # count records seen
             # save that this suburb has had some progress against it
             $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
          }
-      }      
+      }
       
-      $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $url);
+      $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $recordsSkipped, $url);
             
       # now get the anchor for the NEXT button if it's defined 
       # this is an image with source 'right_btn'

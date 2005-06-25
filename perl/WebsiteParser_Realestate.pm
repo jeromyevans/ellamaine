@@ -18,7 +18,11 @@
 #  25 April  2005   - modified parsing of search results to ignore 'related results' returned by the search engine
 #  24 May 2005      - major change to support new AdvertisedPropertyProfiles table that combines rental and sale 
 #  advertisements and perform less processing of the source data before entry
-
+#  24 June 2005     - added support for RecordsSkipped field in status table - to track how many records
+#  are deliberately skipped because they're likely to be in the db already.  
+#  in theory: recordsEncountered = recordsSkipped+recordsParsed
+#                   - bug fixed that was setting recordsEncountered in the wrong part of the state machine
+#  giving too high a value
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -499,6 +503,7 @@ sub parseRealEstateSearchResults
    my $firstRun = 1;
    my $statusTable = $documentReader->getStatusTable();
    my $recordsEncountered = 0;
+   my $recordsSkipped = 0;
    my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
    my $ignoreNextButton = 0;
    my $sqlClient = $documentReader->getSQLClient();
@@ -522,18 +527,23 @@ sub parseRealEstateSearchResults
          # determine if these are RENT or SALE results
          # 20 June 2005 - all pages now contain Homes for Sale in the title bar - setting a search constraint
          # to the first h1 tag
+         $htmlSyntaxTree->resetSearchConstraints();
          $htmlSyntaxTree->setSearchStartConstraintByTag("h1");
          if ($htmlSyntaxTree->containsTextPattern("Homes for Sale"))
          {
             $saleOrRentalFlag = 0;
          }
-         elsif (!$htmlSyntaxTree->containsTextPattern("Homes for Rent"))
+         elsif ($htmlSyntaxTree->containsTextPattern("Homes for Rent"))
          {
             $saleOrRentalFlag = 1;
          }
+         else
+         {
+            $printLogger->print("WARNING: sale or rental pattern not found\n");
+         }
          
          #20Jun2005 - page has been re-designed - try old and new patterns
-         
+         $htmlSyntaxTree->resetSearchConstraints();
          if (!$htmlSyntaxTree->setSearchStartConstraintByText("properties found"))
          {
             $htmlSyntaxTree->setSearchStartConstraintByText("Your search returned");
@@ -620,7 +630,7 @@ sub parseRealEstateSearchResults
                {
                   # check if the cache already contains this unique id
                   # $_ is a reference to a hash
-                  
+                  #print "($saleOrRentalFlag, $sourceName, $sourceID, $titleString)\n";
                   if (!$advertisedPropertyProfiles->checkIfResultExists($saleOrRentalFlag, $sourceName, $sourceID, $titleString))                              
                   {   
                      $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, "...\n");
@@ -633,7 +643,13 @@ sub parseRealEstateSearchResults
                   {
                      $printLogger->print("   parseSearchResults: id ", $sourceID , " in database. Updating last encountered field...\n");
                      $advertisedPropertyProfiles->addEncounterRecord($saleOrRentalFlag, $sourceName, $sourceID, undef);
+                     $recordsSkipped++;  # count records skipped (seen befored)
                   }
+                  
+                  #print "  END: state=$state: Line:'$thisText' ts:'$titleString' sid:'$sourceID' parsed=$parsedThisLine\n";
+                  $recordsEncountered++;  # count records seen
+                  # 23Jan05:save that this suburb has had some progress against it
+                  $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
                }
                
                $state = $SEEKING_NEXT_RESULT;
@@ -653,13 +669,8 @@ sub parseRealEstateSearchResults
                $parsedThisLine = 1;
             }
             
-            #print "  END: state=$state: Line:'$thisText' ts:'$titleString' sid:'$sourceID' parsed=$parsedThisLine\n";
-            $recordsEncountered++;  # count records seen
-            # 23Jan05:save that this suburb has had some progress against it
-            $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
-   
          }      
-         $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $url);
+         $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $recordsSkipped, $url);
       }
       else
       {
@@ -768,6 +779,10 @@ sub parseRealEstateSearchForm
     
    if ($htmlForm)
    {       
+      if (($startLetter) || ($endLetter))
+      {
+         $printLogger->print("   parseSearchForm: Filtering suburb names between $startLetter to $endLetter...\n");
+      }
       # for all of the suburbs defined in the form, create a transaction to get it
       $optionsRef = $htmlForm->getSelectionOptions('u');
       $htmlForm->clearInputValue('is');   # clear checkbox selecting surrounding suburbs
@@ -789,7 +804,6 @@ sub parseRealEstateSearchForm
             
             if ($useThisSuburb)
             {
-            
                if ($_->{'text'} =~ /\*\*\*/i)
                {
                    # ignore '*** show all suburbs ***' option

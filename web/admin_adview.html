@@ -1,0 +1,49 @@
+<html>
+<head>
+<title>Ellamaine Administration Tool</title>
+</head>
+
+<body>
+<a href='/cgi-bin/admin.pl?action=main'>Status Table</a>&nbsp<a href='/cgi-bin/admin.pl?action=browse'>Browse</a>&nbsp<a href='/cgi-bin/admin.pl?action=regex'>RegEx</a>&nbsp<a href='/cgi-bin/admin.pl?action=exceptions'>Exceptions</a><br/>
+<h1>Advertised Property Profile</h1>
+<table>
+<tr><th colspan='2' align='center'>Source View</th><th colspan='2' align='center'>Working View</th></tr>
+<tr><td><strong>Identifier</strong></td><td><code>%%SourceView.Identifier%%</code></td><td><strong>ErrorCode</strong></td><td><code>%%WorkingView.ErrorCode%%</code></td></tr>
+<tr><td><strong>Date Entered</strong></td><td><code>%%SourceView.DateEntered%%</code></td><td><strong>WarningCode</strong></td><td><code>%%WorkingView.WarningCode%%</code></td></tr>
+<tr><td><strong>Last Encountered</strong></td><td><code>%%SourceView.LastEncountered%%</code></td></tr>
+<tr><td><strong>Source</strong></td><td><code>%%SourceView.SourceName%%</code></td></tr>
+<tr><td><strong>OriginatingHTML</strong></td><td><code><a target="OriginatingHTML" href='/cgi-bin/admin.pl?action=orightml&identifier=%%SourceView.OriginatingHTML%%'>%%SourceView.OriginatingHTML%%</a></code></td></tr>
+<tr><td><strong>SaleOrRentalFlag</strong></td><td><code>%%SourceView.SaleOrRentalFlag%%</code></td></tr>
+<tr></tr>
+<tr><td><strong>State</strong></td><td><code>%%SourceView.State%%</code></td></tr>
+<tr><td><strong>Suburb</strong></td><td><code>%%SourceView.SuburbName%%</code></td><td><strong>Suburb</strong></td><td><code>%%WorkingView.SuburbName%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>SuburbIndex</strong></td><td><code>%%WorkingView.SuburbIndex%%</code></td></tr>
+<tr><td><strong>StreetAddress</strong></td><td colspan='3'><code>%%SourceView.StreetAddress%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>Unit</strong></td><td><code>%%WorkingView.UnitNumber%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>StreetNo</strong></td><td><code>%%WorkingView.StreetNumber%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>Street</strong></td><td><code>%%WorkingView.StreetName%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>StreetType</strong></td><td><code>%%WorkingView.StreetType%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>Section</strong></td><td><code>%%WorkingView.StreetSection%%</code></td></tr>
+
+<tr></tr>
+<tr><td><strong>PriceString</strong></td><td colspan='3'><code>%%SourceView.AdvertisedPriceString%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>Lower</strong></td><td><code>%%WorkingView.AdvertisedPriceLower%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>Upper</strong></td><td><code>%%WorkingView.AdvertisedPriceUpper%%</code></td></tr>
+<tr><td></td><td><code></code></td><td><strong>Rent</strong></td><td><code>%%WorkingView.AdvertisedWeeklyRent%%</code></td></tr>
+<tr><td><strong>Type</strong></td><td><code>%%SourceView.Type%%</code></td><td><strong>TypeIndex</strong></td><td><code>%%WorkingView.TypeIndex%%</code></td></tr>
+<tr><td><strong>Bedrooms</strong></td><td><code>%%SourceView.Bedrooms%%</code></td></tr>
+<tr><td><strong>Bathrooms</strong></td><td><code>%%SourceView.Bathrooms%%</code></td></tr>
+</table>
+<table>
+<tr><td><strong>Description</strong></td></tr>
+<tr><td><code>%%SourceView.Description%%</code></td></tr>
+<tr><td><strong>Features</strong></td></tr>
+<tr><td><code>%%SourceView.Features%%</code></td></tr>
+</table>
+
+<table><tr><td>%%simplemvc.action%%</td></tr></table>
+<strong>MVC response:</strong>%%simplemvc.error.description%%<br/>
+
+</body>
+
+</html>

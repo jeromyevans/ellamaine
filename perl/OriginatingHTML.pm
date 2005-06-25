@@ -409,7 +409,6 @@ sub readHTMLContentWithHeader
    
    $sourcePath = $this->targetPath($identifier);
    $lineNo = 0;
-   
    if (open(SESSION_FILE, "<$sourcePath/$fileName"))
    {
       # read the content.

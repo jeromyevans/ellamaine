@@ -56,6 +56,9 @@
 #    are fixed later in the batch processing/association functions.
 #  21 June 2005 - while developing the new transferToWorkingView function added support for AgentProfiles and
 #    AgentContactProfiles tables - these tables contain the information on advertising agents
+#  25 June 2005 - added functions to lookup profiles by exception codes (eg. if suburbname is null) and
+#    added indexes to the tables to support these lookups.   Also added functions to get the count of the
+#    number of exceptions.  These functions are used by the administration tools.
 #
 # CONVENTIONS
 # _ indicates a private variable or method
@@ -182,7 +185,7 @@ sub createTable
    my $tableName = $this->{'tableName'};
    
    my $SQL_CREATE_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS $tableName (Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ";
-   my $SQL_CREATE_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, SourceName(5), SourceID(10), TitleString(15), Checksum))";  # extended now that cacheview is dropped
+   my $SQL_CREATE_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, SourceName(5), SourceID(10), TitleString(15), Checksum), INDEX (SuburbName(10)))";  # extended now that cacheview is dropped
    
    if ($sqlClient)
    {
@@ -837,6 +840,141 @@ sub addEncounterRecord
 }
 
 # -------------------------------------------------------------------------------------------------
+# lookupSourcePropertyProfile
+#  Fetches the details for the property with the specified identifier
+#  Operates on the SourceView
+#
+# Parameters:
+#  integer Identifier - this is the identifier of the record
+#
+# Returns:
+#   reference to a hash of properties
+#        
+sub lookupSourcePropertyProfile
+
+{
+   my $this = shift;
+   my $identifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $profileRef = undef;
+   
+   if ($sqlClient)
+   {   
+      if ($identifier)
+      {         
+         # fetch the profile
+         @selectResults = $sqlClient->doSQLSelect("select * from $tableName where Identifier=$identifier");
+         $profileRef = $selectResults[0];
+      }     
+   }
+   return $profileRef;
+}
+
+# -------------------------------------------------------------------------------------------------
+# lookupSourcePropertyProfiles
+#  Fetches a list of property profiles 
+#  Operates on the SourceView
+#
+# Parameters:
+#  INTEGER OrderByEnum - enumeration specifying how to order the records
+#  BOOL Reverse   - enumeration specifiy whether or not to reverse the order of the results
+#  INTEGER offset  - start at Offset 
+#  INTEGER limit    - limit results to Limit records
+#
+# Returns:
+#   reference to a list of hashes of properties
+#        
+sub lookupSourcePropertyProfiles
+
+{
+   my $this = shift;
+   my $orderByEnum = shift;
+   my $reverse = shift;
+   my $offset = shift;
+   my $limit = shift;
+   
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $resultRef = undef;
+   
+   if ($sqlClient)
+   {   
+      
+      if ($orderByEnum == 0)
+      {
+         $orderBy = "Identifier";
+         
+         # if reverse is set, add desc suffice
+         if ($reverse)
+         {
+            $orderBy .= " DESC";
+         }
+      }
+      elsif ($orderByEnum == 1)
+      {
+         $orderBy = "DateEntered";
+         # if reverse is set, add desc suffice
+         if ($reverse)
+         {
+            $orderBy .= " DESC";
+         }
+      }
+      elsif ($orderByEnum == 2)
+      {
+         $orderBy = "LastEncountered";
+         # if reverse is set, add desc suffice
+         if ($reverse)
+         {
+            $orderBy .= " DESC";
+         }
+      }
+      elsif ($orderByEnum == 3)
+      {
+         # if reverse is set, add desc suffice
+         if (!$reverse)
+         {
+            $orderBy = "SourceName, Identifier";
+         }
+         else
+         {
+            $orderBy = "SourceName DESC, Identifier";
+         }
+      }
+      elsif ($orderByEnum == 4)
+      {
+         if (!$reverse)
+         {
+            $orderBy = "State, SuburbName, SreeetAddress";
+         }
+         else
+         {
+             $orderBy = "State, SuburbName DESC, SreeetAddress";
+         }
+      }
+      else
+      {
+         $orderBy = "Identifier";
+         # if reverse is set, add desc suffice
+         if ($reverse)
+         {
+            $orderBy .= " DESC";
+         }
+      }
+          
+      # select the threadID of the least-recently used unallocated thread
+      $statementText = "SELECT * FROM $tableName ORDER BY $orderBy LIMIT $limit OFFSET $offset";
+       
+      # fetch the profile
+      @selectResults = $sqlClient->doSQLSelect($statementText);
+      $resultRef = \@selectResults;
+   }
+   return $resultRef;
+}
+
+# -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
@@ -891,7 +1029,7 @@ my $SQL_CREATE_WORKINGVIEW_TABLE_BODY =
    "ErrorCode INTEGER, ".                    # error code - 0 is good, undef is not checked
    "WarningCode INTEGER, ".                  # warning code - 0 is none, undef is not checked
    "OverridenValidity INTEGER DEFAULT 0, ".   # overriddenValidity set by human
-   "ComponentOf INTEGER ZEROFILL";            # REFERENCES MasterPropertyTable.Identifier (foreign key to master property table)
+   "ComponentOf INTEGER ZEROFILL";            # REFERENCES MasterPropertyTable.MasterPropertyIndex (foreign key to master property table)
 
 # -------------------------------------------------------------------------------------------------
 # _createWorkingViewTable
@@ -925,7 +1063,7 @@ sub _createWorkingViewTable
    my $tableName = $this->{'tableName'};
 
    my $SQL_CREATE_WORKINGVIEW_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS WorkingView_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ";
-   my $SQL_CREATE_WORKINGVIEW_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)))";   # 23Jan05 - index!
+   my $SQL_CREATE_WORKINGVIEW_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex))";   # 23Jan05 - index!
    
    if ($sqlClient)
    {
@@ -1060,12 +1198,7 @@ sub _workingView_addOrChangeRecord
       {
          # first, determine if this is a NEW record or modification to an EXISTING record
          
-         # modify the existing record
-         $quotedIdentifier = $sqlClient->quote($$parametersRef{'Identifier'});
-         @selectResults = $sqlClient->doSQLSelect("select * from WorkingView_$tableName where Identifier=$quotedIdentifier");
-         
-         # zero or one results returned - if one exists, it needs to be modified...
-         $existingProfile = $selectResults[0];
+         $existingProfile = $this->lookupPropertyProfile($$parametersRef{'Identifier'});
          if ($existingProfile)
          {
             # a profile for this record already exists
@@ -1205,7 +1338,136 @@ sub workingView_setSpecialField
    
    $specialHash{$fieldName} = $fieldValue;
    
-   $this->_workingView_changeRecord(\%specialHash, $sourceIdentifier);
+   $this->_workingView_updateRecordWithChangeHash(\%specialHash, $sourceIdentifier);
+}
+
+# -------------------------------------------------------------------------------------------------
+# lookupPropertyProfile
+#  Fetches the details for the property with the specified identifier
+#  Operates on the WorkingView
+#
+# Parameters:
+#  integer Identifier - this is the identifier of the record
+#
+# Returns:
+#   reference to a hash of properties
+#        
+sub lookupPropertyProfile
+
+{
+   my $this = shift;
+   my $identifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $profileRef = undef;
+   
+   if ($sqlClient)
+   {   
+      if ($identifier)
+      {
+         # first, determine if this is a NEW record or modification to an EXISTING record
+         
+         # modify the existing record
+         @selectResults = $sqlClient->doSQLSelect("select * from WorkingView_$tableName where Identifier=$identifier");
+         $profileRef = $selectResults[0];
+      }     
+   }
+   return $profileRef;
+}
+
+# -------------------------------------------------------------------------------------------------
+# lookupProfilesByComponentOf
+# this function gets a list of profiles that are the Componets of the specified MasterProperty
+#
+# Note: also sets the special fields: UnixDateEntered and UnixLastEncountered which are 
+# unix timestamp representations of these fields
+#
+# Parameters:
+#  INTEGER masterPropertyIndex;
+#
+# Returns:
+#  Referenc to a LIST of HASHes
+#
+sub lookupProfilesByComponentOf      
+      
+{
+   my $this = shift;
+   my $masterPropertyIndex = shift;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $listRef = undef;
+   
+   if ($sqlClient)
+   {
+      # get all the components for the property
+      @selectResults = $sqlClient->doSQLSelect("select * from WorkingView_$tableName where ComponentOf = $masterPropertyIndex");
+      
+      $listRef = \@selectResults;
+   }
+   return $listRef;
+}
+
+# -------------------------------------------------------------------------------------------------
+# lookupValidRecords
+# This function returns a list of the identifiers of valid records in the WorkingView table 
+# a constraint can be specified on the lookup.
+# supported constaints are:
+#   undef or 0 - no constraint - get them all
+#   1 - valid records without ComponentOf (no master property association)
+#
+# Parameters:
+#  Optional INTEGER ConstraintEnum
+#
+# Returns
+#  reference to a list of identifiers
+#
+sub lookupValidRecords
+{
+   my $this = shift;
+   my $constraintEnum = shift;
+   my $sqlClient = $this->{'sqlClient'};
+   my $constraintSQL = undef;
+   
+   if ($constraintEnum == 1)
+   {
+      $constraintSQL = " AND ComponentOf is null"; 
+   }
+   
+   @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM WorkingView_AdvertisedPropertyProfiles WHERE ErrorCode = 0 $constraintSQL");
+
+   return \@identifierList;
+}
+
+# -------------------------------------------------------------------------------------------------
+# lookupRecordsMissingFromWorkingView
+# This function returns a list of the identifiers of records in the SourceView table
+# that don't exist in the WorkingView yet
+# 
+# Parameters:
+#  Optional INTEGER ConstraintEnum
+#
+# Returns
+#  reference to a list of identifiers
+#
+sub lookupRecordsMissingFromWorkingView
+{
+   my $this = shift;
+   my $constraintEnum = shift;
+   my $sqlClient = $this->{'sqlClient'};
+   my $constraintSQL = undef;
+   
+   if ($constraintEnum == 1)
+   {
+      $constraintSQL = " AND ComponentOf is null"; 
+   }
+   
+   # NOTE: this select statement uses a LEFT JOIN ON to determine where Table2 doesn't include an identifier of Table1 
+   # in the join operation, the Identifier is set to null in Table 2 if it doesn't match the ON condition
+   @identifierList = $sqlClient->doSQLSelect("SELECT AdvertisedPropertyProfiles.Identifier AS SourceID FROM AdvertisedPropertyProfiles LEFT JOIN WorkingView_AdvertisedPropertyProfiles ON AdvertisedPropertyProfiles.Identifier=WorkingView_AdvertisedPropertyProfiles.Identifier WHERE WorkingView_AdvertisedPropertyProfiles.Identifier IS NULL");
+
+   return \@identifierList;
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -1466,6 +1728,29 @@ sub lookupRegExPatterns
    return $regExResults;
 }
 
+
+# -------------------------------------------------------------------------------------------------
+
+sub regexEscape
+
+{
+   my $string = shift;
+   $string =~ s/\\/\\\\)/gi;   
+   $string =~ s/\./\\\./gi;
+   $string =~ s/\^/\\\^/gi;
+   $string =~ s/\$/\\\$/gi;
+   $string =~ s/\*/\\\*/gi;
+   $string =~ s/\+/\\\$/gi;
+   $string =~ s/\?/\\\?/gi;
+   $string =~ s/\{/\\\{/gi;
+   $string =~ s/\}/\\\}/gi;
+   $string =~ s/\[/\\\[/gi;
+   $string =~ s/\]/\\\]/gi;
+   $string =~ s/\(/\\\(/gi;
+   $string =~ s/\)/\\\)/gi;
+   $string =~ s/\|/\\\|/gi;
+   return $string;
+}
 
 # -------------------------------------------------------------------------------------------------
 
@@ -1933,7 +2218,10 @@ sub repairStreetAddress
    
    if ($addressString)
    {
+      #print "   PASS0 addressString='$addressString' ('$suburbName)'...\n";
       # PASS 0: Make sure the addressString doesn't contain the suburb name at the end
+      $suburbName = regexEscape($suburbName);
+
       if ($addressString =~ /$suburbName$/gi)
       {
          $addressString =~ s/$suburbName$//gi;
@@ -2118,6 +2406,7 @@ sub repairStreetAddress
             # special - if there's any text after the street type this may indicate a
             # section.  eg. Road East
             $streetSection = trimWhitespace($1);
+    	    $streetSection = regexEscape($streetSection);
             # remove the section from the street name before further processing
             $streetName =~ s/$streetSection$//gi;
             $streetName = trimWhitespace($streetName);
@@ -2144,6 +2433,7 @@ sub repairStreetAddress
          $iterationComplete = 0;
          while (!$iterationComplete)
          {
+            #print "candidateSN=$candidateStreetName\n";
             # apply regular expression substitions to the street name (now that the string has been repaired)
             foreach (@$regExSubstitutionsRef)
             {
@@ -2218,6 +2508,9 @@ sub repairStreetAddress
                   # remove the last word from the candidateStreetName and redo the iteration to see
                   # if the regular expressions apply
                   $lastWord = $words[$noOfWords-1];
+                  # note the lastWord needs to be escaped before it can be used in the regular expression
+                  # otherwise it could halt the application
+		  $lastWord = regexEscape($lastWord);
                   $candidateStreetName =~ s/$lastWord$//g;
                   $candidateStreetName = trimWhitespace($candidateStreetName);
                }
@@ -2277,9 +2570,9 @@ sub repairStreetAddress
                }
             }
          }
-         #print "   PASS6: unitNumber='$unitNumber' streetNumber='$streetNumber' streetName='$streetName' streetType='$streetType'...\n";
+       #  print "   PASS6: unitNumber='$unitNumber' streetNumber='$streetNumber' streetName='$streetName' streetType='$streetType'...\n";
       }
-      #print "   END : unitNumber='$unitNumber' streetNumber='$streetNumber' streetName='$streetName' streetType='$streetType' streetSection='$streetSection'.\n";
+     # print "   END : unitNumber='$unitNumber' streetNumber='$streetNumber' streetName='$streetName' streetType='$streetType' streetSection='$streetSection'.\n";
       
       # if the street type isn't set, then this could be a bad address
       # if there's also no unit number or street number, it's definitely a bad address
@@ -2529,3 +2822,113 @@ sub transferToWorkingView
 }
 
 # -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# countExceptions
+# perfoms a select count() on the AdvertisedPropertyProfiles table for the type of 
+# exception specified (eg. count of records where suburbIndex is not set)
+#
+# Parameters:
+#  INTEGER ENUM exceptionType
+
+# Returns:
+#  INTEGER count
+#   
+sub countExceptions
+{   
+   my $this = shift;
+   my $exceptionEnum = shift;
+   
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $statementText = undef;
+   my $count = undef;
+   my @selectResults = undef;
+   
+   if ($sqlClient)
+   {       
+      if ($exceptionEnum == 0)
+      {
+         $statementText = "SELECT count(*) as ExceptionCount FROM $tableName WHERE SuburbName is null";
+      }
+      elsif ($exceptionEnum == 1)
+      {
+        $statementText = "SELECT count(*) as ExceptionCount FROM $tableName WHERE SaleOrRentalFlag = -1";
+      }
+      elsif ($exceptionEnum == 2)
+      {
+        $statementText = "SELECT count(*) as ExceptionCount FROM WorkingView_$tableName WHERE SuburbIndex is null";
+      }
+      
+      if ($statementText)
+      {
+         @selectResults = $sqlClient->doSQLSelect($statementText);
+         
+         # one result (hash) is returned
+         $countHash = $selectResults[0];
+         $count = $$countHash{'ExceptionCount'};
+      }          
+   }
+   return $count;
+}  
+
+# -------------------------------------------------------------------------------------------------
+# lookupProfilesByExceptions
+# this function gets a list of profiles that have the specified exception 
+#
+# Parameters:
+#  INTEGER ENUM exceptionCode;
+#  INTEGER offset - start at this record
+#  INTEGER limit  - limit results to this many records
+#
+# Returns:
+#  Reference to a LIST of HASHes
+#
+sub lookupProfilesByException
+      
+{
+   my $this = shift;
+   my $exceptionEnum = shift;
+   my $offset = shift;
+   my $limit = shift;
+ 
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $listRef = undef;
+   my $selectText = undef;
+   my @selectResults = undef;
+   
+   if ($sqlClient)
+   {
+      if ($exceptionEnum == 0)
+      {
+         $statementText = "SELECT * FROM $tableName WHERE SuburbName is null LIMIT $limit OFFSET $offset";
+      }
+      elsif ($exceptionEnum == 1)
+      {
+        $statementText = "SELECT * FROM $tableName WHERE SaleOrRentalFlag = -1 LIMIT $limit OFFSET $offset";
+      }
+      elsif ($exceptionEnum == 2)
+      {
+        $statementText = "SELECT * FROM WorkingView_$tableName WHERE SuburbIndex is null LIMIT $limit OFFSET $offset";
+      }
+      
+      if ($statementText)
+      {
+         # get all the components for the property
+         @selectResults = $sqlClient->doSQLSelect($statementText);
+         
+         $length = @selectResults;
+         $listRef = \@selectResults;
+      }
+   }
+   return $listRef;
+}
+

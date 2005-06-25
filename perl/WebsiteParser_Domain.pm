@@ -34,6 +34,9 @@
 #                  - modified to use new architecture that combines common sales and rentals processing
 # 23 May 2005      - major change so that the parses don't have to do anything clever with the address string, 
 #  price or suburbname - these are all processed in common code
+# 24 June 2005     - added support for RecordsSkipped field in status table - to track how many records
+#  are deliberately skipped because they're likely to be in the db already.
+#  in theory: recordsEncountered = recordsSkipped+recordsParsed
 package WebsiteParser_Domain;
 
 use PrintLogger;
@@ -668,6 +671,7 @@ sub parseDomainSearchResults
    my $suburbName;
    my $statusTable = $documentReader->getStatusTable();
    my $recordsEncountered = 0;
+   my $recordsSkipped = 0;
    my $sessionProgressTable = $documentReader->getSessionProgressTable();
 
    my $ignoreNextButton = 0;
@@ -761,13 +765,14 @@ sub parseDomainSearchResults
                {
                   $printLogger->print("   parseSearchResults: id ", $sourceID , " in database. Updating last encountered field...\n");   
                   $advertisedPropertyProfiles->addEncounterRecord($saleOrRentalFlag, $sourceName, $sourceID, undef);
+                  $recordsSkipped++;
                }
                $recordsEncountered++;  # count records seen
                
                # 23Jan05:save that this suburb has had some progress against it
                $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
             }
-            $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $url);
+            $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $recordsSkipped, $url);
          }
          else
          {
