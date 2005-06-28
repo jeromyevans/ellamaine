@@ -37,6 +37,17 @@
 # 24 June 2005     - added support for RecordsSkipped field in status table - to track how many records
 #  are deliberately skipped because they're likely to be in the db already.
 #  in theory: recordsEncountered = recordsSkipped+recordsParsed
+# 25 June 2005     - added support for the parser dryRun flag
+# 26 June 2005     - modified extraction function so it always defines local variables - was possible that 
+#  the variables were set from a previous iteration
+#                   - added support for the writeMethod parameter (a global parameter passed through the
+#  documentReader) that can be set to 'add' or 'replace'.  When replace is set then the replaceRecord
+#  method of AdvertisedPropertyProfiles is called instead of addRecord.  This is used when re-processing
+#  old records again (ie. through an updated parser)
+#                   - added support for the updateLastEncounteredIfExists function that replaces the
+#  addEncounterRecord and checkIfResult exists functions - if an existing record is encountered again
+#  it checks and updates the database - changes are propagated into the working view if they exist there
+#  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
 package WebsiteParser_Domain;
 
 use PrintLogger;
@@ -101,8 +112,19 @@ sub extractDomainProfile
    my $saleOrRentalFlag = -1;
    my $sourceName = undef;
    my $state = undef;
-   
-   
+   my $priceString = undef;
+   my $buildingArea = undef;  
+   my $description = undef;
+   my $agencySourceID = undef;
+   my $agencyName = undef;
+   my $agencyAddress = undef;
+   my $salesNumberText = undef;
+   my $rentalsNumberText = undef;
+   my $fax = undef;
+   my $contactName = undef;
+   my $mobileNumberText = undef;
+   my $website = undef;
+  
    # first, locate the pattern that identifies the source of the record as DOMAIN
    # 20 May 05
    if ($htmlSyntaxTree->containsTextPattern("domain\.com\.au"))
@@ -136,6 +158,25 @@ sub extractDomainProfile
       {
          $saleOrRentalFlag = 1;
       }
+      else
+      {
+         # SOMETIMES it's blank!  Try the pattern below
+      }
+   }
+   if ($saleOrRentalFlag == -1)
+   {
+      # 27 June 2005 - legacy records don't have this link
+      if (($htmlSyntaxTree->containsTextPattern("Property For Sale")) || ($htmlSyntaxTree->containsTextPattern("Auction")))
+      {
+         $saleOrRentalFlag = 0;
+      }
+      else
+      {
+         if ($htmlSyntaxTree->containsTextPattern("For Rent"))
+         {
+            $saleOrRentalFlag = 1;
+         }
+      }
    }
    
    $propertyProfile{'SaleOrRentalFlag'} = $saleOrRentalFlag;
@@ -152,6 +193,12 @@ sub extractDomainProfile
 
       # convert to uppercase as it's used in an index in the database
       $state =~ tr/[a-z]/[A-Z]/;
+   }
+   else
+   {
+      # some legacy records contain no indication of the state in the text or urls
+      # it appears in some javascript but that's not available for parsing.
+      # later, the agency address may give an indication...
    }
  
    if ($state)
@@ -260,6 +307,11 @@ sub extractDomainProfile
    
    $type = trimWhitespace($htmlSyntaxTree->getNextText());  # always set (contains at least TYPE)
    $type =~ s/\://gi;   
+   # 27 June 2005: if type is 'Land Area' type is "Land"
+   if ($type =~ /Land\sarea/i)
+   {
+      $type = 'land';
+   }
    
    if ($type)
    {
@@ -336,8 +388,17 @@ sub extractDomainProfile
    
    # 8 Nov 04 - concatenate description (same as done for features)
    $htmlSyntaxTree->resetSearchConstraints();
-   if (($htmlSyntaxTree->setSearchStartConstraintByText("Description")) && ($htmlSyntaxTree->setSearchEndConstraintByText("Email Agent")))
+   
+   if ($htmlSyntaxTree->setSearchStartConstraintByText("Description"))
    {
+      # 26 June 05 - this is the contraint in the current design - it also apears in the
+      # legacy design though, so its applied first...
+      $htmlSyntaxTree->setSearchEndConstraintByTagAndClass("div", "propdetails-emailagentbox");
+      
+      # then try the second constraint as well (it'll only work if it's before the one above)
+      # (this is based on the legacy design of the page)
+      $htmlSyntaxTree->setSearchEndConstraintByTagAndClass("div", "auction-results");
+      
       # append all text in the features section
       $description = undef;
       while ($nextPara = $htmlSyntaxTree->getNextText())
@@ -351,7 +412,7 @@ sub extractDomainProfile
       }
       $description = trimWhitespace($description);   
    }
-   
+  
    if ($description)
    {
       $propertyProfile{'Description'} = $description;
@@ -401,7 +462,8 @@ sub extractDomainProfile
       #print "agencyName:$agencyName\n";
       #print "agencySourceID = $agencySourceID\n"; 
    }   
-  
+     
+
    # ------- Get ADDRESS and PHONE NUMBERS ------
    my $ADDRESS = 0;
    my $SALES_NUMBER = 1;
@@ -480,7 +542,7 @@ sub extractDomainProfile
 #      print "contactName:$contactName\n";
 #      print "mobileNo:$mobileNumberText\n";
    }
-  
+     
    if ($agencySourceID)
    {
       $propertyProfile{'AgencySourceID'} = $agencySourceID;
@@ -521,6 +583,7 @@ sub extractDomainProfile
       $propertyProfile{'MobilePhone'} = $mobileNumberText;
    }
    
+   print "website=$website\n";
    if ($website)
    {
       $propertyProfile{'Website'} = $website;
@@ -565,6 +628,7 @@ sub parseDomainPropertyDetails
    my $transactionNo = shift;
    my $threadID = shift; 
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
@@ -589,24 +653,69 @@ sub parseDomainPropertyDetails
       {
       
          if ($sqlClient->connect())
-         {		 	 
-            # check if the log already contains this profile...
-            if ($advertisedPropertyProfiles->checkIfProfileExists($propertyProfile))
+         {	
+            # 26 June 2005 - check the DocumentReader parameters to see whether the parser
+            # should ADD new records or REPLACE old records
+            $writeMethod = $documentReader->getGlobalParameter('writeMethod');
+        
+            if ($writeMethod =~ /add/i)
             {
-               # this tuple has been previously extracted - it can be dropped
-               # record that it was encountered again
-               $printLogger->print("   parsePropertyDetails: identical record already encountered at ", $$propertyProfile{'SourceName'}, ".\n");
-               $advertisedPropertyProfiles->addEncounterRecord($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'});
-               $statusTable->addToRecordsParsed($threadID, 1, 0, $url);    
+               # the following functions write to the database - only call if not in a dryRun
+               if (!$dryRun)
+               {
+                  # check if this profile already exists - if it does, update the LastEncountered timestamp
+                  # if it doesn't exist, then add a new record
+                
+                  if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'}, $$propertyProfile{'TitleString'}, $$propertyProfile{'AdvertisedPriceString'}))
+                  {
+                     $printLogger->print("   parseSearchDetails: updated LastEncountered for existing record.\n");
+                     $statusTable->addToRecordsParsed($threadID, 1, 0, $url);
+                  }
+                  else
+                  {
+                     $printLogger->print("   parseSearchDetails: adding new record.\n");
+                     $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
+                     $statusTable->addToRecordsParsed($threadID, 1, 1, $url);
+                  }   
+               }
+            }
+            elsif ($writeMethod =~ /replace/i)
+            {
+               # the REPLACE record writemethod is set - 
+               $originatingHTMLID = $documentReader->getGlobalParameter('identifier');
+               if ($originatingHTMLID)
+               {
+                  # get the identifier for the record created by the originating HTML
+                  $existingProfile = $advertisedPropertyProfiles->lookupSourcePropertyProfileByOriginatingHTML($originatingHTMLID);
+                  
+                  $identifier = $$existingProfile{'Identifier'};
+                  if ($identifier)
+                  {
+                     $printLogger->print("   parseSearchDetails: replacing record (id:$identifier).\n");  
+                   
+                     %changeProfile = $advertisedPropertyProfiles->calculateChangeProfile($existingProfile, $propertyProfile);
+                     if (!$dryRun)
+                     {
+                        # a record has been specified to replace with this profile
+                        if (!$advertisedPropertyProfiles->replaceRecord(\%changeProfile, $identifier))
+                        {
+                           $printLogger->print("      parseSearchDetails: no changes necessary.\n");
+                        }
+                     }
+                  }
+                  else
+                  {
+                     $printLogger->print("   parseSearchDetails: replace requested but can't find record created by originatingHTML (id:$identifier).\n");  
+                  }
+               }
+               else
+               {
+                  $printLogger->print("   parseSearchDetails: 'writeMethod' REPLACE requested but 'identifier' not specified\n");
+               }
             }
             else
             {
-               $printLogger->print("   parsePropertyDetails: unique checksum/url - adding new record.\n");
-               # this tuple has never been extracted before - add it to the database
-               # 27Nov04 - addRecord returns the identifer (primaryKey) of the record created
-               $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
-   
-               $statusTable->addToRecordsParsed($threadID, 1, 1, $url);    
+               $printLogger->print("   parsePropertyDetails: 'writeMethod'($writeMethod) not recognised\n");
             }
          }
          else
@@ -662,6 +771,7 @@ sub parseDomainSearchResults
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my @urlList;   # DO NOT SET TO UNDEF - it'll break the union later
    my @anchorList;   
@@ -752,20 +862,19 @@ sub parseDomainSearchResults
                $sourceID =~ s/[^0-9]//gi;
                $sourceURL = new URI::URL($sourceURL, $url)->abs()->as_string();      # convert to absolute
               
-               # check if the cache already contains this unique id            
-               if (!$advertisedPropertyProfiles->checkIfResultExists($saleOrRentalFlag, $sourceName, $sourceID, $titleString))                              
-               {   
-                  $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, "...\n");
-                  #$printLogger->print("   parseSearchResults: url=", $sourceURL, "\n"); 
-                  my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$sourceID);                  
-                  #push @urlList, $sourceURL;
-                  push @urlList, $httpTransaction;
+                # check if the cache already contains a profile matching this source ID and title           
+               if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($saleOrRentalFlag, $sourceName, $sourceID, undef, $titleString, undef))
+               {
+                  $printLogger->print("   parseSearchList: updated LastEncountered for existing record.\n");
+                  $recordsSkipped++;
                }
                else
                {
-                  $printLogger->print("   parseSearchResults: id ", $sourceID , " in database. Updating last encountered field...\n");   
-                  $advertisedPropertyProfiles->addEncounterRecord($saleOrRentalFlag, $sourceName, $sourceID, undef);
-                  $recordsSkipped++;
+                  $printLogger->print("   parseSearchList: adding anchor id ", $sourceID, "...\n");
+                  #$printLogger->print("   parseSearchList: url=", $sourceURL, "\n");          
+                  my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$sourceID);                  
+             
+                  push @urlList, $httpTransaction;
                }
                $recordsEncountered++;  # count records seen
                
@@ -864,6 +973,7 @@ sub parseDomainChooseSuburbs
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my $htmlForm;
    my $actionURL;
@@ -1028,7 +1138,8 @@ sub parseDomainSalesChooseRegions
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
-   
+   my $dryRun = shift;
+
    my $htmlForm;
    my $actionURL;
    my $httpTransaction;
@@ -1186,7 +1297,8 @@ sub parseDomainRentalChooseRegions
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
-   
+   my $dryRun = shift;
+
    my $htmlForm;
    my $actionURL;
    my $httpTransaction;
@@ -1347,6 +1459,7 @@ sub parseDomainChooseState
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    my @anchors;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $state = $documentReader->getGlobalParameter('state');
@@ -1424,6 +1537,7 @@ sub parseDomainDisplayResponse
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    my @anchors;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    

@@ -18,7 +18,11 @@
 
 <a href="/cgi-bin/admin.pl?action=browse&offset=%%browse.table.prev.offset%%">Prev %%browse.table.limit%%</a>
 Records %%browse.table.first%% to %%browse.table.last%% of %%browse.table.total.rows%%
-<a href="/cgi-bin/admin.pl?action=browse&offset=%%browse.table.next.offset%%">Next %%browse.table.limit%%</a><br/>
+<a href="/cgi-bin/admin.pl?action=browse&offset=%%browse.table.next.offset%%">Next %%browse.table.limit%%</a>
+<form>
+<input type="hidden" name="action" value="browse"/>
+<input type="hidden" name="limit" value="%%browse.table.limit%%"/>
+Jump to<input type='text' name='offset'/><input type='submit' value='Jump'/></form>
 <table border='1'>
 <tr><th  rowspan='1' valign='center'>Identifier</th>
 <th rowspan='1' valign='center'>Date Entered</th>

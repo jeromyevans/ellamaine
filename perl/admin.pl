@@ -20,6 +20,7 @@ use Ellamaine::StatusTable;
 use RegExPatterns;
 use StringTools;
 use AdvertisedPropertyProfiles;
+use Ellamaine::Controller;
 
 # -------------------------------------------------------------------------------------------------
 # define the actions available to the Simple model view controller    
@@ -29,7 +30,7 @@ my %supportedActions = (
       'exceptions' => \&fetchExceptions,
       'adview' => \&fetchProfile,
       'orightml' => \&loadOriginatingHTML,
-      'browse' => \&browseProperties
+      'browse' => \&browseProperties,
       'reparse' => \&reparseOriginatingHTML
 );
 
@@ -42,7 +43,7 @@ my %supportedViews = (
       'exceptions' => 'admin_exceptions.html',
       'adview' => 'admin_adview.html',
       'orightml' => 'admin_orightml.html',
-      'browse' => 'admin_browse.html'
+      'browse' => 'admin_browse.html',
       'reparse' => 'admin_reparse.html'
       );
 
@@ -832,7 +833,8 @@ sub reparseOriginatingHTML
    my $sqlClient = SQLClient::new();
    my $originatingHTML = OriginatingHTML::new($sqlClient);
    my %parametersHash;
-   
+   my $ellamaineController;
+  
    # check the CGI parameters
    $identifier = CGI::param('identifier');
    
@@ -844,22 +846,22 @@ sub reparseOriginatingHTML
    
    if ($identifier)
    {
-      $sqlClient->connect();
-      $originatingHTML->overrideBasePath("f:\\projects\\changeeffect\\originatinghtml");
-      ($content, $sourceURL, $timeStamp) = $originatingHTML->readHTMLContentWithHeader($originatingHTMLID, 1);
-    
-      $$customProperties{'originatinghtml.identifier'} = $identifier;
-      if ($content)
-      {
-         # transfer the content into the custom properties
-         $$customProperties{'originatinghtml.content'} = $content;
-         $$customProperties{'originatinghtml.sourceurl'} = $sourceURL;
-         $$customProperties{'originatinghtml.timestamp'} = $timeStamp;
-      }
-      else
-      {
-         $$customProperties{"admin.error.description"} = "Failed loading OriginatingHTML file. Check path and permissions to '".$originatingHTML->targetPath($identifier)."'";
-      }
+      $parametersHash{'agent'} = 'admin';
+      $parametersHash{'instanceID'} = 'admin';
+      $parametersHash{'useText'} = 0;
+      $parametersHash{'useHTML'} = 1;
+      $parametersHash{'command'} = 'parse';
+      $parametersHash{'parser'} = 'all';
+      $parametersHash{'type'} = 'originatinghtml';
+      $parametersHash{'identifier'} = $originatingHTMLID;
+      $parametersHash{'basepath'} = "f:\\projects\\changeeffect\\originatinghtml";
+      $parametersHash{'dryRun'} = 1;
+      $ellamaineController = Controller::new($sqlClient, \%parametersHash);
+      
+      # IMPORTANT: override the timestamp
+      #$tableObjects = $ellamaineController->getTableObjects();
+      #$advertisedPropertyProfikles = $table
+      $ellamaineController->start();
       
       $sqlClient->disconnect();
    }

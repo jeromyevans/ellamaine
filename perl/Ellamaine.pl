@@ -44,6 +44,7 @@
 #                - added support for the ConfigTable that contains all of the configuration data for each instance
 #  rather than having multiople.config files - the config is loaded from the database (but note, when the ConfigTable
 #  is created, it reads the templates for data from the ./configs/*.config files
+#  25 June 2005  - moved body of code to a package so Ellamaine can be started from another module
 # To do:
 #
 #  - front page for monitoring progress
@@ -58,6 +59,7 @@ use CGI qw(:standard);
 use Ellamaine::DocumentReader;
 use Ellamaine::HTMLSyntaxTree;
 use Ellamaine::StatusTable;
+use Ellamaine::Controller;
 use ConfigTable;
 
 use LoadProperties;
@@ -79,168 +81,17 @@ $sqlClient->connect();
 
 # load/read parameters for the application
 ($parseSuccess, $parameters) = parseParameters($sqlClient);
-my $printLogger = PrintLogger::new($$parameters{'agent'}, $$parameters{'instanceID'}.".stdout", 1, $$parameters{'useText'}, $$parameters{'useHTML'});
-$$parameters{'printLogger'} = $printLogger;
 
-$printLogger->printHeader("\n");
-
-# load the properties...
-my $customProperties = loadProperties("ellamaine.properties");
-
-# if custom properties where defined...
-if (($parseSuccess) && ($customProperties))
+if ($parseSuccess)
 {
-   $printLogger->print("Initialising SQL table objects (", $$customProperties{'tables.properties.file'}, ")...\n");
-   # load the list of tables to be supported by Ellamaine - the tables can be accessed directly in the parsers
-   $tableProperties = loadProperties($$customProperties{'tables.properties.file'});
-   
-   if ($$tableProperties{'loadproperties.error'})
-   {
-      $printLogger->print("   ", $$parserProperties{'loadproperties.error.description'}, "\n");
-      $parseSuccess = 0;
-   }
-   else
-   {
-      # initialise the tables - load the modules
-      foreach (keys %$tableProperties)
-      {
-         no strict 'refs';  # allow symbolic references
-         # load the module
-         $packageName = $$tableProperties{$_};
-         $printLogger->print("   Loading package $_ (", $packageName, ".pm)...\n");
-         # load the module (require the module)
-         require "$packageName.pm";
-         $packageName->import();   # this probably isn't necessary, but safe (import the module's exports)
-         
-         # use a symbolic reference to call new in the package and include the returned object in the
-         # myTableObjects hash
-         $myTableObjects{$_} = ($packageName . "::new")->($sqlClient);
-      }
-   }
-   
-   if ($parseSuccess)
-   {
-      $printLogger->print("Initialising parsers (", $$customProperties{'parsers.properties.file'}, ")...\n");
-      
-      # load the list of patterns and parsers parsers 
-      $parserProperties = loadProperties($$customProperties{'parsers.properties.file'});
-      
-      if ($$parserProperties{'loadproperties.error'})
-      {
-         $printLogger->print("   ", $$parserProperties{'loadproperties.error.description'}, "\n");
-         $parseSuccess = 0;
-      }
-      else
-      {
-         
-         my %parserHash;
-
-         # first run - split the parser properties up by configuration
-         # this generates a hash of hashes:
-         #   the keys of the greater hash are the configuration names and their
-         #    values are a refernce to a hash
-         #   Each inner hash contains the properties for that configuration
-         foreach (keys %$parserProperties)
-         {
-            # split the key into the config name and remainder
-            ($configName, $newKey) = split(/\./, $_, 2);
-            
-            # determine if this configuration is new
-            if (!defined $parserHash{$configName})
-            {
-               # instantate a new hash for this configuration 
-               my %newHash;
-               $parserHash{$configName} = \%newHash;
-            }
-            
-            # the inner hash is defined for this configuration - get its reference
-            $innerHash = $parserHash{$configName};
-            
-            # assign to the new key and property value to inner hash for this configuration
-            $$innerHash{$newKey}=$$parserProperties{$_};
-         }
-            
-         # --- initialise the parsers for the selected configuration ---
-         my %packageList;  # this hash is used to track which parser modules have been loaded already
-         
-         $parserName = $$parameters{'parser'};
-         # get the reference to the inner hash for this configuration
-         $innerHash = $parserHash{$parserName};
-         
-         if ($innerHash)
-         {
-            
-            $printLogger->print("   Initialising '$parserName' parser...\n");
-            # loop through all of the keys of the inner hash to extract the parsers
-            foreach (keys %$innerHash)
-            {
-               $propertyName = $_;
-               if ($propertyName =~ /parser\./)
-               {
-                  # this is a parser definition
-                  $parserDefinition = $$innerHash{$propertyName};
-                  
-                  # split the parser definition up into its components
-                  ($regex, $packageName, $functionName) = split(/::/, $parserDefinition, 3);
-                  
-                  # determine if this package has been loaded - if not load it now
-                  if (!exists $packageList{$packageName})
-                  {  
-                     $printLogger->print("      Loading package $packageName...\n");
-                     # load the package required for this parser
-                     require "$packageName.pm";
-                     $packageName->import();
-                     
-                     # record which packages have already been loaded - don't need to do multiple times
-                     $packageList{$packageName} = 1;
-                  }
-                                    
-                  # store the symbolic reference for the parser function - this is used by Ellamaine::DocumentReader
-                  $myParsers{$regex} = $packageName."::".$functionName;
-               }
-            }
-         }
-         else
-         {
-            # if a parser has been defined, then report an error that it couldn't be found - if there's no parser then okay
-            if ($parserName)
-            {
-               $printLogger->print("      ERROR: parser '$parserName' is not defined in ", $$customProperties{'parsers.properties.file'}, ".\n");
-               $parseSuccess = 0;
-            }
-         }
-      }
-   }
-}
-
-# start the document reader...
-if (($parseSuccess) && (!($$parameters{'command'} =~ /maintenance/i)))
-{   
-   
-   
-   $printLogger->print("Starting DocumentReader...\n");
-   my $myDocumentReader = DocumentReader::new($$parameters{'agent'}, $$parameters{'instanceID'}, $$parameters{'url'}, $sqlClient, 
-      \%myTableObjects, \%myParsers, $printLogger, $$parameters{'thread'}, $parameters);
-      
-   $myDocumentReader->run($$parameters{'command'});
-   
- 
-}
-else
-{
-   if ($parameters{'command'} =~ /maintenance/i)
-   {
-      #doMaintenance($printLogger, \%parameters);
-   }
-   else
-   {
-      $printLogger->print("   main: exit due to parameter error\n");
-   }
+   $ellamaineController = Controller::new($sqlClient, $parameters);
+   $parseSuccess = $ellamaineController->start();
+   $ellamaineController->releaseSessionHistory();
 }
 
 $sqlClient->disconnect();
-  
-$printLogger->printFooter("Finished\n");
+
+print "Finished.\n";
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
@@ -249,6 +100,7 @@ $printLogger->printFooter("Finished\n");
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
+
 
 # parses the parameters mandatory for the specified command
 sub parseMandatoryParameters
@@ -314,16 +166,19 @@ sub parseParameters
    my $sqlClient = shift;
    my $parameters;  # reference to a hash
    my $success = 0;
-   my @startCommands = ('url', 'state', 'source', 'parser');
-   my @continueCommands = ('state', 'source', 'parser');
+   my @startCommands = ('url', 'state', 'source', 'parser', 'writeMethod');
+   my @continueCommands = ('state', 'source', 'parser', 'writeMethod');
    my @maintenanceCommands = ('action');   
+   my @parseCommands = ('type', 'parser', 'writeMethod');   
+   
    # this hash of lists defines the commands supported and mandatory options for each command
    my %mandatoryParameters = (
       'start' => \@startCommands,
       'continue' => \@continueCommands,
       'create' => undef,
       'drop' => undef,
-      'maintenance' => \@maintenanceCommands
+      'maintenance' => \@maintenanceCommands,
+      'parse' => \@parseCommands
    );   
    my %commandDescription = (
          'help' => "Display this information",
@@ -331,7 +186,8 @@ sub parseParameters
          'continue' => "continue an existing session downloading advertisements from the last recovery position",
          'create' => "create the database tables",
          'drop' => "drop the database tables (and all data)",
-         'maintenance' => "run maintenance option on the database"
+         'maintenance' => "run maintenance option on the database",
+         'parse' => "run a once-only parser on a specified document"
    );
       
    if (CGI::param("config"))

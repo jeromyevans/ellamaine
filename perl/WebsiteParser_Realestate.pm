@@ -23,6 +23,17 @@
 #  in theory: recordsEncountered = recordsSkipped+recordsParsed
 #                   - bug fixed that was setting recordsEncountered in the wrong part of the state machine
 #  giving too high a value
+#  25 June 2005     - added support for the parser dryRun flag
+#  26 June 2005     - modified extraction function so it always defines local variables - was possible that 
+#  the variables were set from a previous iteration
+#                   - added support for the writeMethod parameter (a global parameter passed through the
+#  documentReader) that can be set to 'add' or 'replace'.  When replace is set then the replaceRecord
+#  method of AdvertisedPropertyProfiles is called instead of addRecord.  This is used when re-processing
+#  old records again (ie. through an updated parser)
+#                   - added support for the updateLastEncounteredIfExists function that replaces the
+#  addEncounterRecord and checkIfResult exists functions - if an existing record is encountered again
+#  it checks and updates the database - changes are propagated into the working view if they exist there
+#  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -80,6 +91,7 @@ sub parseRealEstateDisplayResponse
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my @anchors;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
@@ -96,7 +108,7 @@ sub parseRealEstateDisplayResponse
 # -------------------------------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------------------------
-# extractSaleProfile
+# extractRealEstateProfile
 # extracts property sale information from an HTML Syntax Tree
 # assumes the HTML Syntax Tree is in a very specific format
 #
@@ -142,6 +154,13 @@ sub extractRealEstateProfile
    my $saleOrRentalFlag = -1;
    my $sourceName = undef;
    my $state = undef;
+   my $stateName = undef;
+   my $buildingArea = undef;
+   my $yearBuilt = undef;
+   my $agencyAddress = undef;
+   my $salesPhone = undef;
+   my $rentalsPhone = undef;
+   my $fax = undef;
    
    # first, locate the pattern that identifies the source of the record as RealEstate.com
    # 20 May 05
@@ -155,21 +174,63 @@ sub extractRealEstateProfile
       $propertyProfile{'SourceName'} = $sourceName;
    }
   
-   $htmlSyntaxTree->setSearchStartConstraintByText("Search Results");
-   $htmlSyntaxTree->setSearchEndConstraintByText("Property No"); 
-   
-   # second, locate the pattern that identifies this as a SALE record or RENT record
-   # 20 May 05
-   if ($htmlSyntaxTree->containsTextPattern("Homes For Sale"))
+   if ($htmlSyntaxTree->setSearchStartConstraintByText("Search Results"))
    {
-      $saleOrRentalFlag = 0;
+      if ($htmlSyntaxTree->setSearchEndConstraintByText("Property No"))
+      {
+         # locate the pattern that identifies this as a SALE record or RENT record
+         # 20 May 05
+         if ($htmlSyntaxTree->containsTextPattern("Homes For Sale"))
+         {
+            $saleOrRentalFlag = 0;
+         }
+         else
+         {
+            # locate the pattern that identifies this as a RENTAL record
+            if ($htmlSyntaxTree->containsTextPattern("Homes For Rent"))
+            {
+               $saleOrRentalFlag = 1;
+            }
+         }
+      }
+      else
+      {
+         # 27 June 2005 - some legacy records pass on the first pattern and fail on the second, which 
+         # results in a bad detection of the saleOrRentalFlag
+         # try a different constraint
+         $htmlSyntaxTree->resetSearchConstraints();
+         if ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass('td', 'lg-white-bold'))
+         {
+            $nextText = $htmlSyntaxTree->getNextText();
+            if ($nextText =~ /Rent/gi)
+            {
+               $saleOrRentalFlag = 1;
+            }
+            else
+            {
+               $saleOrRentalFlag = 0;
+            }
+         }
+         
+      }
    }
    else
    {
-      # locate the pattern that identifies this as a RENTAL record
-      if ($htmlSyntaxTree->containsTextPattern("Homes For Rent"))
+      # 27 June 2005 - some legacy records pass on the first pattern and fail on the second, which 
+      # results in a bad detection of the saleOrRentalFlag
+      # try a different constraint
+      $htmlSyntaxTree->resetSearchConstraints();
+      if ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass('td', 'lg-white-bold'))
       {
-         $saleOrRentalFlag = 1;
+         $nextText = $htmlSyntaxTree->getNextText();
+         if ($nextText =~ /Rent/gi)
+         {
+            $saleOrRentalFlag = 1;
+         }
+         else
+         {
+            $saleOrRentalFlag = 0;
+         }
       }
    }
    
@@ -198,9 +259,34 @@ sub extractRealEstateProfile
    
    # --- extract the suburb name (cheat- use the parent label ---
    
-   @splitLabel = split /\./, $parentLabel;
-   $suburb = $splitLabel[$#splitLabel-1];  # extract the suburb name from the parent label
-
+   # 27 June 2005 - when reparsing records the parent name cannot be relied upon to get the
+   # suburb name. Instead, get the suburb name from one of the anchors in the page
+   $htmlSyntaxTree->resetSearchConstraints();
+   if ($htmlSyntaxTree->setSearchStartConstraintByTag("h2"))
+   {
+      $suburb = $htmlSyntaxTree->getNextText();
+   }
+   else
+   {
+      
+      {
+         # legacy record getting desparate - get suburb name from an anchor  
+         #  (note some records have the suburbname in "xlg-mag-bold" span, but not consistently (sometimes it's a title)
+         
+         $anchorList = $htmlSyntaxTree->getAnchorsContainingImageSrc("undertab");
+         $anchor = $$anchorList[0];
+         if ($anchor)
+         {
+            $anchor =~ /ad_suburb\%3D(.+)$/gi;
+            $suburb = $1;
+         }
+         # note: suburbname may be followed by crud  in some instances - try to split it out
+         ($suburb, $crud) = split(/\%26a/, $suburb, 2);
+         # note, if the suburb name contains spaces it will be represented by %2520 - replace it with a space
+         $suburb =~ s/\%2520/ /g;
+      }
+   }
+   
    if ($suburb) 
    {
       $propertyProfile{'SuburbName'} = $suburb;
@@ -208,13 +294,29 @@ sub extractRealEstateProfile
    
    # --- extract the address string ---
    $htmlSyntaxTree->resetSearchConstraints();
-   $htmlSyntaxTree->setSearchStartConstraintByTag("address");
-   $htmlSyntaxTree->setSearchEndConstraintByTag('/address'); 
-   $addressString = $htmlSyntaxTree->getNextText();
+   if ($htmlSyntaxTree->setSearchStartConstraintByTag("address"))
+   {   
+      $htmlSyntaxTree->setSearchEndConstraintByTag('/address'); 
+      $addressString = $htmlSyntaxTree->getNextText();
+      
+      # the address always contains the suburb as the last word[s]
+      $addressString =~ s/$suburb$//i;
+   }
+   else
+   {
+      # legacy record
+      $htmlSyntaxTree->resetSearchConstraints();
+      $htmlSyntaxTree->setSearchStartConstraintByTagAndClass("span", "lg-dppl-bold");
+      $htmlSyntaxTree->setSearchStartConstraintByTagAndClass("span", "lg-dppl-bold");  # yes, twice!
+      
+      $htmlSyntaxTree->setSearchEndConstraintByTag('/span');
+      
+      $addressString = $htmlSyntaxTree->getNextText();
+      
+      # the address always contains the suburb as the last word[s]
+      $addressString =~ s/$suburb$//i;
+   }
    
-   # the address always contains the suburb as the last word[s]
-   $addressString =~ s/$suburb$//i;
-            
    if ($addressString) 
    {
       $propertyProfile{'StreetAddress'} = $addressString;
@@ -240,9 +342,17 @@ sub extractRealEstateProfile
    
    # --- extract the description ---
    $htmlSyntaxTree->resetSearchConstraints();
-   $htmlSyntaxTree->setSearchStartConstraintByTagAndClass("div", "description");
-   $htmlSyntaxTree->setSearchEndConstraintByTag('/div');
-   
+   if ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass("div", "description"))
+   {
+      $htmlSyntaxTree->setSearchEndConstraintByTag('/div');
+   }
+   else
+   {
+      # legacy record
+      $htmlSyntaxTree->setSearchStartConstraintByTagAndClass("span", "lg-blk-nrm");
+      $htmlSyntaxTree->setSearchEndConstraintByTag('/span');
+   }
+      
    # may be multiple lines - get all text and append it
    $description = "";
    while ($nextLine = $htmlSyntaxTree->getNextText())
@@ -258,6 +368,7 @@ sub extractRealEstateProfile
    # --- extact other attributes ---
    $htmlSyntaxTree->resetSearchConstraints();
    $htmlSyntaxTree->setSearchStartConstraintByText("Property Overview");
+   
    $htmlSyntaxTree->setSearchEndConstraintByTag("Show Visits"); # until the next table
    
    $type = $htmlSyntaxTree->getNextTextAfterPattern("Category:");             # always set
@@ -276,8 +387,7 @@ sub extractRealEstateProfile
    if ($sourceID)
    {
       $propertyProfile{'SourceID'} = $sourceID;
-   }      
-   
+   }
    
    if ($type)
    {
@@ -318,26 +428,63 @@ sub extractRealEstateProfile
    
    # --- extract agent details ---- 
    $htmlSyntaxTree->resetSearchConstraints();
-   $htmlSyntaxTree->setSearchStartConstraintByTagAndID('div', 'agentCollapsed');
-   $htmlSyntaxTree->setSearchEndConstraintByTag('/div');
-   
-   $fullURL = $htmlSyntaxTree->getNextAnchor();
-   $website = $fullURL;
-   $website =~ /to=(.*)/gi;
-   $website = $1;
-   $title = $htmlSyntaxTree->getNextText();
-   $agencyName = $htmlSyntaxTree->getNextText();
-   $contactNameAndNumber = $htmlSyntaxTree->getNextTextAfterPattern('Sales Person');
-   
-   ($contactName, $crud) = split /\d/, $contactNameAndNumber;
-   $contactName = trimWhitespace($contactName);
-   
-   $mobilePhone = $contactNameAndNumber;
-   # remove non-digits
-   $mobilePhone =~ s/\D//gi;
-   
-   $fullURL =~ /AgentWebSiteClick-(.*)\&to/gi;
-   $agencySourceID = $1;
+   if ($htmlSyntaxTree->setSearchStartConstraintByTagAndID('div', 'agentCollapsed'))
+   {
+      $htmlSyntaxTree->setSearchEndConstraintByTag('/div');
+      
+      $fullURL = $htmlSyntaxTree->getNextAnchor();
+      $website = $fullURL;
+      $website =~ /to=(.*)/gi;
+      $website = $1;
+      $title = $htmlSyntaxTree->getNextText();
+      $agencyName = $htmlSyntaxTree->getNextText();
+      $contactNameAndNumber = $htmlSyntaxTree->getNextTextAfterPattern('Sales Person');
+      
+      ($contactName, $crud) = split /\d/, $contactNameAndNumber;
+      $contactName = trimWhitespace($contactName);
+      
+      $mobilePhone = $contactNameAndNumber;
+      # remove non-digits
+      $mobilePhone =~ s/\D//gi;
+      
+      $fullURL =~ /AgentWebSiteClick-(.*)\&to/gi;
+      $agencySourceID = $1;
+   }
+   else
+   {
+      # legacy record
+      $htmlSyntaxTree->setSearchStartConstraintByText("Number of Nearby Facilities");
+      $htmlSyntaxTree->setSearchStartConstraintByTag("form");  # jump to the agent form
+      
+      # sometimes there's a blank anchor in the way
+      $website = $htmlSyntaxTree->getNextAnchor();
+      
+      $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('a', 'lg-red-bold-u');
+      
+      $agencyName = $htmlSyntaxTree->getNextText();
+      $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('span', 'sm-blk-nrm');
+      $htmlSyntaxTree->setSearchEndConstraintByTag('/span');
+      $agencyAddress = "";
+      while ($thisText = $htmlSyntaxTree->getNextText())
+      {
+         $agencyAddress .= " ".$thisText;
+      }
+      $htmlSyntaxTree->resetSearchConstraints();
+      $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('span', 'sm-blk-nrm');
+      $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('span', 'sm-blk-nrm'); # yes, twice
+      if ($saleOrRentalFlag == 0)
+      {
+         $salesPhone = strictNumber($htmlSyntaxTree->getNextText());
+      }
+      else
+      {
+         $rentalsPhone = strictNumber($htmlSyntaxTree->getNextText());
+      }
+      $fax = strictNumber($htmlSyntaxTree->getNextText());
+
+      $htmlSyntaxTree->resetSearchConstraints();
+      $contactName = $htmlSyntaxTree->getNextTextAfterPattern("Property Manager:");
+   }
    
    if ($agencySourceID)
    {
@@ -349,6 +496,26 @@ sub extractRealEstateProfile
       $propertyProfile{'AgencyName'} = $agencyName;
    }
     
+   if ($agencyAddress)
+   {
+      $propertyProfile{'AgencyAddress'} = $agencyAddress;
+   }
+   
+   if ($salesPhone)
+   {
+      $propertyProfile{'SalesPhone'} = $salesPhone;
+   }
+   
+   if ($rentalsPhone)
+   {
+      $propertyProfile{'RentalsPhone'} = $rentalsPhone;
+   }
+   
+   if ($fax)
+   {
+      $propertyProfile{'Fax'} = $fax;
+   }
+   
    if ($contactName)
    {
       $propertyProfile{'ContactName'} = $contactName;
@@ -366,10 +533,12 @@ sub extractRealEstateProfile
    
    populatePropertyProfileHash($sqlClient, $documentReader, \%propertyProfile);
    
-   #DebugTools::printHash("PropertyProfile", \%propertyProfile);
+#   DebugTools::printHash("PropertyProfile", \%propertyProfile);
    
    return \%propertyProfile;  
 }
+
+
 
 # -------------------------------------------------------------------------------------------------
 # parseRealEstateSearchDetails
@@ -402,6 +571,7 @@ sub parseRealEstateSearchDetails
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
@@ -422,22 +592,69 @@ sub parseRealEstateSearchDetails
 
       if ($sqlClient->connect())
       {		 	 
-         # check if the log already contains this checksum - if it does, assume the tuple already exists                  
-         if ($advertisedPropertyProfiles->checkIfProfileExists($propertyProfile))
+         
+         # 26 June 2005 - check the DocumentReader parameters to see whether the parser
+         # should ADD new records or REPLACE old records
+         $writeMethod = $documentReader->getGlobalParameter('writeMethod');
+     
+         if ($writeMethod =~ /add/i)
          {
-            # this tuple has been previously extracted - it can be dropped
-            # record that it was encountered again
-            $printLogger->print("   parseSearchDetails: identical record already encountered at $sourceName.\n");
-            $advertisedPropertyProfiles->addEncounterRecord($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'});
-            $statusTable->addToRecordsParsed($threadID, 1, 0, $url);    
+            # the following functions write to the database - only call if not in a dryRun
+            if (!$dryRun)
+            {
+               # check if this profile already exists - if it does, update the LastEncountered timestamp
+               # if it doesn't exist, then add a new record
+             
+               if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'}, $$propertyProfile{'TitleString'}, $$propertyProfile{'AdvertisedPriceString'}))
+               {
+                  $printLogger->print("   parseSearchDetails: updated LastEncountered for existing record.\n");
+                  $statusTable->addToRecordsParsed($threadID, 1, 0, $url);
+               }
+               else
+               {
+                  $printLogger->print("   parseSearchDetails: adding new record.\n");
+                  $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
+                  $statusTable->addToRecordsParsed($threadID, 1, 1, $url);
+               }   
+            }
+         }
+         elsif ($writeMethod =~ /replace/i)
+         {
+            # the REPLACE record writemethod is set - 
+            $originatingHTMLID = $documentReader->getGlobalParameter('identifier');
+            if ($originatingHTMLID)
+            {
+               # get the identifier for the record created by the originating HTML
+               $existingProfile = $advertisedPropertyProfiles->lookupSourcePropertyProfileByOriginatingHTML($originatingHTMLID);
+               
+               $identifier = $$existingProfile{'Identifier'};
+               if ($identifier)
+               {
+                  $printLogger->print("   parseSearchDetails: replacing record (id:$identifier).\n");  
+                
+                  %changeProfile = $advertisedPropertyProfiles->calculateChangeProfile($existingProfile, $propertyProfile);
+                  if (!$dryRun)
+                  {
+                     # a record has been specified to replace with this profile
+                     if (!$advertisedPropertyProfiles->replaceRecord(\%changeProfile, $identifier))
+                     {
+                        $printLogger->print("      parseSearchDetails: no changes necessary.\n");
+                     }
+                  }
+               }
+               else
+               {
+                  $printLogger->print("   parseSearchDetails: replace requested but can't find record created by originatingHTML (id:$identifier).\n");  
+               }
+            }
+            else
+            {
+               $printLogger->print("   parseSearchDetails: 'writeMethod' REPLACE requested but 'identifier' not specified\n");
+            }
          }
          else
          {
-            $printLogger->print("   parseSearchDetails: unique checksum/url - adding new record.\n");
-            # this tuple has never been extracted before - add it to the database
-            $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
-
-            $statusTable->addToRecordsParsed($threadID, 1, 1, $url);    
+            $printLogger->print("   parseSearchDetails: 'writeMethod'($writeMethod) not recognised\n");
          }
       }
       else
@@ -488,6 +705,8 @@ sub parseRealEstateSearchResults
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
+   
    my $SEEKING_FIRST_RESULT = 1;
    my $PARSING_RESULT_TITLE = 2;
    my $PARSING_SUB_LINE     = 3;
@@ -513,6 +732,7 @@ sub parseRealEstateSearchResults
    
    # --- now extract the property information for this page ---
    $printLogger->print("inParseSearchResults ($parentLabel):\n");
+   print "$url\n";
    @splitLabel = split /\./, $parentLabel;
    $suburbName = $splitLabel[$#splitLabel];  # extract the suburb name from the parent label
 
@@ -628,24 +848,21 @@ sub parseRealEstateSearchResults
                
                if (($sourceID) && ($anchor))
                {
-                  # check if the cache already contains this unique id
-                  # $_ is a reference to a hash
-                  #print "($saleOrRentalFlag, $sourceName, $sourceID, $titleString)\n";
-                  if (!$advertisedPropertyProfiles->checkIfResultExists($saleOrRentalFlag, $sourceName, $sourceID, $titleString))                              
-                  {   
-                     $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, "...\n");
+                  # check if the cache already contains a profile matching this source ID and title           
+                  if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($saleOrRentalFlag, $sourceName, $sourceID, undef, $titleString, undef))
+                  {
+                     $printLogger->print("   parseSearchList: updated LastEncountered for existing record.\n");
+                     $recordsSkipped++;
+                  }
+                  else
+                  {
+                     $printLogger->print("   parseSearchList: adding anchor id ", $sourceID, "...\n");
                      #$printLogger->print("   parseSearchList: url=", $sourceURL, "\n");          
                      my $httpTransaction = HTTPTransaction::new($anchor, $url, $parentLabel.".".$sourceID);                  
                 
                      push @urlList, $httpTransaction;
                   }
-                  else
-                  {
-                     $printLogger->print("   parseSearchResults: id ", $sourceID , " in database. Updating last encountered field...\n");
-                     $advertisedPropertyProfiles->addEncounterRecord($saleOrRentalFlag, $sourceName, $sourceID, undef);
-                     $recordsSkipped++;  # count records skipped (seen befored)
-                  }
-                  
+              
                   #print "  END: state=$state: Line:'$thisText' ts:'$titleString' sid:'$sourceID' parsed=$parsedThisLine\n";
                   $recordsEncountered++;  # count records seen
                   # 23Jan05:save that this suburb has had some progress against it
@@ -759,6 +976,7 @@ sub parseRealEstateSearchForm
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my $htmlForm;
    my $actionURL;
@@ -892,6 +1110,8 @@ sub parseRealEstateChooseState
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
+   
    my @anchors;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $state = $documentReader->getGlobalParameter('state');
@@ -965,6 +1185,7 @@ sub parseRealEstateSalesHomePage
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my @anchors;
@@ -1033,6 +1254,7 @@ sub parseRealEstateRentalsHomePage
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my @anchors;

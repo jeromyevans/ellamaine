@@ -59,7 +59,22 @@
 #  25 June 2005 - added functions to lookup profiles by exception codes (eg. if suburbname is null) and
 #    added indexes to the tables to support these lookups.   Also added functions to get the count of the
 #    number of exceptions.  These functions are used by the administration tools.
-#
+#  26 June 2005 - added function replaceRecord that's used to update a record in the source view.  It's 
+#    purpose is for re-processing of OriginatingHTML after updating a parser.  As a consequence several
+#    other modifications are included: - when a replace is performed, the working view is checked to
+#    see if the replace needs to be propated it it (transferToWorkingView is updated), and subsequently
+#    if the workingView record is in the MasterProperties, then the master property needs to be recalculated
+#              - added lookup function for finding source records by their originatingHTML reference (another
+#    index is added to AdvertisedPropertyProfiles
+#              - renamed column in OverridenValidity to OverriddenValidity
+#              - created functon calculateChangeProfile that compares to profiles and generates a hash
+#    containing the differences.  It handles both integer and string comparison automatically (at a 
+#    performance loss) and has two methods for handling undef in the new hash (clear value, or inherit value)
+#              - significant change - removed functions 'checkIftupleExists' etc and replaced with the
+#    function 'updateLastEncounteredIfExists'.  This function combines the lookup and the addEncounter
+#    functions to centralise the changes - so that changes to the last encountered value in the source
+#    record is propagated into the working view and master properties (if exists).  This change impacts
+#    the software architecture of all parsers
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -185,7 +200,7 @@ sub createTable
    my $tableName = $this->{'tableName'};
    
    my $SQL_CREATE_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS $tableName (Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ";
-   my $SQL_CREATE_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, SourceName(5), SourceID(10), TitleString(15), Checksum), INDEX (SuburbName(10)))";  # extended now that cacheview is dropped
+   my $SQL_CREATE_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, SourceName(5), SourceID(10), TitleString(15), Checksum), INDEX (SuburbName(10)), INDEX(OriginatingHTML))";  # extended now that cacheview is dropped
    
    if ($sqlClient)
    {
@@ -396,6 +411,88 @@ sub addRecord
    return $identifier;   
 }
 
+
+# -------------------------------------------------------------------------------------------------
+# replaceRecord
+# updates the specified record of data to the AdvertisedPropertyProfiles table using the
+# changedProfile hash
+#
+# OPERATES ON SOURCE VIEW AND PROPAGATES CHANGES THROUGH TO WORKING VIEW (if exists)
+#
+# Parameters:
+#  reference to a hash containing the CHANGED values to insert
+#  INTEGER identifier
+#
+# Returns:
+#   TRUE (1) if successful, 0 otherwise
+#        
+sub replaceRecord
+
+{
+   my $this = shift;
+   my $parametersRef = shift;   
+   my $sourceIdentifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $localTime;
+   my $tableName = $this->{'tableName'};
+   
+   if ($sqlClient)
+   {      
+      @changeList = keys %$parametersRef;
+      $noOfChanges = @changeList;
+      if ($noOfChanges > 0)
+      {
+         $appendString = "UPDATE $tableName SET ";
+         # modify the statement to specify each column value to set 
+         $index = 0;
+         while(($field, $value) = each(%$parametersRef)) 
+         {
+            if ($index > 0)
+            {
+               $appendString = $appendString . ", ";
+            }
+            
+            $quotedValue = $sqlClient->quote($value);
+            
+            $appendString = $appendString . "$field = $quotedValue ";
+            $index++;
+         }      
+         
+         $statementText = $appendString." WHERE identifier=$sourceIdentifier";
+         # print "$statementText\n";
+         $statement = $sqlClient->prepareStatement($statementText);
+         
+         if ($sqlClient->executeStatement($statement))
+         {
+            $success = 1;
+            
+            # Now, if the record is in the working view then the change has to be propagated through
+            # to that record.  Otherwise the change never achieves anything
+            # (the alternative would be to delete the workingView record, that that may adversely 
+            # affect the state of the master properties table).
+   
+            # lookup the identifier in the working view
+            if ($this->existsInWorkingView($sourceIdentifier))
+            {
+               # this record is in the working view - get the COMPLETE source profile (not just changes)
+               # and transfer it to the workingView
+               $updatedProfile = $this->lookupSourcePropertyProfile($sourceIdentifier);
+               if ($updatedProfile)
+               {
+                  # the changes need to be propated into the working view (and onwards if necessary)
+                  $this->transferToWorkingView($updatedProfile);
+               }
+            }
+         }
+      }
+   }
+   
+   return $success; 
+}
+
 # -------------------------------------------------------------------------------------------------
 # dropTable
 # attempts to drop the AdvertisedxProfiles table 
@@ -522,92 +619,15 @@ sub countEntries
 
 
 # -------------------------------------------------------------------------------------------------
-
-
 # -------------------------------------------------------------------------------------------------
-# checkIfResultExists
-# checks whether the specified tuple exists in the table (part of this check uses a checksum)
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# updateLastEncounteredIfExists
+# if record(s) exist that match the parameters, then update the time they were countered and
+# return the list of identifiers that were modified
 #
 # Purpose:
-#  tracking data parsed by the agent
-#
-# Parameters:
-#  saleOrRentalFlag
-#  string sourceName
-#  string sourceID
-#  string titleString (the title of the record in the search results - if it changes, a new record is added) 
-
-# Constraints:
-#  nil
-#
-# Updates:
-#  Nil
-#
-# Returns:
-#   nil
-sub checkIfResultExists
-{   
-   my $this = shift;
-   my $saleOrRentalFlag = shift;
-   my $sourceName = shift;      
-   my $sourceID = shift;
-   my $titleString = shift;
-   my $statement;
-   my $found = 0;
-   my $statementText;
-      
-   my $sqlClient = $this->{'sqlClient'};
-   my $tableName = $this->{'tableName'};
-   
-   if ($sqlClient)
-   {       
-      $quotedSource = $sqlClient->quote($sourceName);
-      $quotedSourceID = $sqlClient->quote($sourceID);
-      $quotedTitleString = $sqlClient->quote($titleString);
-
-      $statementText = "SELECT unix_timestamp(dateEntered) as unixTimestamp, sourceName, sourceID, titleString FROM $tableName WHERE SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource AND sourceID = $quotedSourceID AND titleString = $quotedTitleString";
-      #print "checkIfResultExists: $statementText\n";
-      $statement = $sqlClient->prepareStatement($statementText);
-      if ($sqlClient->executeStatement($statement))
-      {
-         # get the array of rows from the table
-         @resultList = $sqlClient->fetchResults();
-                           
-         foreach (@resultList)
-         {
-#            DebugTools::printHash("result", $_);
-            # only check advertisedpricelower if it's undef (if caller hasn't set it because info wasn't available then don't check that field.           
-            
-            # $_ is a reference to a hash       
-       #     print "   ", $$_{'sourceName'}, " == $sourceName) && (", $$_{'sourceID'}, " == $sourceID) && (", $$_{'titleString'}, " == $titleString)\n";
-            if (($$_{'sourceName'} == $sourceName) && ($$_{'sourceID'} == $sourceID) && ($$_{'titleString'} == $titleString))            
-            {
-               # found a match
-               # 5 June 2005 - BUT, make sure the dateEntered for the existing record is OLDER than the record being added
-               # if it's not, added the new record  (only matters if useDifferentTime is SET)
-               $dateEntered = $this->getDateEnteredEpoch();
-        #       print "      (", $$_{'unixTimestamp'}, " <= $dateEntered) || (!", $this->{'useDifferentTime'},")\n";
-               if (($$_{'unixTimestamp'} <= $dateEntered) || (!$this->{'useDifferentTime'}))
-               { 
-                  $found = 1;
-         #         print "         found\n";
-                  last;
-               }
-            }
-         }                 
-      }              
-   }   
-   return $found;   
-}  
-
-
-
-# -------------------------------------------------------------------------------------------------
-# checkIfTupleExists
-# checks whether the specified tuple exists in the table (part of this check uses a checksum)
-#
-# Purpose:
-#  tracking data parsed by the agent
+#  tracking data parsed (so existing records aren't downloaded again)
 #
 # Parameters:
 #  saleOrRentalFlag
@@ -624,220 +644,119 @@ sub checkIfResultExists
 #
 # Returns:
 #   nil
-sub checkIfTupleExists
+sub updateLastEncounteredIfExists
 {   
    my $this = shift;
    my $saleOrRentalFlag = shift;
    my $sourceName = shift;      
    my $sourceID = shift;
-   my $checksum = shift;
-   my $advertisedPriceString = shift;
+   my $checksum = shift; # OPTIONAL
+   my $titleString = shift; # OPTIONAL
+   my $advertisedPriceString = shift;   # OPTIONAL
    my $statement;
    my $found = 0;
    my $statementText;
       
    my $sqlClient = $this->{'sqlClient'};
    my $tableName = $this->{'tableName'};
+   my @identifierList;
    
    if ($sqlClient)
-   {       
+   {  
       $quotedSource = $sqlClient->quote($sourceName);
       $quotedSourceID = $sqlClient->quote($sourceID);
-      
+      $quotedTitleString = $sqlClient->quote($titleString);
+      $quotedAdvertisedPriceString = $sqlClient->quote($advertisedPriceString);
+
+      $constraint = "SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource and sourceID = $quotedSourceID";
       if (defined $checksum)
       {
-         if ($advertisedPriceLower)
-         {
-            $statementText = "SELECT unix_timestamp(dateEntered) as unixTimestamp, sourceName, sourceID, checksum, advertisedPriceString FROM $tableName WHERE SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource and sourceID = $quotedSourceID and checksum = $checksum and advertisedPriceString = $advertisedPriceString";
-         }
-         else
-         {
-            $statementText = "SELECT unix_timestamp(dateEntered) as unixTimestamp, sourceName, sourceID, checksum FROM $tableName WHERE SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource and sourceID = $quotedSourceID and checksum = $checksum";
-         }
+         $constraint .= " AND CheckSum = $checksum";
       }
-      else
+      if ($titleString)
       {
-         #print "   checkIfTupleExists:noChecksum\n";
-         if ($advertisedPriceLower)
-         {
-            #print "   checkIfTupleExists:apl=$advertisedPriceLower\n";
-
-            $statementText = "SELECT unix_timestamp(dateEntered) as unixTimestamp, sourceName, sourceID, advertisedPriceString FROM $tableName WHERE SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource and sourceID = $quotedSourceID and advertisedPriceString = $advertisedPriceString";
-         }
-         else
-         {
-            #print "   checkIfTupleExists:no apl\n";
-
-            $statementText = "SELECT unix_timestamp(dateEntered) as unixTimestamp, sourceName, sourceID FROM $tableName WHERE SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource and sourceID = $quotedSourceID";
-         }
+         $constraint .= " AND TitleString = $quotedTitleString";
+      }
+      if ($advertisedPriceString)
+      {
+         $constraint .= " AND AdvertisedPriceString = $quotedAdvertisedPriceString";
       }
       
-      #print "   checkIfTupleExistsSales: $statementText\n";      
-      $statement = $sqlClient->prepareStatement($statementText);
-      if ($sqlClient->executeStatement($statement))
-      {
-         # get the array of rows from the table
-         @checksumList = $sqlClient->fetchResults();
-         #DebugTools::printList("checksum", \@checksumList);                  
-         foreach (@checksumList)
-         {
-            #DebugTools::printHash("result", $_);
-            # only check advertisedpricelower if it's undef (if caller hasn't set it because info wasn't available then don't check that field.           
-            if ($advertisedPriceLower)
-            {
-               # $_ is a reference to a hash
-               
-               if (($$_{'checksum'} == $checksum) && ($$_{'sourceName'} == $sourceName) && ($$_{'sourceID'} == $sourceID) && ($$_{'advertisedPriceString'} == $advertisedPriceString))            
-               {
-                  # found a match
-                  # 5 June 2005 - BUT, make sure the dateEntered for the existing record is OLDER than the record being added
-                  # if it's not, added the new record  (only matters if useDifferentTime is SET)
-                  $dateEntered = $this->getDateEnteredEpoch();
-                  if (($$_{'unixTimestamp'} <= $dateEntered) || (!$this->{'useDifferentTime'}))
-                  { 
-                     $found = 1;
-                     last;
-                  }
-               }
-            }
-            else
-            {
-               # $_ is a reference to a hash
-               if (($$_{'checksum'} == $checksum) && ($$_{'sourceName'} == $sourceName) && ($$_{'sourceID'} == $sourceID))            
-               {
-                  # found a match
-                  # 5 June 2005 - BUT, make sure the dateEntered for the existing record is OLDER than the record being added
-                  # if it's not, added the new record  (only matters if useDifferentTime is SET)
-                  $dateEntered = $this->getDateEnteredEpoch();
-                  if (($$_{'unixTimestamp'} <= $dateEntered) || (!$this->{'useDifferentTime'}))
-                  { 
-                     $found = 1;
-                     last;
-                  }
-               }
-            }
-         }                 
-      }              
-   }   
-   return $found;   
-}  
-
-
-# -------------------------------------------------------------------------------------------------
-# checkIfProfileExists
-# checks whether the specified profile already exists in the table (part of this check uses a checksum)
-#
-# Purpose:
-#  tracking changed data parsed by the agent
-#
-# Parameters:
-#  reference to the profile hash
-#
-# Constraints:
-#  nil
-#
-# Updates:
-#  Nil
-#
-# Returns:
-#   true if found
-#
-sub checkIfProfileExists
-{   
-   my $this = shift;
-   my $propertyProfile = shift;
-   
-   $found = $this->checkIfTupleExists($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'}, $$propertyProfile{'AdvertisedPriceString'});
-
-   return $found;   
-}
-
-# -------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------
-# addEncounterRecord
-# records in the table that a unique tuple with has been encountered again
-# (used for tracking how often unchanged data is encountered, parsed and rejected)
-# 
-# Purpose:
-#  Logging information in the database
-#
-# Parameters: 
-#  string sourceName
-#  string sourceID
-#  integer checksum  (ignored if undef)
-#
-# Constraints:
-#  nil
-#
-# Uses:
-#  sqlClient
-#
-# Updates:
-#  nil
-#
-# Returns:
-#   TRUE (1) if successful, 0 otherwise
-#        
-sub addEncounterRecord
-
-{
-   my $this = shift;
-   my $saleOrRentalFlag = shift;
-   my $sourceName = shift;
-   my $sourceID = shift;
-   my $checksum = shift;
-   
-   my $success = 0;
-   my $sqlClient = $this->{'sqlClient'};  
-   my $tableName = $this->{'tableName'};
-   my $statementText;
-   my $localTime;
-   
-   if ($sqlClient)
-   {
-      $quotedSource = $sqlClient->quote($sourceName);
-      $quotedSourceID = $sqlClient->quote($sourceID);
-      $quotedUrl = $sqlClient->quote($url);
-  
+      $statementText = "SELECT * FROM $tableName WHERE $constraint";
+      
+      #print "APP: $statementText\n";      
+      
+      @selectResults = $sqlClient->doSQLSelect($statementText);
+      
       if (!$this->{'useDifferentTime'})
       {
          # determine the current time
-         ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-         $this->{'dateEntered'} = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);
-         $localTime = $sqlClient->quote($this->{'dateEntered'});
+         $currentTime = time();
       }
       else
       {
          # use the specified date instead of the current time
-         $localTime = $sqlClient->quote($this->{'dateEntered'});
-         $this->{'useDifferentTime'} = 0;  # reset the flag
-      }
-  
-      if (defined $checksum)
-      {
-         $statementText = "UPDATE $tableName ".
-           "SET LastEncountered = $localTime ".
-           "WHERE (SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource AND sourceID = $quotedSourceID AND checksum = $checksum)";
-      }
-      else
-      {
-         $statementText = "UPDATE $tableName ".
-           "SET LastEncountered = $localTime ".
-           "WHERE (SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource AND sourceID = $quotedSourceID)";
-      }
+         $currentTime = $this->getDateEnteredEpoch();
+      }   
       
-      #print "addEncounterRecord: $statementText\n";
-      $statement = $sqlClient->prepareStatement($statementText);
-      
-      if ($sqlClient->executeStatement($statement))
+      foreach (@selectResults)
       {
-         $success = 1;
+         # there are 1 or more matches...update them
+         
+         # make sure the lastEncountered/dateEntered for the existing record is OLDER than the record being added       
+         $dateEntered = $sqlClient->unix_timestamp($$_{'DateEntered'});
+         
+         # if last encountered is set
+         if ($$_{'LastEncountered'})
+         {
+            $lastEncountered = $sqlClient->unix_timestamp($$_{'LastEncountered'});
+            if ($currentTime > $lastEncountered)
+            {
+               # this record needs to be updated
+               push @identifierList, $$_{'Identifier'};
+            }
+            else
+            {
+               # indicate that the record was found (even though it didn't result in a change)
+               $found = 1;  
+            }
+         }
+         else
+         {
+            if ($currentTime > $dateEntered)
+            {
+               # this record needs to be updated
+               push @identifierList, $$_{'Identifier'};
+            }
+            else
+            {
+               # indicate that the record was found (even though it didn't result in a change)
+               $found = 1;
+            }
+         }
       }
-      #print "addEncounterRecord: finished\n";
-   }
+       
+      # finally, iterate through the list of identifiers that need to be modified and apply the changes
+      my @changedProfile;
+      
+      ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($currentTime);
+      $sqlTime = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);
+      
+      foreach (@identifierList)
+      {
+         $identifier = $_;
+         $changedProfile{'LastEncountered'} = $sqlTime;
+        
+         # apply the change - note this also propagates changes into the working view
+         $this->replaceRecord(\%changedProfile, $identifier);
+         $found = 1;
+      }
+   }   
    
-   return $success;   
-}
+   return $found;   
+}  
+
+
 
 # -------------------------------------------------------------------------------------------------
 # lookupSourcePropertyProfile
@@ -867,6 +786,40 @@ sub lookupSourcePropertyProfile
       {         
          # fetch the profile
          @selectResults = $sqlClient->doSQLSelect("select * from $tableName where Identifier=$identifier");
+         $profileRef = $selectResults[0];
+      }     
+   }
+   return $profileRef;
+}
+
+# -------------------------------------------------------------------------------------------------
+# lookupSourcePropertyProfileByOriginatingHTML
+#  Fetches the details for the property that was created with the specified OriginatingHTML entry
+#  Operates on the SourceView
+#
+# Parameters:
+#  integer OriginatingHTML Identifier
+#
+# Returns:
+#   reference to a hash of properties
+#        
+sub lookupSourcePropertyProfileByOriginatingHTML
+
+{
+   my $this = shift;
+   my $identifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $profileRef = undef;
+   
+   if ($sqlClient)
+   {   
+      if ($identifier)
+      {         
+         # fetch the profile
+         @selectResults = $sqlClient->doSQLSelect("select * from $tableName where OriginatingHTML=$identifier");
          $profileRef = $selectResults[0];
       }     
    }
@@ -947,11 +900,11 @@ sub lookupSourcePropertyProfiles
       {
          if (!$reverse)
          {
-            $orderBy = "State, SuburbName, SreeetAddress";
+            $orderBy = "State, SuburbName";
          }
          else
          {
-             $orderBy = "State, SuburbName DESC, SreeetAddress";
+             $orderBy = "State, SuburbName DESC";
          }
       }
       else
@@ -1028,7 +981,7 @@ my $SQL_CREATE_WORKINGVIEW_TABLE_BODY =
    #"Website TEXT".                           # not used in working view
    "ErrorCode INTEGER, ".                    # error code - 0 is good, undef is not checked
    "WarningCode INTEGER, ".                  # warning code - 0 is none, undef is not checked
-   "OverridenValidity INTEGER DEFAULT 0, ".   # overriddenValidity set by human
+   "OverriddenValidity INTEGER DEFAULT 0, ".  # overriddenValidity set by human
    "ComponentOf INTEGER ZEROFILL";            # REFERENCES MasterPropertyTable.MasterPropertyIndex (foreign key to master property table)
 
 # -------------------------------------------------------------------------------------------------
@@ -1139,6 +1092,7 @@ sub _workingView_updateRecordWithChangeHash
       }      
       
       $statementText = $appendString." WHERE identifier=$sourceIdentifier";
+      #print "statement=$statementText\n";
       $statement = $sqlClient->prepareStatement($statementText);
       
       if ($sqlClient->executeStatement($statement))
@@ -1201,42 +1155,29 @@ sub _workingView_addOrChangeRecord
          $existingProfile = $this->lookupPropertyProfile($$parametersRef{'Identifier'});
          if ($existingProfile)
          {
+            #DebugTools::printHash("existingP", $existingProfile);
+            #DebugTools::printHash("params", $parametersRef);
+
             # a profile for this record already exists
-            # calculate a difference hash...
-            $profileChanged = 0;
-            my %changedProfile;
-            foreach (keys %$existingProfile)
+            # calculate a difference hash - undefs in the new profile will clear original values
+            my %changedProfile = $this->calculateChangeProfile($existingProfile, $parametersRef, 1);
+
+            @changeList = keys %changedProfile;
+            $noOfChanges = @changeList;
+            if ($noOfChanges > 0)
             {
-               if ($$existingProfile{$_})
-               {
-                  if ($$existingProfile{$_} == $$parametersRef{$_})
-                  {
-                     # note == is used instead of equals so that identical integers are detected
-                     # eg. 584 == 00000584
-                     # this field is identical
-                  }
-                  else
-                  {
-                     # a change occured
-                     $changedProfile{$_} = $$parametersRef{$_};
-                     $profileChanged = 1;
-                  }
-               }
-               else
-               {
-                  if ($$parametersRef{$_})
-                  {
-                     # a change occured
-                     $changedProfile{$_} = $$parametersRef{$_};
-                     $profileChanged = 1;
-                  }
-               }
-            }
-            
-            if ($profileChanged)
-            {
+               # determine if a master property is affected - this doesn't have to be done here, 
+               # but the information is available so it avoid another lookup
+               # IMPORTANT: the componentOf field is obtained from the existing profile
+               # it shouldn't ever be changed through this function, but if it is
+               # the caller has the responsibility to update the NEW record in the masterProperties table
+               # it is more important here to make sure the existing masterProperites entry is updated
+               # (which in the rare example above, has just had a component removed)
+               $componentOf = $$existingProfile{'ComponentOf'};
+               delete $changedProfile{'ComponentOf'};
+                              
                # add the changedProfile to the change table and modify the WorkingView table
-               $success = $this->changeRecord(\%changedProfile, $$parametersRef{'Identifier'}, "auto");
+               $success = $this->changeRecord(\%changedProfile, $$parametersRef{'Identifier'}, "auto", $componentOf);
                if ($success)
                {
                   $identifer = $$parametersRef{'Identifier'};
@@ -1287,7 +1228,7 @@ sub _workingView_addOrChangeRecord
                $index++;
             }
             $statementText = $statementText.$appendString . ")";
-                     
+                  
             $statement = $sqlClient->prepareStatement($statementText);
             
             if ($sqlClient->executeStatement($statement))
@@ -1375,6 +1316,48 @@ sub lookupPropertyProfile
       }     
    }
    return $profileRef;
+}
+
+# -------------------------------------------------------------------------------------------------
+# existsInWorkingView
+#  Returns TRUE if the record with the specified identifier is in the working view
+# The situation when it would NOT be in the working view is:
+#   a. it hasn't been batch processed yet and added to the working view
+#   b. it has been trashed
+#
+#  Operates on the WorkingView
+#
+# Parameters:
+#  integer Identifier - this is the identifier of the record
+#
+# Returns:
+#   BOOL True if it exists
+#        
+sub existsInWorkingView
+
+{
+   my $this = shift;
+   my $identifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $found = 0;
+   
+   if ($sqlClient)
+   {   
+      if ($identifier)
+      {
+         # lookup the identifier
+         @selectResults = $sqlClient->doSQLSelect("select Identifier from WorkingView_$tableName where Identifier=$identifier");
+         $profileRef = $selectResults[0];
+         if ($$profileRef{'Identifier'})
+         {
+            $found = 1;
+         }
+      }     
+   }
+   return $found;
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -1533,7 +1516,9 @@ sub _createChangeTable
 # changeRecord
 # alters a record of data in the WorkingView_AdvertisedPropertiesProfiles table and records the changed
 #  data transaction.   Note ONLY the WORKING VIEW and CHANGE TABLE is updated, not the source table 
-# 
+# ADDITIONAL NOTE: if the workingview record is in the MasterProperties table, then the masterProperties
+# table is updated too
+#
 # Purpose:
 #  Storing information in the database
 #
@@ -1541,7 +1526,7 @@ sub _createChangeTable
 #  reference to a hash containing the CHANGED values to insert
 #  integer sourceIdentifier
 #  string ChangedBy
-#
+#  integer MasterPropertyID (optional - propagates change into MasterProperties)
 # Constraints:
 #  nil
 #
@@ -1561,12 +1546,14 @@ sub changeRecord
    my $parametersRef = shift;
    my $sourceIdentifier = shift;
    my $changedBy = shift;
+   my $masterPropertyID = shift;
    
    my $success = 0;
    my $sqlClient = $this->{'sqlClient'};
    my $statementText;
    my $localTime;
    my $tableName = $this->{'tableName'};
+   my $nothingToChange = 0;
    
    if ($sqlClient)
    {
@@ -1576,43 +1563,52 @@ sub changeRecord
       # note DateEntered isn't used but is obtained for information - confirm it was infact the last entry that
       # was matched (only used in debugging)
       @columnNames = keys %$parametersRef;
-      
-      $appendString ="";
-      $index = 0;
-      foreach (@columnNames)
+      $noOfColumns = @columnNames;
+      if ($noOfColumns > 0)
       {
-         if ($index != 0)
+         $appendString ="";
+         $index = 0;
+         foreach (@columnNames)
          {
-            $appendString = $appendString.", ";
-         }
-        
-         $appendString = $appendString . $_;
-         $index++;
-      }      
-      
-      $statementText = $statementText.$appendString . " FROM ChangeTable_$tableName WHERE "; 
-      
-      # modify the statement to specify each column value to set 
-      @columnValues = values %$parametersRef;
-      $index = 0;
-      
-      $appendString = "Identifier = $sourceIdentifier AND ";
-      while(($field, $value) = each(%$parametersRef)) 
-      {
-         if ($index != 0)
+            if ($index != 0)
+            {
+               $appendString = $appendString.", ";
+            }
+           
+            $appendString = $appendString . $_;
+            $index++;
+         }      
+         
+         $statementText = $statementText.$appendString . " FROM ChangeTable_$tableName WHERE "; 
+         
+         # modify the statement to specify each column value to set 
+         @columnValues = values %$parametersRef;
+         $index = 0;
+         
+         $appendString = "Identifier = $sourceIdentifier AND ";
+         while(($field, $value) = each(%$parametersRef)) 
          {
-            $appendString = $appendString." AND ";
+            if ($index != 0)
+            {
+               $appendString = $appendString." AND ";
+            }
+           
+            $appendString = $appendString."$field = ".$sqlClient->quote($value);
+            $index++;
          }
-        
-         $appendString = $appendString."$field = ".$sqlClient->quote($value);
-         $index++;
+         # order by reverse data limit 1 to get the last entry
+         $statementText = $statementText.$appendString;
+   
+         @selectResults = $sqlClient->doSQLSelect($statementText);
+      
+         $noOfResults = @selectResults;
       }
-      # order by reverse data limit 1 to get the last entry
-      $statementText = $statementText.$appendString;
-
-      @selectResults = $sqlClient->doSQLSelect($statementText);
-      $noOfResults = @selectResults;
-      if ($noOfResults > 0)
+      else
+      {
+         $nothingToChange = 1;
+      }
+      
+      if (($noOfResults > 0) || ($nothingToChange))
       {
          # that record already exists as the last entry in the table!!!
          #print "That change already exists as the last entry (MATCHED=$noOfResults)\n";
@@ -1684,7 +1680,15 @@ sub changeRecord
             $success = 1;
             
             # --- now update the working view ---
-            $this->_workingView_updateRecordWithChangeHash($parametersRef, $sourceIdentifier); 
+            $this->_workingView_updateRecordWithChangeHash($parametersRef, $sourceIdentifier);
+            
+            if ($masterPropertyID)
+            {
+               # IMPORTANT: if the workingView that has just been changed is a component of a 
+               # master property then the change needs to be propagated into the master property too
+               $masterProperties = MasterProperties::new($sqlClient);
+               $masterProperties->_calculateMasterComponents($masterPropertyID);
+            }
          }
       }
    }
@@ -1726,30 +1730,6 @@ sub lookupRegExPatterns
    $regExResults = $regExPatterns->lookupPatterns();
    
    return $regExResults;
-}
-
-
-# -------------------------------------------------------------------------------------------------
-
-sub regexEscape
-
-{
-   my $string = shift;
-   $string =~ s/\\/\\\\)/gi;   
-   $string =~ s/\./\\\./gi;
-   $string =~ s/\^/\\\^/gi;
-   $string =~ s/\$/\\\$/gi;
-   $string =~ s/\*/\\\*/gi;
-   $string =~ s/\+/\\\$/gi;
-   $string =~ s/\?/\\\?/gi;
-   $string =~ s/\{/\\\{/gi;
-   $string =~ s/\}/\\\}/gi;
-   $string =~ s/\[/\\\[/gi;
-   $string =~ s/\]/\\\]/gi;
-   $string =~ s/\(/\\\(/gi;
-   $string =~ s/\)/\\\)/gi;
-   $string =~ s/\|/\\\|/gi;
-   return $string;
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -1804,6 +1784,7 @@ sub repairSuburbName
    my $regExSubstitutionsRef = $this->lookupRegExPatterns();
     
    my $suburbName = $$profileRef{'SuburbName'};
+   my $matched = 0;
    
    #print "suburbName='$suburbName'";
 
@@ -1918,6 +1899,8 @@ sub repairSuburbName
    if (!$matched)
    {
       #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $suburbName, "' FAILED\n";
+      $changedSuburbName = undef;
+      $changedSuburbIndex = undef;
    }
    
    return ($changedSuburbName, $changedSuburbIndex);
@@ -2700,6 +2683,86 @@ sub mergeChanges
 }
 
 # -------------------------------------------------------------------------------------------------
+# calculateChangeProfile
+# compares two profiles and returns a hash of the changed elements
+# 
+# There are two options for how to handle undefs in the new profile:
+#  0: It is unchanged 
+#  1: If a field doesn't existing in the new profile, it is assumed to be set to CLEAR
+#
+# Note: the type of comparison used to detect changes will be STRING based if the value
+# contains non-digits,and INTEGER base if it's only digits.  (ie.  ne vs. !=)
+#  ie.  (0000544 == 544) but (0000544 ne 544)
+#
+# Parameters:
+#  originalProfileRef
+#  newProfileRef
+#  BOOL clearUndefs
+#
+# Updates:
+#  database
+#
+# Returns:
+#  validated sale profile
+#    
+sub calculateChangeProfile
+{
+   my $this = shift;
+   my $originalProfileRef = shift;
+   my $newProfileRef = shift;
+   my $clearUndefs = shift;
+   my %changedProfile;
+   
+   foreach (@keyList = keys %$originalProfileRef)
+   {
+      if (exists $$newProfileRef{$_})
+      {                              
+         # IMPORTANT: if the value is only an integer, use !=
+         # if it's a string, use ne
+         if ($$newProfileRef{$_} =~ /\D/g)
+         {
+            # string comparison
+            if ($$originalProfileRef{$_} ne $$newProfileRef{$_}) 
+            {
+               # this is a change
+               $changedProfile{$_} = $$newProfileRef{$_};
+            }
+         }
+         else
+         {
+            # integer comparison
+            
+            if ($$originalProfileRef{$_} != $$newProfileRef{$_}) 
+            {
+               # this is a change
+               $changedProfile{$_} = $$newProfileRef{$_};
+            }
+         }
+      }
+      else
+      {
+         if ($clearUndefs)
+         {
+            # this field isn't in the new profile - assume that it's cleared, but only
+            # bother doing this if it's not already undef
+            if (defined $$originalProfileRef{$_})
+            {
+               $changedProfile{$_} = undef;
+            }
+         }
+         else
+         {
+            # this field is unchanged
+         }
+      }
+   }
+   
+   #DebugTools::printHash("change", \%changedProfile);
+   
+   return %changedProfile;
+}
+
+# -------------------------------------------------------------------------------------------------
 # transferToWorkingView
 # validates the fields in the property advertisement and generates a workingView record
 #
@@ -2814,6 +2877,7 @@ sub transferToWorkingView
    ($errorCode, $warningCode) = $this->assessRecordValidity(\%newProfile);
    $newProfile{'ErrorCode'} = $errorCode;
    $newProfile{'WarningCode'} = $warningCode;
+   $newProfile{'OverriddenValidity'} = 0;   # clear override
    
    # add a new record (or change existing)
    ($identifier, $changed, $added) = $this->_workingView_addOrChangeRecord(\%newProfile);

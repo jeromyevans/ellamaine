@@ -18,12 +18,24 @@
 # 24 June 2005     - added support for RecordsSkipped field in status table - to track how many records
 #  are deliberately skipped because they're likely to be in the db already.
 #  in theory: recordsEncountered = recordsSkipped+recordsParsed
+# 25 June 2005     - added support for the parser druRun flag
+# 26 June 2005     - modified extraction function so it always defines local variables - was possible that 
+#  the variables were set from a previous iteration
+#                  - improved support for legacy records by checking for the legacy URL pattern
+#                   - added support for the writeMethod parameter (a global parameter passed through the
+#  documentReader) that can be set to 'add' or 'replace'.  When replace is set then the replaceRecord
+#  method of AdvertisedPropertyProfiles is called instead of addRecord.  This is used when re-processing
+#  old records again (ie. through an updated parser)
+#                   - added support for the updateLastEncounteredIfExists function that replaces the
+#  addEncounterRecord and checkIfResult exists functions - if an existing record is encountered again
+#  it checks and updates the database - changes are propagated into the working view if they exist there
+#  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
 # $Id$
 #
-package WebsiteParser_Realestate;
+package WebsiteParser_Reiwa;
 
 use PrintLogger;
 use CGI qw(:standard);
@@ -41,7 +53,9 @@ use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;
 use StringTools;
 
-@ISA = qw(Exporter);
+require Exporter;
+@ISA    = qw(Exporter);
+@EXPORT = qw(parseREIWASearchList parseREIWASearchForm parseREIWASearchDetails parseREIWADisplayResponse);
 
 # -------------------------------------------------------------------------------------------------
 # extractREIWAProfile
@@ -80,8 +94,10 @@ sub extractREIWAProfile
    my $sqlClient = $documentReader->getSQLClient();
    
    my $saleOrRentalFlag = -1;
+   my $sourceID = undef;
    my $sourceName = undef;
    my $state = undef;
+   my $titleString = undef;
    
    # first, locate the pattern that identifies the source of the record as RealEstate.com
    if ($htmlSyntaxTree->containsTextPattern("REIWA Online"))
@@ -113,8 +129,17 @@ sub extractREIWAProfile
    $propertyProfile{'State'} = 'WA';
    
    # --- extract the sourceID ---
+  
+     
+   # 26June05 - REIWA initially had a bug here in that it specified the text
+   # 'Property For Sale (nnn)' on both Sale and Rental records
+   # it's now been modified to 'Property (nnn)'.  Backwards compatibility is
+   # being maintained as some source ID's may need reprocessing
+   # extract the sourceID from the the URL
    
-   $sourceID = $htmlSyntaxTree->getNextTextContainingPattern("Property For");
+   $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('td', 'lst-NavBar-Title');
+   $sourceID = $htmlSyntaxTree->getNextTextContainingPattern("Property");
+   
    $sourceID =~ s/\D//gi;  # remove non-digits
    
    if ($sourceID) 
@@ -124,6 +149,7 @@ sub extractREIWAProfile
    
    # --- extract the price string ---
    
+   $htmlSyntaxTree->resetSearchConstraints();
    $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('td', 'lstv-price');
    $priceString = $htmlSyntaxTree->getNextText();
       
@@ -138,6 +164,7 @@ sub extractREIWAProfile
    $tagHash = $htmlSyntaxTree->getNextTagMatchingPattern('img');
    $htmlSyntaxTree->setSearchEndConstraintByTag('/td');
    $title = $$tagHash{'title'};
+
    if ($title =~ /Sold/gi)
    {
       $titleString = "Sold ".trimWhitespace($priceString);
@@ -367,7 +394,6 @@ sub extractREIWAProfile
    return \%propertyProfile;  
 }
 
-
 # -------------------------------------------------------------------------------------------------
 # extractLegacyREIWAProfile
 # extracts property sale information from an HTML Syntax Tree
@@ -396,9 +422,15 @@ sub extractLegacyREIWAProfile
    my $htmlSyntaxTree = shift;
    my $url = shift;
    my $text;
+   my $CONTACT_NAME = 0;
+   my $AGENCY_NAME = 1;
+   my $PHONE_NUMBER = 2;
+   my $MOBILE_NUMBER = 3;
+   my $EMAIL = 4;
+   my $WEBSITE = 5;
    
    my %propertyProfile;   
-   
+
    # first, locate the pattern that identifies the source of the record as RealEstate.com
    if ($htmlSyntaxTree->containsTextPattern("1st Place ILS"))
    {
@@ -409,15 +441,17 @@ sub extractLegacyREIWAProfile
    {
       $propertyProfile{'SourceName'} = $sourceName;
    }
-   
+
    # second, locate the pattern that identifies this as a SALE record or RENT record
+   # if the RENT is specified in the initial sections, then assume it's a rental record   
+   $htmlSyntaxTree->setSearchEndConstraintByText("Email For More Information");
    if ($htmlSyntaxTree->containsTextPattern('Rent'))
    {
-      $saleOrRentalFlag = 0;
+      $saleOrRentalFlag = 1;
    }
    else
    {
-      $saleOrRentalFlag = 1;
+      $saleOrRentalFlag = 0;
    }
    
    $propertyProfile{'SaleOrRentalFlag'} = $saleOrRentalFlag;
@@ -425,6 +459,7 @@ sub extractLegacyREIWAProfile
    # --- set start constraint to the 3rd table (table 2) on the page - this is table
    # --- across the top that MAY contain a title and description
                
+   $htmlSyntaxTree->resetSearchConstraints();
    $htmlSyntaxTree->setSearchConstraintsByTable(2);
    $htmlSyntaxTree->setSearchEndConstraintByTag("td"); # until the next table
                     
@@ -503,7 +538,7 @@ sub extractLegacyREIWAProfile
    
    if ($yearBuilt)
    {
-      $propertyProfile{'YearBuilt'} = $yearBuilt;
+      $propertyProfile{'YearBuilt'} = trimWhitespace($yearBuilt);
    }
    
    # --- set the start constraint back to the top of the page and tje "for More info" label
@@ -546,15 +581,101 @@ sub extractLegacyREIWAProfile
    
     # --- set the start constraint back to the top of the page and tje "for More info" label
    $htmlSyntaxTree->resetSearchConstraints();
+   if ($htmlSyntaxTree->setSearchStartConstraintByText("For More Information Contact:"))
+   {
+   
+      # run a simple state machine to get the parameters
+      $state = $CONTACT_NAME;
+      $finished = 0;
+      # loop until all lines are processed, or the website is extracted
+      # text will be skipped if it doesn't look right
+      while (($thisText = $htmlSyntaxTree->getNextText()) && (!$finished))
+      {
+         #print "$state: $thisText\n";
+         $usedThisText = 0;
+         if ($state == $CONTACT_NAME)
+         {
+            $contactName = $thisText;
             
-   $contactName = $htmlSyntaxTree->getNextTextAfterPattern("For More Information Contact:");
-   $agencyName = $htmlSyntaxTree->getNextText();
-   $phoneNumber = $htmlSyntaxTree->getNextText();
-   $phoneNumber =~ s/\D//g;        # remove non-digits
-   $mobileNumber = $htmlSyntaxTree->getNextText();
-   $mobileNumber =~ s/\D//g;       # remove non-digits
-   $email = $htmlSyntaxTree->getNextText();
-   $website = $htmlSyntaxTree->getNextText();
+            $state = $AGENCY_NAME;
+            $usedThisText = 1;    
+         }
+         if (($state == $AGENCY_NAME) && (!$usedThisText))
+         {
+            $agencyName = $thisText;
+            $usedThisText = 1;
+            $state = $PHONE_NUMBER;
+         }
+         if (($state == $PHONE_NUMBER) && (!$usedThisText))
+         {
+            # if this text contains numbers
+            if ($thisText =~ /\d/g)
+            {
+               $phoneNumber = $thisText;
+               $phoneNumber =~ s/\D//g;        # remove non-digits
+               $usedThisText = 1;
+               $state = $MOBILE_NUMBER;
+            }
+            else
+            {
+               # this isn't a phone number...is it email?
+               $state = $EMAIL;
+            }
+         }
+         if (($state == $MOBILE_NUMBER) && (!$usedThisText))
+         {
+            # if this text contains numbers
+            if ($thisText =~ /\d/g)
+            {
+               $mobileNumber = $thisText;
+               $mobileNumber =~ s/\D//g;        # remove non-digits
+               $usedThisText = 1;
+               $state = $EMAIL;
+            }
+            else
+            {
+               # this isn't a phone number...is it email?
+               # drop through to next check
+            }
+         }
+            
+         # Note the OR for entry into this check
+         # Will not enter if state=EMAIL and usedThisText is set
+         if ((($state == $EMAIL) && (!$usedThisText)) || (!$usedThisText))
+         {
+            # if this text contains numbers
+            if ($thisText =~ /\@/g)
+            {
+               $email = $thisText;
+               $usedThisText = 1;
+               $state = $WEBSITE;
+            }
+            else
+            {
+               # this isn't an email....is it website?
+               # drop through to next check
+            }
+         }
+         
+         # Note the OR for entry into this check    
+         # Will not enter if state=WEBSITE and usedThisText is set
+         if ((($state == $WEBSITE) && (!$usedThisText)) || (!$usedThisText))
+         {
+            # if this text contains numbers
+            if ($thisText =~ /\.com/g)
+            {
+               $website = $thisText;
+               $usedThisText = 1;
+               $finished = 1;
+            }
+            else
+            {
+               # this isn't a website - skip this line
+            }
+         }
+         
+      }
+   }
    
    if ($contactName)
    {
@@ -590,11 +711,10 @@ sub extractLegacyREIWAProfile
    
    
    populatePropertyProfileHash($sqlClient, $documentReader, \%propertyProfile);
-   DebugTools::printHash("PropertyProfile", \%propertyProfile);
+   #DebugTools::printHash("PropertyProfile", \%propertyProfile);
         
    return \%propertyProfile;  
 }
-
 
 # -------------------------------------------------------------------------------------------------
 # parseREIWASearchDetails
@@ -617,6 +737,7 @@ sub extractLegacyREIWAProfile
 # Returns:
 #  a list of HTTP transactions or URL's.
 #    
+
 sub parseREIWASearchDetails
 
 {	
@@ -627,6 +748,8 @@ sub parseREIWASearchDetails
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
+   my $useLegacyExtraction = 0;
    
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
@@ -639,63 +762,104 @@ sub parseREIWASearchDetails
    $statusTable = $documentReader->getStatusTable();
 
    $printLogger->print("in parseSearchDetails ($parentLabel)\n");
-      
-   if ($htmlSyntaxTree->containsTextPattern("Property Details"))
+    
+   if (($url =~ /searchdetails\.cfm/) && ($htmlSyntaxTree->containsTextPattern("Save")) && ($htmlSyntaxTree->containsTextPattern("Map")))
    {
-      # 25June2005 - some responses that are provided to this parser are actually not the property details
-      # but in fact the property list again. Do a second check to make sure this isn't the property listing
-      if (!$htmlSyntaxTree->containsTextPattern("matching listings"))
+      # this is a legacy REIWA record - a different extraction process needs to be followed
+      $useLegacyExtraction = 1;
+   }
+   
+   # two possible entry patterns - NEW and LEGACY
+   if (($htmlSyntaxTree->containsTextPattern("View Property Details")) || ($useLegacyExtraction))
+   {
+      # extract parameters from the page
+      
+      if (!$useLegacyExtraction)
       {
-         
-         # determine which version of the REIWA site is being parsed - backwards compatibility is
-         # maintained for processing the archives
-         
          # --- now extract the property information for this page ---
          # parse the HTML Syntax tree to obtain the advertised sale information
          $propertyProfile = extractREIWAProfile($documentReader, $htmlSyntaxTree, $url, $parentLabel);
-         
-         # CRITICAL - if the sourceID isn't set, then it's probable that this is an LEGACY REIWA record
-         # legacy records are encountered only when rebuilding from achives - and support for them has
-         # to be maintained (for now)
-         if ((!$$propertyProfile{'SourceID'}) || (!$$propertyProfile{'SourceName'}))
+      }
+      else
+      {
+         $propertyProfile = extractLegacyREIWAProfile($documentReader, $htmlSyntaxTree, $url, $parentLabel);
+      }
+
+      if ($sqlClient->connect())
+      {		 	
+         # 26 June 2005 - check the DocumentReader parameters to see whether the parser
+         # should ADD new records or REPLACE old records
+         $writeMethod = $documentReader->getGlobalParameter('writeMethod');
+     
+         if ($writeMethod =~ /add/i)
          {
-            $propertyProfile = extractLegacyREIWAProfile($documentReader, $htmlSyntaxTree, $url, $parentLabel);
-         }
-   
-         if ($sqlClient->connect())
-         {		 	 
-            # check if the log already contains this checksum - if it does, assume the tuple already exists                  
-            if ($advertisedPropertyProfiles->checkIfProfileExists($propertyProfile))
+            # the following functions write to the database - only call if not in a dryRun
+            if (!$dryRun)
             {
-               # this tuple has been previously extracted - it can be dropped
-               # record that it was encountered again
-               $printLogger->print("   parseSearchDetails: identical record already encountered at ", $$propertyProfile{'SourceName'}, ".\n");
-               $advertisedPropertyProfiles->addEncounterRecord($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'});
-               $statusTable->addToRecordsParsed($threadID, 1, 0, $url);    
+               # check if this profile already exists - if it does, update the LastEncountered timestamp
+               # if it doesn't exist, then add a new record
+             
+               if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($$propertyProfile{'SaleOrRentalFlag'}, $$propertyProfile{'SourceName'}, $$propertyProfile{'SourceID'}, $$propertyProfile{'Checksum'}, $$propertyProfile{'TitleString'}, $$propertyProfile{'AdvertisedPriceString'}))
+               {
+                  $printLogger->print("   parseSearchDetails: updated LastEncountered for existing record.\n");
+                  $statusTable->addToRecordsParsed($threadID, 1, 0, $url);
+               }
+               else
+               {
+                  $printLogger->print("   parseSearchDetails: adding new record.\n");
+                  $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
+                  $statusTable->addToRecordsParsed($threadID, 1, 1, $url);
+               }   
+            }
+         }
+         elsif ($writeMethod =~ /replace/i)
+         {
+            # the REPLACE record writemethod is set - 
+            $originatingHTMLID = $documentReader->getGlobalParameter('identifier');
+            if ($originatingHTMLID)
+            {
+               # get the identifier for the record created by the originating HTML
+               $existingProfile = $advertisedPropertyProfiles->lookupSourcePropertyProfileByOriginatingHTML($originatingHTMLID);
+               
+               $identifier = $$existingProfile{'Identifier'};
+               if ($identifier)
+               {
+                  $printLogger->print("   parseSearchDetails: replacing record (id:$identifier).\n");  
+                
+                  %changeProfile = $advertisedPropertyProfiles->calculateChangeProfile($existingProfile, $propertyProfile);
+                  if (!$dryRun)
+                  {
+                     # a record has been specified to replace with this profile
+                     if (!$advertisedPropertyProfiles->replaceRecord(\%changeProfile, $identifier))
+                     {
+                        $printLogger->print("      parseSearchDetails: no changes necessary.\n");
+                     }
+                  }
+               }
+               else
+               {
+                  $printLogger->print("   parseSearchDetails: replace requested but can't find record created by originatingHTML (id:$identifier).\n");  
+               }
             }
             else
             {
-               $printLogger->print("   parseSearchDetails: unique checksum/url - adding new record.\n");
-               # this tuple has never been extracted before - add it to the database
-               $identifier = $advertisedPropertyProfiles->addRecord($propertyProfile, $url, $htmlSyntaxTree);
-               $statusTable->addToRecordsParsed($threadID, 1, 1, $url);    
+               $printLogger->print("   parseSearchDetails: 'writeMethod' REPLACE requested but 'identifier' not specified\n");
             }
          }
          else
          {
-            $printLogger->print("   parseSearchDetails:", $sqlClient->lastErrorMessage(), "\n");
+            $printLogger->print("   parseSearchDetails: 'writeMethod'($writeMethod) not recognised\n");
          }
       }
       else
       {
-         $printLogger->print("   parseSearchDetails: page identifier not found (this was a list, not details)\n");
+         $printLogger->print("   parseSearchDetails:", $sqlClient->lastErrorMessage(), "\n");
       }
    }
    else
    {
       $printLogger->print("   parseSearchDetails: page identifier not found\n");
    }
-   
    
    # return an empty list
    return @emptyList;
@@ -715,12 +879,6 @@ sub parseREIWASearchDetails
 #  HTMLSyntaxTree to use
 #  String URL
 #
-# Constraints:
-#  nil
-#
-# Updates:
-#  database
-#
 # Returns:
 #  a list of HTTP transactions or URL's.
 #    
@@ -734,6 +892,7 @@ sub parseREIWASearchList
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sourceName =  $documentReader->getGlobalParameter('source');
@@ -817,22 +976,21 @@ sub parseREIWASearchList
             }
             $sourceURL = $urlString."?Id=$sourceID";
             
-            # check if the cache already contains this unique id
-            # $_ is a reference to a hash
-            if (!$advertisedPropertyProfiles->checkIfResultExists($saleOrRentalFlag, $sourceName, $sourceID, $titleString))                              
-            {   
-               $printLogger->print("   parseSearchList: adding anchor id ", $sourceID, "...\n");
+            # check if the cache already contains a profile matching this source ID and title           
+            if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($saleOrRentalFlag, $sourceName, $sourceID, undef, $titleString, undef))
+            {
+               $printLogger->print("   parseSearchList: updated LastEncountered for existing record (sourceID:$sourceID).\n");
+               $recordsSkipped++;
+            }
+            else
+            {
+               $printLogger->print("   parseSearchList: adding source id ", $sourceID, "...\n");
                #$printLogger->print("   parseSearchList: url=", $sourceURL, "\n");          
                my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$sourceID);                  
           
                push @urlList, $httpTransaction;
             }
-            else
-            {
-               $printLogger->print("   parseSearchList: id ", $sourceID , " in database. Updating last encountered field...\n");
-               $advertisedPropertyProfiles->addEncounterRecord($saleOrRentalFlag, $sourceName, $sourceID, undef);
-               $recordsSkipped++;
-            }
+            
             $recordsEncountered++;  # count records seen
             # save that this suburb has had some progress against it
             $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
@@ -848,10 +1006,21 @@ sub parseREIWASearchList
                
       if ($nextButtonListRef)
       {            
+         # the page contains the Next button - but the anchor is actually a call to javascript to load the
+         # next page by POSTing to a form.  A parameter passed to the javascript is the record number of the first record to 
+         # display in the next list!  We need to use the onClick attribute of the anchor, AND the content of the
+         # previous post
          $printLogger->print("   parseSearchList: list includes a 'next' button anchor...\n");
-         $httpTransaction = HTTPTransaction::new($$nextButtonListRef[0], $url, $parentLabel);                  
-
-         @anchorsList = (@urlList, $httpTransaction);
+         print "onClick=", $$nextButtonListRef[0],"\n";
+         print "source=$url\n";
+         # derived from javascript - the target URL is the same but with SEARCH replaced with LIST
+         # (the URL contains session information)
+         $targetURL = $url;
+         $targetURL =~ s/Action=SEARCH/Action=LIST/gi;
+         print "target=$targetURL&ID=nnn\n";
+         #$httpTransaction = HTTPTransaction::new($targetURL, $url, $parentLabel);                  
+$printLogger->print("FATAL: The REIWA parser cannot handle long listing yet - requires better session tracking in DocumentReader");
+         #@anchorsList = (@urlList, $httpTransaction);
       }
       else
       {            
@@ -927,6 +1096,7 @@ sub parseREIWASearchForm
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    # list of REIWA regions and suburbs:
    # this code extracted from: jscript-MainAreaSuburbs-Reset.js
@@ -1009,8 +1179,8 @@ sub parseREIWASearchForm
     
    if ($htmlForm)
    {    
-      # override the action for the from (it uses javascript to refine the result)
-      $htmlForm->overrideAction($htmlForm->getAction()."?Action=SEARCH");
+      # override the action for the from (it uses javascript to modidy the URL)
+      $htmlForm->overrideAction($htmlForm->getAction()."&Action=SEARCH");
 
       # loop through all the hardcoded regions
       foreach (@suburbMainAreas)
@@ -1115,6 +1285,7 @@ sub parseREIWADisplayResponse
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
+   my $dryRun = shift;
    
    my @anchors;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');

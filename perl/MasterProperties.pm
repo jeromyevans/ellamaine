@@ -972,7 +972,7 @@ sub _calculateMasterComponents
       $noOfChanges = @changes;
       if ($noOfChanges > 0)
       {
-         DebugTools::printHash("change", \%changeProfile);
+         DebugTools::printHash("changeMaster", \%changeProfile);
          $success = $this->_updateMasterPropertyWithChangeHash($masterPropertyIndex, \%changeProfile);
       }
    }

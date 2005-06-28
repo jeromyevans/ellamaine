@@ -518,4 +518,48 @@ sub readHTMLContent
 
 # -------------------------------------------------------------------------------------------------
 
+# -------------------------------------------------------------------------------------------------
+# lookupOriginatingHTMLIdentifiers
+#  Returns a list of ALL the identifiers in the OriginatingHTML table
+#
+# Parameters:
+#  OPTIONAL INTEGER Limit  - maximum number of records to return
+#  OPTIONAL INTEGER Offset - start at this index
+#
+# Returns:
+#   reference to a hash of properties
+#        
+sub lookupOriginatingHTMLIdentifiers
+
+{
+   my $this = shift;
+   my $limit = shift;
+   my $offset = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $profileRef = undef;
+   my @selectResults;
+   my $constraint;
+   
+   if ($sqlClient)
+   {
+      $constraint = "";
+      if ($limit)
+      {
+         $constraint .= " LIMIT $limit";
+      }
+      if ($offset)
+      {
+         $constraint .= " OFFSET $offset";
+      }
+      $statementText = "select Identifier from $tableName".$constraint;
+      
+      @selectResults = $sqlClient->doSQLSelect($statementText);
+   }
+   return \@selectResults;
+}
+
+# -------------------------------------------------------------------------------------------------
 

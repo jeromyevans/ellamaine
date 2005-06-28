@@ -60,6 +60,16 @@
 #              19 Feb 2005 - hardcoded absolute log directory temporarily
 #               2 Apr 2005 - added support for setting printLogger for HTTPClient (debug info)
 #              18 Jun 2005 - removed string-related tools to their own module (StringTools)
+#              25 Jun 2005 - significant change - added support for a 'parse' command that allows the
+#    DocumentReader to be run on an OriginatingHTML file.  Based on code used to rebuild the database
+#   from the archives, but now integrated into the DocumentReader
+#                          - added a DRY-RUN field to all call-back functions.  If dryRun is set the
+#   call-back functions MUST NOT write to the database
+#                          - disabled the STOP slow reponse (low memory) error.  This problem hasn't been 
+#   occuring since the HTMLSyntaxTree was fixed and having it stop suddenly when the machine or database
+#   is busy has been annoying (now the wrapper process that restarted instances in continue mode
+#   is not required)
+#
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -81,6 +91,7 @@ use File::Copy;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;
 use Ellamaine::SessionURLStack;
+use StringTools;
 
 my $DEFAULT_USER_AGENT ="Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)";
 
@@ -112,7 +123,7 @@ my $ok = 1;
 # Returns:
 #  DocumentReader object
 #    
-sub new ($ $ $ $ $ $ $ $ $)
+sub new ($ $ $ $ $ $ $ $ $ $)
 {
    my $sessionName = shift;
    my $instanceID = shift;
@@ -123,8 +134,10 @@ sub new ($ $ $ $ $ $ $ $ $)
    my $localPrintLogger = shift;
    my $threadID = shift;
    my $parametersHashRef = shift;
+   my $dryRun = shift;  
    my $lastInstanceID = undef;
-
+   
+   
    # access the statusTable
    $statusTable = StatusTable::new($sqlClient);
    $$tablesHashRef{'statusTable'} = $statusTable;
@@ -161,7 +174,6 @@ sub new ($ $ $ $ $ $ $ $ $)
       sqlClient => $sqlClient,      
       tablesHashRef => $tablesHashRef,      
       parserHashRef => $parserHashRef,    
-      proxy => undef,
       instanceID => $instanceID,
       transactionNo => 0,
       lowMemoryError => 0,
@@ -169,7 +181,9 @@ sub new ($ $ $ $ $ $ $ $ $)
       parametersHashRef => $parametersHashRef,
       httpClient => undef,
       lastInstanceID => $lastInstanceID,
-      cookiePath => "/projects/changeeffect/logs"
+      dryRun => $dryRun,
+      ignoreFrames => $$parametersHashRef{'ignoreFrames'} || 0,
+      ignoreResponse => $$parametersHashRef{'ignoreResponse'} || 0
    };               
    
    bless $documentReader;     
@@ -321,79 +335,6 @@ sub _dropTables
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
-
-sub regexEscape
-
-{
-   my $string = shift;
-   
-   $string =~ s/\?/ /gi;
-   $string =~ s/\[/ /gi;
-   $string =~ s/\]/ /gi;
-   $string =~ s/\(/ /gi;
-   $string =~ s/\)/ /gi;
-   $string =~ s/\*/ /gi;
-   $string =~ s/\./ /gi;
-   return $string;
-}
-
-# -------------------------------------------------------------------------------------------------
-# stringContainsPattern
-# determines if the specified string contains a pattern from a list. If found, returns the
-# index in the pattern list corresponding to the pattern matched, otherwise zero
-
-# Purpose:
-#  multi-session processing
-#
-# Parameters:
-#  @sessionURLStacksqlclient to use
-#
-# Constraints:
-#  nil
-#
-# Updates:
-#  nil
-#
-# Returns:
-#  nil
-#    
-sub stringContainsPattern
-
-{
-   my $string = shift;
-   my $patternListRef = shift;
-   my $index = 0;
-   my $found = 0;
-   
-   $string = regexEscape($string);
-   # loop through the list of patterns
-   foreach (@$patternListRef)
-   {
-      # check if the string contains the current pattern
-      $comparitor = regexEscape($_);
-      if ($string =~ /$comparitor/gi)
-      {
-         # pattern matched - break out of the loop 
-         $found = 1;
-         last;
-      }
-      else
-      {
-         $index++;
-      }
-   }
-   
-   # return the index of the matching pattern (or -1)
-   if ($found)
-   {
-      return $index;
-   }
-   else
-   {
-      return -1;
-   }
-}
-
 # -------------------------------------------------------------------------------------------------
 sub test
 {
@@ -442,7 +383,7 @@ sub _parseDocument
    my $parserHashRef = $this->{'parserHashRef'};
    # get the list of pattterns for which a parser has been defined      
    my @parserPatternList = keys %$parserHashRef; 
-   
+
    $url = $nextTransaction->getURL();   
    
    $content = $httpClient->getResponseContent();               
@@ -452,40 +393,42 @@ sub _parseDocument
    # store the top page as the first index in the frame list
    $frameClientList[0] = $httpClient;
    $noOfFrames++;
-               
-   # this is an opportunity to check if there's a frame to load for this page
-   # if there's frames they all need to loaded before continuing processessing
-   # to ensure the URL stack order is maintained
-   if ($htmlSyntaxTree->containsFrames())           
+   
+   if (!$this->{'ignoreFrames'})
    {
-         
-      #$printLogger->print("  Loading frames...\n"); 
-      @frameList = $htmlSyntaxTree->getFrames();   
-
-      # for each frame, load it's content but don't parse it yet (store content
-      # in list)
-      foreach (@frameList)
+      # this is an opportunity to check if there's a frame to load for this page
+      # if there's frames they all need to loaded before continuing processessing
+      # to ensure the URL stack order is maintained
+      if ($htmlSyntaxTree->containsFrames())           
       {
-	      $absoluteURL = new URI::URL($_, $url)->abs()->as_string();   
-         # create new transaction.  set referer to the base url 
-         # 2 Oct 2004 - bugfix to referer
-         #$httpTransaction = HTTPTransaction::new($absoluteURL, 'GET', undef, $absoluteURL);
-         $httpTransaction = HTTPTransaction::new($absoluteURL, $url, $nextTransaction->getLabel());
-         # 30 Oct 2004 - referer is a transaction - useful for referer stack (for recovery)
-         #$httpTransaction = HTTPTransaction::new($absoluteURL, $nextTransaction, $nextTransaction->getLabel());
-         
-         $frameHTTPClient = HTTPClient::new($this->{'instanceID'});      
-         $frameHTTPClient->setProxy($this->{'proxy'});                  
-         $frameHTTPClient->setUserAgent($DEFAULT_USER_AGENT);
-
-         if ($frameHTTPClient->fetchDocument($httpTransaction, $url))
+            
+         #$printLogger->print("  Loading frames...\n"); 
+         @frameList = $htmlSyntaxTree->getFrames();   
+   
+         # for each frame, load it's content but don't parse it yet (store content
+         # in list)
+         foreach (@frameList)
          {
-            $frameClientList[$noOfFrames] = $frameHTTPClient;
-            $noOfFrames++;
-         }		   	                                          
-		}                  
+            $absoluteURL = new URI::URL($_, $url)->abs()->as_string();   
+            # create new transaction.  set referer to the base url 
+            # 2 Oct 2004 - bugfix to referer
+            #$httpTransaction = HTTPTransaction::new($absoluteURL, 'GET', undef, $absoluteURL);
+            $httpTransaction = HTTPTransaction::new($absoluteURL, $url, $nextTransaction->getLabel());
+            # 30 Oct 2004 - referer is a transaction - useful for referer stack (for recovery)
+            #$httpTransaction = HTTPTransaction::new($absoluteURL, $nextTransaction, $nextTransaction->getLabel());
+            
+            $frameHTTPClient = HTTPClient::new($this->{'instanceID'});      
+            $frameHTTPClient->setUserAgent($DEFAULT_USER_AGENT);
+   
+            if ($frameHTTPClient->fetchDocument($httpTransaction, $url))
+            {
+               $frameClientList[$noOfFrames] = $frameHTTPClient;
+               $noOfFrames++;
+            }		   	                                          
+         }                  
+      }
    }
-         	      
+                     
    # parse all of the loaded frames in series (including the top page)
    #   (run callback function to get list of URL's for the session)
    foreach (@frameClientList)
@@ -507,11 +450,10 @@ sub _parseDocument
          # this was the first - clear the flag
          $inTopFrame = 0;
       }   
-      
+
       # determine if there's a parser defined for this url...
-      if (($parserIndex = stringContainsPattern($url, \@parserPatternList)) >= 0)
-   	{
-         
+      if (($parserIndex = stringContainsPatternInList($url, \@parserPatternList, 1)) >= 0)
+   	{         
          ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
          $year += 1900;
          $mon++;      
@@ -523,41 +465,52 @@ sub _parseDocument
          $startTime = time;
          
          no strict 'refs';  # allow symbolic references
-
+#print "index $parserIndex:'", $parserPatternList[$parserIndex], "' callback:", $$parserHashRef{$parserPatternList[$parserIndex]}, "\n";
 	   	# get the value from the hash with the pattern matching the callback function
 		   # the value in the hash is a symbolic reference to the callback function
          # ie. a string like "packagename::function"
 		   my $callbackFunction = $$parserHashRef{$parserPatternList[$parserIndex]};		  		
-         my @callbackTransactionStack = ($callbackFunction)->($this, $htmlSyntaxTree, $url, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel());
+         my @callbackTransactionStack = ($callbackFunction)->($this, $htmlSyntaxTree, $url, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel(), $this->{'dryRun'});
 
          $endTime = time;
          $runningTime = $endTime - $startTime;
            #print "Transaction $transactionNo took $runningTime seconds\n";
-         if ($runningTime > 45)
+         #if ($runningTime > 45)
+         #{
+         #   $printLogger->print("Getting very slow...low memory....halting this instance (should automatically restart)\n");
+         #   $this->{'lowMemoryError'} = 1;
+         #}
+         if (!$this->{'ignoreResponse'})
          {
-            $printLogger->print("Getting very slow...low memory....halting this instance (should automatically restart)\n");
-            $this->{'lowMemoryError'} = 1;
-         }
-            
-         # loop through the transactions to convert from URLs to transactions if necessary
-         foreach (@callbackTransactionStack)
-         {
-            
-            # if this is a refence then it's an HTTPTransaction, otherwise
-            #  it'ss a URL
-            if (ref($_))
-            {                        
-               $httpTransaction = $_;
-            }
-            else
+            # loop through the transactions to convert from URLs to transactions if necessary
+            foreach (@callbackTransactionStack)
             {
-               # this is a URL to GET - create a new transaction (use the base URL as referrer)
-               $absoluteURL = new URI::URL($_, $url)->abs()->as_string();		               
-               $httpTransaction = HTTPTransaction::new($absoluteURL, $url, $nextTransaction->getLabel()."?");
+               
+               # if this is a refence then it's an HTTPTransaction, otherwise
+               #  it'ss a URL
+               if (ref($_))
+               {                        
+                  $httpTransaction = $_;
+               }
+               else
+               {
+                  # this is a URL to GET - create a new transaction (use the base URL as referrer)
+                  $absoluteURL = new URI::URL($_, $url)->abs()->as_string();		               
+                  $httpTransaction = HTTPTransaction::new($absoluteURL, $url, $nextTransaction->getLabel()."?");
+               }
+                                                                     
+               push @newTransactionStack, $httpTransaction;                                          
             }
-                     	                                          
-		      push @newTransactionStack, $httpTransaction;                                          
-	      }
+         }
+      }
+      else
+      {
+         ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+         $year += 1900;
+         $mon++;      
+               
+         $displayStr = sprintf("%02d:%02d:%02d  no parsers loaded for the url pattern '%s'\n", $hour, $min, $sec, $url);     
+         $printLogger->print($displayStr);
       }
 	}
    
@@ -594,6 +547,7 @@ sub run ( $ )
    my $startSession = 0;
    my $continueSession = 0;
    my $dropTables = 0;
+   my $parseOnly = 0;
    
    my $httpClient;
    my $startURL = $this->{'baseURL'};       
@@ -621,45 +575,47 @@ sub run ( $ )
     # get the list of pattterns for which a parser has been defined      
    my @parserPatternList = keys %$parserHashRef; 
 
-   # parse the command specified
-   if ($command =~ /start/i)
+   if ($this->{'dryRun'})
    {
-      $startSession = 1;
+      $printLogger->print("Parsers running in DRY-RUN mode.\n");
    }
    else
    {
-      if ($command =~ /continue/i)
-      {
-         $continueSession = 1;
-      }
-      else
-      {
-         if ($command =~ /create/i)
-         {
-            $createTables = 1;
-         }
-         else
-         {
-            if ($command =~ /drop/i)
-            {
-               $dropTables = 1;
-            }
-         }
-      }
+      $printLogger->print("Parsers running in HOT (WRITE) mode.\n");
+   }
+   
+   # parse the command specified
+   if ($command =~ /parse/i)
+   {
+      $parseOnly = 1;
+   }
+   elsif ($command =~ /start/i)
+   {
+      $startSession = 1;
+   }
+   elsif ($command =~ /continue/i)
+   {
+      $continueSession = 1;
+   }
+   elsif ($command =~ /create/i)
+   {
+      $createTables = 1;
+   }
+   elsif ($command =~ /drop/i)
+   {
+      $dropTables = 1;
    }
    
    if ($createTables)
    {
       $this->_createTables();
    }
-
-   
+  
    if ($startSession)
    {
       $printLogger->print("--- starting new session - threadID=",$this->{'threadID'}, " ---\n");
    
       $httpClient = HTTPClient::new($this->{'instanceID'});      
-      $httpClient->setProxy($this->{'proxy'});
       $httpClient->setUserAgent($DEFAULT_USER_AGENT);
       $httpClient->setPrintLogger($printLogger);
       $this->{'httpClient'} = $httpClient;      
@@ -685,7 +641,6 @@ sub run ( $ )
       
       $httpClient = HTTPClient::new($this->{'instanceID'});
             
-      $httpClient->setProxy($this->{'proxy'});
       $httpClient->setUserAgent($DEFAULT_USER_AGENT);
       $httpClient->setPrintLogger($printLogger);
       $this->{'httpClient'} = $httpClient;   
@@ -741,14 +696,79 @@ sub run ( $ )
       }
          
       # release this threadID - can't be continued as it's finished
-      $this->releaseSessionHistory();
-      $printLogger->print("DocumentReader finished\n");
+      #$this->releaseSessionHistory();
+      #$printLogger->print("DocumentReader finished\n");
    }
 
    if ($dropTables)
    {
       $this->_dropTables();
    }
+   
+   if ($parseOnly)
+   {
+      $printLogger->print("--- starting single parser session - threadID=",$this->{'threadID'}, " ---\n");
+   
+      # determine which type of parsing function to run
+      $type = $this->getGlobalParameter('type');
+      
+      if ($type =~ /originatinghtml/)
+      {
+         # re-parse an OriginatingHTML file
+         $identifier = $this->getGlobalParameter('identifier');
+         $basePath = $this->getGlobalParameter('basepath');
+         
+         if ($identifier)
+         {
+            # convert identifier to an integer (from a string with leading zeros)
+            $originatingHTMLID = sprintf("%d", $identifier);
+   
+            # initialise an originatingHTML object
+            $originatingHTML = OriginatingHTML::new($sqlClient);
+            if ($basePath)
+            {
+               $originatingHTML->overrideBasePath($basePath);
+            }
+            
+            # load the originatingHTML file content
+            ($content, $sourceURL, $timeStamp) = $originatingHTML->readHTMLContentWithHeader($originatingHTMLID, 1);
+       
+            if ($content)
+            {
+               # parse the html document - create a dummy transaction and http client
+               
+               $dummyTransaction = HTTPTransaction::new($sourceURL, undef, $identifier);
+               $httpClient = HTTPClient::new($this->{'instanceID'});      
+               $httpClient->setUserAgent($DEFAULT_USER_AGENT);
+               $httpClient->setPrintLogger($printLogger);
+               $httpClient->overrideURL($sourceURL);              ###note this - presets the response
+               $httpClient->overrideResponseContent($content);    ###note this - presets the response
+               $this->{'httpClient'} = $httpClient;      
+
+               # parse the document...
+               @newTransactionStack = $this->_parseDocument($dummyTransaction, $httpClient);
+            }
+            else
+            {
+               $printLogger->print("Failed to load OriginatingHtml content (ID$identifier)\n");
+            }
+         }
+         else
+         {
+            $printLogger->print("OriginatingHTML 'identifier' not specified\n");
+         }
+      }
+      else
+      {
+         $printLogger->print("parser 'type' unrecognised - no action to perform\n");
+      }
+      
+      #@newTransactionStack = $this->_parseDocument($nextTransaction, $httpClient);
+      # release of sessionhistory now needs to be called explitly by the function using this object
+      # as the document reader may be used multiple times in the same session
+      #$this->releaseSessionHistory();
+   }
+   
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -761,16 +781,6 @@ sub getSQLClient
 }
 
 # -------------------------------------------------------------------------------------------------
-
-sub setProxy
-
-{
-   my $this = shift;
-   my $proxy = shift;
-   
-   $this->{'proxy'} = $proxy;
-}
-
 # -------------------------------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------------------------
@@ -889,7 +899,8 @@ sub recoverCookies
    my $instanceID = $this->{'instanceID'};
    
    $sessionName = $this->{'lastInstanceID'};
-   $logpPath = $this->{'cookiePath'};
+   $httpClient = HTTPClient::new($instanceID);
+   $logPath = $httpClient->getCookiePath();
 
    if ($sessionName)
    {
@@ -928,12 +939,12 @@ sub deleteCookies
    
    my $instanceID = $this->{'instanceID'};
    my $httpClient = $this->{'httpClient'};
-   
+      
    $httpClient->clearCookies();
 #   print "Deleting cookie file logs/".$instanceID.".cookies\n";
-   # copy the old file in place of the new one
-   $logPath = $this->{'cookiePath'};
-
+   
+   $logPath = $httpClient->getCookiePath();
+   
    if (!unlink("$logPath/".$instanceID.".cookies"))
    {
       print "Failed to delete cookie file\n";

@@ -9,7 +9,11 @@
 # History:
 # 24 Jun 2005 - added ignore keyword to insert statement used during table creation so if the table
 #  is already populated the insert doesn't fail with a duplicate key error
-#
+# 26 Jun 2005 - added support for the writeMethod parameter.  This is a compulsory parameter for
+#  Ellamaine now that specifies whether records should be ADDED or REPLACED
+#  valid values are: add | replace
+#  The parameter is passed through to the parsers as a global parameter and parsers need to check the 
+# state and call the appropriate methods.
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -80,7 +84,8 @@ my $SQL_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS ConfigTable ".
     "parser TEXT NOT NULL, ".
     "state TEXT NOT NULL, ".
     "source TEXT NOT NULL, ".
-    "url TEXT NOT NULL)";
+    "url TEXT NOT NULL,".
+    "writeMethod VARCHAR(7) NOT NULL)";
       
 sub createTable
 
