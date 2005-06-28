@@ -34,6 +34,8 @@
 #  addEncounterRecord and checkIfResult exists functions - if an existing record is encountered again
 #  it checks and updates the database - changes are propagated into the working view if they exist there
 #  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
+# 28 June 2005     - added support for the new parser callback template that receives an HTTPClient
+#  instead of just a URL.
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -566,13 +568,14 @@ sub parseRealEstateSearchDetails
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
    
@@ -700,13 +703,14 @@ sub parseRealEstateSearchResults
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;    
+   my $httpClient = shift;    
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $SEEKING_FIRST_RESULT = 1;
    my $PARSING_RESULT_TITLE = 2;
    my $PARSING_SUB_LINE     = 3;
@@ -971,13 +975,14 @@ sub parseRealEstateSearchForm
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $htmlForm;
    my $actionURL;
    my $httpTransaction;
@@ -1105,13 +1110,14 @@ sub parseRealEstateChooseState
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;         
+   my $httpClient = shift;         
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my @anchors;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $state = $documentReader->getGlobalParameter('state');
@@ -1180,13 +1186,14 @@ sub parseRealEstateSalesHomePage
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;         
+   my $httpClient = shift;         
    my $instanceID = shift;   
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my @anchors;
    
@@ -1249,13 +1256,14 @@ sub parseRealEstateRentalsHomePage
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;         
+   my $httpClient = shift;         
    my $instanceID = shift;   
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my @anchors;
    

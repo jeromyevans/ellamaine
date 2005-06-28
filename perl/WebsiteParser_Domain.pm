@@ -48,6 +48,8 @@
 #  addEncounterRecord and checkIfResult exists functions - if an existing record is encountered again
 #  it checks and updates the database - changes are propagated into the working view if they exist there
 #  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
+# 28 June 2005     - added support for the new parser callback template that receives an HTTPClient
+#  instead of just a URL.
 package WebsiteParser_Domain;
 
 use PrintLogger;
@@ -623,13 +625,14 @@ sub parseDomainPropertyDetails
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift; 
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
@@ -766,13 +769,14 @@ sub parseDomainSearchResults
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;    
+   my $httpClient = shift;    
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my @urlList;   # DO NOT SET TO UNDEF - it'll break the union later
    my @anchorList;   
    my $firstRun = 1;
@@ -968,13 +972,14 @@ sub parseDomainChooseSuburbs
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $htmlForm;
    my $actionURL;
    my $httpTransaction;
@@ -1133,12 +1138,13 @@ sub parseDomainSalesChooseRegions
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
+   my $url = $httpClient->getURL();
 
    my $htmlForm;
    my $actionURL;
@@ -1292,12 +1298,13 @@ sub parseDomainRentalChooseRegions
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
+   my $url = $httpClient->getURL();
 
    my $htmlForm;
    my $actionURL;
@@ -1454,7 +1461,7 @@ sub parseDomainChooseState
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;         
+   my $httpClient = shift;         
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
@@ -1464,7 +1471,8 @@ sub parseDomainChooseState
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $state = $documentReader->getGlobalParameter('state');
    my @transactionList;
-   
+   my $url = $httpClient->getURL();
+
    # delete cookies to start a fresh session 
    $documentReader->deleteCookies();
    
@@ -1532,7 +1540,7 @@ sub parseDomainDisplayResponse
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;         
+   my $httpClient = shift;         
    my $instanceID = shift;   
    my $transactionNo = shift;
    my $threadID = shift;
@@ -1540,7 +1548,8 @@ sub parseDomainDisplayResponse
    my $dryRun = shift;
    my @anchors;
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
-   
+   my $url = $httpClient->getURL();
+
    # --- now extract the property information for this page ---
    $printLogger->print("in ParseDisplayResponse ($parentLabel):\n");
    $htmlSyntaxTree->printText();

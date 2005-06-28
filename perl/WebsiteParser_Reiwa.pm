@@ -30,6 +30,9 @@
 #  addEncounterRecord and checkIfResult exists functions - if an existing record is encountered again
 #  it checks and updates the database - changes are propagated into the working view if they exist there
 #  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
+# 28 June 2005     - added support for the new parser callback template that receives an HTTPClient
+#  instead of just a URL.  This change was essential for this parser to access session data.
+#
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -743,14 +746,15 @@ sub parseREIWASearchDetails
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
    my $useLegacyExtraction = 0;
-   
+   my $url = $httpClient->getURL();
+
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
    
@@ -887,13 +891,14 @@ sub parseREIWASearchList
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;    
+   my $httpClient = shift;    
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sourceName =  $documentReader->getGlobalParameter('source');
    
@@ -1009,18 +1014,84 @@ sub parseREIWASearchList
          # the page contains the Next button - but the anchor is actually a call to javascript to load the
          # next page by POSTing to a form.  A parameter passed to the javascript is the record number of the first record to 
          # display in the next list!  We need to use the onClick attribute of the anchor, AND the content of the
-         # previous post
+         # previous post to generate hidden values for a POST to the FormList form
          $printLogger->print("   parseSearchList: list includes a 'next' button anchor...\n");
-         print "onClick=", $$nextButtonListRef[0],"\n";
-         print "source=$url\n";
-         # derived from javascript - the target URL is the same but with SEARCH replaced with LIST
-         # (the URL contains session information)
-         $targetURL = $url;
-         $targetURL =~ s/Action=SEARCH/Action=LIST/gi;
-         print "target=$targetURL&ID=nnn\n";
-         #$httpTransaction = HTTPTransaction::new($targetURL, $url, $parentLabel);                  
-$printLogger->print("FATAL: The REIWA parser cannot handle long listing yet - requires better session tracking in DocumentReader");
-         #@anchorsList = (@urlList, $httpTransaction);
+         
+         # since href is not set, the anchor's value is the onClick attribute
+         # it's of the form:
+         #   DisplayAnotherPage( document.FormList, document.FormFilter, $propertyID )
+         #
+         # extract the next property ID from the onClick attribute of the anchor - this is the identifier of the
+         # property to show first in the next list.
+         $nextPropertyID = $$nextButtonListRef[0];
+         if ($nextPropertyID =~ /DisplayAnotherPage(\s*)\((.*),(.*),(.*)\)/gi)
+         {
+            $nextPropertyID = trimWhitespace($4);
+         }
+         else
+         {
+            # hmm....this is unexpected.  Try a more brutal option
+            $nextPropertyID =~ strictNumber($nextPropertyID);
+         }
+                           
+         $lastPostContent = $httpClient->getRequestContent();
+         # extract the 'SuburbS_selected' field from the content of the post (this is part of the session information that's
+         # maintined on the client-side
+         if ($lastPostContent =~ /Suburb_selected\=(\d*)\&/g)
+         {
+            $suburbSelected = $1;
+         }
+         else
+         {
+            $suburbSelected = " ";
+         }
+         
+         $lastPostContent = $httpClient->getRequestContent();  # regex doesn't work unless I get this again - don't know why
+
+         # extract the 'Suburb_selected_options' field from the content of the post (this is part of the session information that's
+         # maintined on the client-side
+         if ($lastPostContent =~ /Suburb_selected_options\=(\d*)\&/g)
+         {
+            $suburbSelectedOptions = $1;
+         }
+         else
+         {
+            $suburbSelectedOptions = " ";
+         }
+         
+         $lastPostContent = $httpClient->getRequestContent();  # this one isn't necessary (but see above)
+         
+         # extract the 'Suburb_MainArea_Id' field from the content of the post (this is part of the session information that's
+         # maintined on the client-side
+         if ($lastPostContent =~ /Suburb_MainArea_Id\=(\d*)\&/g)
+         {
+            $suburbMainAreaID = $1;
+         }
+         else
+         {
+            $suburbMainAreaID = " ";
+         }
+         
+         # --- populate the form for listing the next page ---
+         # initialise the 'next' form - it's called FormFilter and the action is calculated above 
+         $formList = $htmlSyntaxTree->getHTMLForm("FormList");
+         
+         # override the action for the from (it uses javascript to modidy the URL to specify the LIST action
+         # and the identifier of the first property to list
+         $formList->overrideAction($formList->getAction()."&Action=LIST&ID=$nextPropertyID");
+         
+         # the form contains two hidden values that are derived from the filter parameters for the search
+         # Javascript is used to generate this.  It's a very odd design, but easy enough to emulate
+         # (TO DO: if necesssary, write code to encode these two values automatically)
+         $formList->setInputValue("Current_Items", " Suburb_MainArea_Id| Suburb_SubRegion_Id| Suburb_selected| Suburb_selected_options| Property_Type| Property_Type_options| Min_Price| Max_Price| Bedrooms| Bathrooms| SearchMode");
+         $formList->setInputValue("Current_Values", " $suburbMainAreaID| | $suburbSelected| $suburbSelectedOptions| | | | | | | Basic Search");
+         
+         #print "POST content: ", $formList->getEscapedParameters(), "\n";
+         
+         $httpTransaction = HTTPTransaction::new($formList, $url, $parentLabel);                  
+         #$httpTransaction->printTransaction();
+         
+         @anchorsList = (@urlList, $httpTransaction);
       }
       else
       {            
@@ -1091,13 +1162,14 @@ sub parseREIWASearchForm
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;
+   my $httpClient = shift;
    my $instanceID = shift;
    my $transactionNo = shift;
    my $threadID = shift;
    my $parentLabel = shift;
    my $dryRun = shift;
-   
+   my $url = $httpClient->getURL();
+
    # list of REIWA regions and suburbs:
    # this code extracted from: jscript-MainAreaSuburbs-Reset.js
    my @suburbMainAreas = (1, 10, 6, 11, 21, 5, 2, 7, 8, 3, 9, 4, 12);
@@ -1171,7 +1243,7 @@ sub parseREIWASearchForm
    my $endLetter =  $documentReader->getGlobalParameter('endrange');
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
-      
+   
    $printLogger->print("in parseSearchForm ($parentLabel)\n");
       
    # get the HTML Form instance
@@ -1280,7 +1352,7 @@ sub parseREIWADisplayResponse
 {	
    my $documentReader = shift;
    my $htmlSyntaxTree = shift;
-   my $url = shift;         
+   my $httpClient = shift;         
    my $instanceID = shift;   
    my $transactionNo = shift;
    my $threadID = shift;

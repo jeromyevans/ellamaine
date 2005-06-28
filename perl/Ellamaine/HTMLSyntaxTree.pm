@@ -103,7 +103,9 @@
 #             - added a don'tAlignToNextText optional flag to the setSearchStartPattenXXX functions that 
 #    can be used to override the seek ahead to the next item - instead the startindex remains only at the
 #    next element of any time.  Useful when looking for a tag (using the function above)
-#
+# 28 June 2005 - when an anchor is encountered that doesn't have an attribute 'href', instead the
+#    href value is now set to the onClick attribute's value (if availble).  ie. if javascript is run
+#    instead of immediately following the anchor, then the javascript function name is returned
 # Description:
 #   Module that accepts an HTTP::Response and runs a parser (HTTP:TreeBuilder)
 # over it to generate a SyntaxTree object.  The SyntaxTree class is designed for 
@@ -333,7 +335,11 @@ sub _treeBuilder_callBack
                $this->{'anchorElementIndexRef'}[$this->{'anchorElementIndexLength'}]{'imgListLength'} = 0;                          
             
                $href = $currentElement->attr("href"); # used later
-             
+               #28June 2005 - if href is not set, get the onclick attribute instread
+               if (!$href)
+               {
+                  $href = $currentElement->attr("onclick");
+               }
                $this->{'anchorElementIndexLength'}++;
              
                # the _insideAnchor flag is used for very basic tracking of the content

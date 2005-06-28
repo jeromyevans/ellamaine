@@ -69,7 +69,14 @@
 #   occuring since the HTMLSyntaxTree was fixed and having it stop suddenly when the machine or database
 #   is busy has been annoying (now the wrapper process that restarted instances in continue mode
 #   is not required)
-#
+#              28 Jun 2005 - significant change to the callback functions:  A change is necessary to support sites
+#   that rely on session information to generate forms and URLs on-the-fly (typically in javascript).  The session
+#   management is maintained either through the cookies, url-encoded or embedded in the page by the server. In order
+#   to allow this information to be MORE accessible to the parsers, the HTTPClient object is now also passed
+#   to them (not just the URL).  This allows access to cookies and form data.  Arrgh. I really need a javascript
+#   processor to handle all this properly.  Instead of passing the URL to a parser (callback), the HTTPClient
+#   is now provided (it contains the URL as well as request and response details).
+
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -433,9 +440,13 @@ sub _parseDocument
    #   (run callback function to get list of URL's for the session)
    foreach (@frameClientList)
    {  
-      $url = $_->getURL();
-      $thisTransaction = $_->getHTTPTransaction();
-
+      $thisHTTPClient = $_;
+      # thisURL  is used to:
+      #   - detect if there's a parser defined for it (and call that parser)
+      #   - resolve relative URL's returned by the parser
+      #   - as the referer for subsequent requests
+      $thisURL = $thisHTTPClient->getURL();
+      
       # for the very first element (the top window) don't need to parse
       # the content again - it was done already to determine if there's 
       # any frames
@@ -452,7 +463,7 @@ sub _parseDocument
       }   
 
       # determine if there's a parser defined for this url...
-      if (($parserIndex = stringContainsPatternInList($url, \@parserPatternList, 1)) >= 0)
+      if (($parserIndex = stringContainsPatternInList($thisURL, \@parserPatternList, 1)) >= 0)
    	{         
          ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
          $year += 1900;
@@ -470,7 +481,7 @@ sub _parseDocument
 		   # the value in the hash is a symbolic reference to the callback function
          # ie. a string like "packagename::function"
 		   my $callbackFunction = $$parserHashRef{$parserPatternList[$parserIndex]};		  		
-         my @callbackTransactionStack = ($callbackFunction)->($this, $htmlSyntaxTree, $url, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel(), $this->{'dryRun'});
+         my @callbackTransactionStack = ($callbackFunction)->($this, $htmlSyntaxTree, $thisHTTPClient, $this->{'instanceID'}, $this->{'transactionNo'}, $this->{'threadID'}, $nextTransaction->getLabel(), $this->{'dryRun'});
 
          $endTime = time;
          $runningTime = $endTime - $startTime;
@@ -495,8 +506,8 @@ sub _parseDocument
                else
                {
                   # this is a URL to GET - create a new transaction (use the base URL as referrer)
-                  $absoluteURL = new URI::URL($_, $url)->abs()->as_string();		               
-                  $httpTransaction = HTTPTransaction::new($absoluteURL, $url, $nextTransaction->getLabel()."?");
+                  $absoluteURL = new URI::URL($_, $thisURL)->abs()->as_string();		               
+                  $httpTransaction = HTTPTransaction::new($absoluteURL, $thisURL, $nextTransaction->getLabel()."?");
                }
                                                                      
                push @newTransactionStack, $httpTransaction;                                          
@@ -509,7 +520,7 @@ sub _parseDocument
          $year += 1900;
          $mon++;      
                
-         $displayStr = sprintf("%02d:%02d:%02d  no parsers loaded for the url pattern '%s'\n", $hour, $min, $sec, $url);     
+         $displayStr = sprintf("%02d:%02d:%02d  no parsers loaded for the url pattern '%s'\n", $hour, $min, $sec, $thisURL);     
          $printLogger->print($displayStr);
       }
 	}
