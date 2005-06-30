@@ -75,6 +75,9 @@
 #    functions to centralise the changes - so that changes to the last encountered value in the source
 #    record is propagated into the working view and master properties (if exists).  This change impacts
 #    the software architecture of all parsers
+# 30 June 2005 - added function lookupOriginatingHTMLFromSourceProfiles that fetches a list of OriginatingHTML 
+#    identifiers from the source profiles applying an optional WHERE clause.  Used for reparsing of originating html
+#
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -824,6 +827,46 @@ sub lookupSourcePropertyProfileByOriginatingHTML
       }     
    }
    return $profileRef;
+}
+
+
+# -------------------------------------------------------------------------------------------------
+# lookupOriginatingHTMLFromSourceProfiles
+#  Fetches a list of OriginatingHTML identifiers from the source profiles applying the
+# specified WHERE clause
+#
+# Parameters:
+#  OPTIONAL STRING WhereClause 
+#  
+# Returns:
+#   reference to a hash of OriginatingHTML identifiers
+#        
+sub lookupOriginatingHTMLFromSourceProfiles
+
+{
+   my $this = shift;
+   my $whereClause = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $profileRef = undef;
+   
+   if ($sqlClient)
+   {   
+      if ($whereClause)
+      {         
+         $statementText = "SELECT OriginatingHTML FROM $tableName WHERE $whereClause";
+      }
+      else
+      {
+         $statementText = "SELECT OriginatingHTML FROM $tableName";
+      }
+      
+      # fetch the profile
+      @selectResults = $sqlClient->doSQLSelect($statementText);
+   }
+   return \@selectResults;
 }
 
 # -------------------------------------------------------------------------------------------------
