@@ -851,6 +851,7 @@ sub lookupOriginatingHTMLFromSourceProfiles
    my $sqlClient = $this->{'sqlClient'};
    my $tableName = $this->{'tableName'};
    my $profileRef = undef;
+   my @selectResults;
    
    if ($sqlClient)
    {   
@@ -1491,7 +1492,7 @@ sub lookupRecordsMissingFromWorkingView
    
    # NOTE: this select statement uses a LEFT JOIN ON to determine where Table2 doesn't include an identifier of Table1 
    # in the join operation, the Identifier is set to null in Table 2 if it doesn't match the ON condition
-   @identifierList = $sqlClient->doSQLSelect("SELECT AdvertisedPropertyProfiles.Identifier AS SourceID FROM AdvertisedPropertyProfiles LEFT JOIN WorkingView_AdvertisedPropertyProfiles ON AdvertisedPropertyProfiles.Identifier=WorkingView_AdvertisedPropertyProfiles.Identifier WHERE WorkingView_AdvertisedPropertyProfiles.Identifier IS NULL");
+   @identifierList = $sqlClient->doSQLSelect("SELECT AdvertisedPropertyProfiles.Identifier AS Identifier FROM AdvertisedPropertyProfiles LEFT JOIN WorkingView_AdvertisedPropertyProfiles ON AdvertisedPropertyProfiles.Identifier=WorkingView_AdvertisedPropertyProfiles.Identifier WHERE WorkingView_AdvertisedPropertyProfiles.Identifier IS NULL");
 
    return \@identifierList;
 }
