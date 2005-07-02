@@ -31,8 +31,10 @@ my %supportedActions = (
       'adview' => \&fetchProfile,
       'orightml' => \&loadOriginatingHTML,
       'browse' => \&browseProperties,
-      'reparse' => \&reparseOriginatingHTML
+      'reparse' => \&reparseOriginatingHTML,
+      'transfer' => \&transferToWorkingView
 );
+
 
 # -------------------------------------------------------------------------------------------------
 # define the actions available to the Simple model view controller    
@@ -522,7 +524,8 @@ sub fetchExceptions
    $$customProperties{'exceptions.missing.suburb.name.count'} = $advertisedPropertyProfiles->countExceptions(0);
    $$customProperties{'exceptions.missing.sale.or.rental.flag.count'} = $advertisedPropertyProfiles->countExceptions(1);
    $$customProperties{'exceptions.unknown.suburb.name.count'} = $advertisedPropertyProfiles->countExceptions(2);
-   
+   $$customProperties{'exceptions.missing.state.count'} = $advertisedPropertyProfiles->countExceptions(3);
+
    $$customProperties{'exceptions.selected.table.name'} = "";
    $$customProperties{'exceptions.selected.table.abbr'} = "";
    # table is to list of missing suburb names
@@ -549,6 +552,15 @@ sub fetchExceptions
       # fetch the status of the allocated threads
       $selectResults = $advertisedPropertyProfiles->lookupProfilesByException(2, $offset, $limit);
       $$customProperties{'exceptions.table.total.rows'} = $$customProperties{'exceptions.unknown.suburb.name.count'};
+   }
+   elsif ($table =~ /rms/i)
+   {
+      $$customProperties{'exceptions.selected.table.name'} = "Index of Records Missing State";
+      $$customProperties{'exceptions.selected.table.abbr'} = "rms";
+      
+      # fetch the status of the allocated threads
+      $selectResults = $advertisedPropertyProfiles->lookupProfilesByException(3, $offset, $limit);
+      $$customProperties{'exceptions.table.total.rows'} = $$customProperties{'exceptions.missing.state.count'};
    }
    else
    {
@@ -598,6 +610,11 @@ sub fetchProfile
    
    $$customProperties{"admin.adview.msg"} = "";
    $$customProperties{"admin.error.description"} = "";
+  
+   if (!$$customProperties{"admin.adview.description"})
+   {
+      $$customProperties{"admin.adview.description"} = "";
+   }
    
    if ($identifier)
    {
@@ -871,6 +888,64 @@ sub reparseOriginatingHTML
    return 'orightml';
 }
 
+
+# -------------------------------------------------------------------------------------------------
+
+# transferToWorkingView
+# this is an action callback function for the simpleMVC
+# it (re)transfers a record from the SourceView to the VorkingView
+#
+# Parameters
+#   Reference to hash of custom properties
+#
+# Returns
+#   'reparse' View
+#
+sub transferToWorkingView
+{
+   my $customProperties = shift;
+   my $sqlClient = SQLClient::new();
+   my $advertisedPropertyProfiles = AdvertisedPropertyProfiles::new($sqlClient);
+   my %parametersHash;
+   my $ellamaineController;
+  
+   # check the CGI parameters
+   $identifier = CGI::param('identifier');
+   
+   # convert identifier to an integer (from a string with leading zeros)
+   $identifier = sprintf("%d", $identifier);
+   
+   $$customProperties{"admin.error.description"} = "";
+   $$customProperties{"admin.adview.description"} = "";
+   
+   if ($identifier)
+   {
+      if ($sqlClient->connect())
+      {
+         $profileRef = $advertisedPropertyProfiles->lookupSourcePropertyProfile($identifier);
+         
+         ($identifier, $changed, $added, $errorCode, $warningCode) = $advertisedPropertyProfiles->transferToWorkingView($profileRef);
+       
+         if ($identifier >= 0)
+         {
+            $$customProperties{"admin.adview.description"} = "Transfer response: Identifier: $identifier ($changed changed, $added added)";
+         }
+         else
+         {
+            $$customProperties{"admin.adview.description"} = "Transfer response: Transfer failed";
+         }
+         
+         $sqlClient->disconnect();
+      }
+   }
+   
+  # DebugTools::printHash("cp", $customProperties);
+   
+  # cascade to the fetchprofile (this should be done by the controller in a forward action
+  fetchProfile($customProperties);
+  
+  return 'adview';
+}
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------

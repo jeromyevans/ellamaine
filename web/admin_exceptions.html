@@ -4,22 +4,23 @@
 </head>
 
 <body>
-<a href='/cgi-bin/admin.pl?action=main'>Status Table</a>&nbsp<a href='/cgi-bin/admin.pl?action=browse'>Browse</a>&nbsp<a href='/cgi-bin/admin.pl?action=regex'>RegEx</a>&nbsp<a href='/cgi-bin/admin.pl?action=exceptions'>Exceptions</a><br/>
+<a href='%%base_url%%?action=main'>Status Table</a>&nbsp<a href='%%base_url%%?action=browse'>Browse</a>&nbsp<a href='%%base_url%%?action=regex'>RegEx</a>&nbsp<a href='%%base_url%%?action=exceptions'>Exceptions</a><br/>
 
 
 <h1>Exception Summary</h1>
 <table>
 <tr><td colspan='3'>Source View</td></tr>
-<tr><td><a href='/cgi-bin/admin.pl?action=exceptions&table=msn'><img alt="View" src=""/></a></td><td>Missing Suburb Name</td><td>%%exceptions.missing.suburb.name.count%%</td></tr>
-<tr><td><a href='/cgi-bin/admin.pl?action=exceptions&table=msorf'><img alt="View" src=""/></td><td>Missing Sale or Rental flag</td><td>%%exceptions.missing.sale.or.rental.flag.count%%</td></tr>
+<tr><td><a href='%%base_url%%?action=exceptions&table=msn'><img alt="View" src=""/></a></td><td>Missing Suburb Name</td><td>%%exceptions.missing.suburb.name.count%%</td></tr>
+<tr><td><a href='%%base_url%%?action=exceptions&table=msorf'><img alt="View" src=""/></td><td>Missing Sale or Rental flag</td><td>%%exceptions.missing.sale.or.rental.flag.count%%</td></tr>
 <tr><td colspan='3'>Working View</td></tr>
-<tr><td><a href='/cgi-bin/admin.pl?action=exceptions&table=usn'><img alt="View" src=""/></td><td>Unknown Suburb Name</td><td>%%exceptions.unknown.suburb.name.count%%</td></tr>
+<tr><td><a href='%%base_url%%?action=exceptions&table=rms'><img alt="View" src=""/></td><td>Records Missing State</td><td>%%exceptions.missing.state.count%%</td></tr>
+<tr><td><a href='%%base_url%%?action=exceptions&table=usn'><img alt="View" src=""/></td><td>Unknown Suburb Name</td><td>%%exceptions.unknown.suburb.name.count%%</td></tr>
 </table>
 <hr/>
 <h2>%%exceptions.selected.table.name%%</h2>
-<a href="/cgi-bin/admin.pl?action=exceptions&table=%%exceptions.selected.table.abbr%%&offset=%%exceptions.table.prev.offset%%">Prev %%exceptions.table.limit%%</a>
+<a href="%%base_url%%?action=exceptions&table=%%exceptions.selected.table.abbr%%&offset=%%exceptions.table.prev.offset%%">Prev %%exceptions.table.limit%%</a>
 Records %%exceptions.table.first%% to %%exceptions.table.last%% of %%exceptions.table.total.rows%%
-<a href="/cgi-bin/admin.pl?action=exceptions&table=%%exceptions.selected.table.abbr%%&offset=%%exceptions.table.next.offset%%">Next %%exceptions.table.limit%%</a><br/>
+<a href="%%base_url%%?action=exceptions&table=%%exceptions.selected.table.abbr%%&offset=%%exceptions.table.next.offset%%">Next %%exceptions.table.limit%%</a><br/>
 <table border='1'>
 <tr><th  rowspan='1' valign='center'>Identifier</th>
 <th rowspan='1' valign='center'>Date Entered</th>
@@ -30,7 +31,7 @@ Records %%exceptions.table.first%% to %%exceptions.table.last%% of %%exceptions.
 <th rowspan='1' valign='center'>Street Address</th>
 <th rowspan='1' valign='center'>Price String</th></tr>
 %%foreach::exceptions.table%%
-<tr><td align="center"><a href='/cgi-bin/admin.pl?action=adview&identifier=%%Identifier%%'>%%Identifier%%</a></td><td>%%DateEntered%%</td><td>%%SourceName%%</td><td align="center">%%SaleOrRentalFlag%%</td><td>%%SuburbName%%</td><td><code>/%%SuburbIndex%%/</code></td><td><code>%%StreetAddress%%</code></td><td><code>%%AdvertisedPriceString%%</code></td></tr>
+<tr><td align="center"><a href='%%base_url%%?action=adview&identifier=%%Identifier%%'>%%Identifier%%</a></td><td>%%DateEntered%%</td><td>%%SourceName%%</td><td align="center">%%SaleOrRentalFlag%%</td><td>%%SuburbName%%</td><td><code>/%%SuburbIndex%%/</code></td><td><code>%%StreetAddress%%</code></td><td><code>%%AdvertisedPriceString%%</code></td></tr>
 %%endforeach::exceptions.table%%
 </table>
 

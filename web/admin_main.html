@@ -4,17 +4,17 @@
 </head>
 
 <body>
-<a href='/cgi-bin/admin.pl?action=main'>Status Table</a>&nbsp<a href='/cgi-bin/admin.pl?action=browse'>Browse</a>&nbsp<a href='/cgi-bin/admin.pl?action=regex'>RegEx</a>&nbsp<a href='/cgi-bin/admin.pl?action=exceptions'>Exceptions</a><br/>
+<a href='%%base_url%%?action=main'>Status Table</a>&nbsp<a href='%%base_url%%?action=browse'>Browse</a>&nbsp<a href='%%base_url%%?action=regex'>RegEx</a>&nbsp<a href='%%base_url%%?action=exceptions'>Exceptions</a><br/>
 <h1>Status Table</h1>
 <table>
 <tr>
 <td>Allocated Threads (%%statustable.allocated.rows%% total)</td>
-<td><form action='/cgi-bin/admin.pl' method='get'>Order By: %%html.orderby.select%%</td>
+<td><form action='%%base_url%%' method='get'>Order By: %%html.orderby.select%%</td>
 <td>%%html.reverse.select%%</td>
 <td><input type='submit' value='Change'></td>
 </form>
 <td>
-<form action='/cgi-bin/admin.pl' method='get'>
+<form action='%%base_url%%' method='get'>
 <input type="hidden" name="action" value="main"/>
 <input type="hidden" name="subAction" value="clear"/>
 <input type='submit' value='Reset Threads'/>

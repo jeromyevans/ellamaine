@@ -29,6 +29,7 @@
 #   while reading the file.  It returns the content, url and timestamp in an array.  The readHTMLContent function
 #   now just calls readHTMLContentWithHEader but discards the unused unformation.  The stripHeader flag is still
 #   used by both functions.
+# 2 July 2005 - Directory for logging of OriginatingHTML is now specified in ellamaine.properties
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -41,15 +42,21 @@ require Exporter;
 
 use DBI;
 use SQLClient;
+use LoadProperties;
 
 @ISA = qw(Exporter, SQLTable);
 
 
-#@EXPORT = qw(&parseContent);
+# -------------------------------------------------------------------------------------------------
+# CONSTANTS
+# -------------------------------------------------------------------------------------------------
+my $DEFAULT_LOG_PATH = "./originatinghtml";
+# -------------------------------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------------------------
-# PUBLIC enumerations
-#
+# This variable is populated with a reference to a hash of properties for the OriginatingHTML that
+# are read from disk by the first constructor
+my $localProperties = undef;
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
@@ -59,11 +66,21 @@ use SQLClient;
 sub new
 {   
    my $sqlClient = shift;
-   
+
+   # initialise local properties for the httpclient (from the properties file if it exists)
+   if (!$localProperties)
+   {
+      $localProperties = loadProperties("ellamaine.properties");
+      
+      if (!$localProperties)
+      {
+         $$localProperties{'originatinghtml.log.path'} = $DEFAULT_LOG_PATH;
+      }
+   } 
    my $originatingHTML = { 
       sqlClient => $sqlClient,
       tableName => "OriginatingHTML",
-      basePath => "/projects/changeeffect/OriginatingHTML", 
+      basePath => $$localProperties{'originatinghtml.log.path'}, 
       useFlatPath => 0
    }; 
       
@@ -562,4 +579,4 @@ sub lookupOriginatingHTMLIdentifiers
 }
 
 # -------------------------------------------------------------------------------------------------
-
+1;

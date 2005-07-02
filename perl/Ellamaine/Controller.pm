@@ -129,15 +129,15 @@ sub new
          {
             no strict 'refs';  # allow symbolic references
             # load the module
-            $packageName = $$tableProperties{$_};
-            $printLogger->print("   Loading package $_ (", $packageName, ".pm)...\n");
+            $tableName = $_;
+            $packageName = $$tableProperties{$tableName};
+            $printLogger->print("   Loading package $tableName (", $packageName, ".pm)...\n");
             # load the module (require the module)
             require "$packageName.pm";
             $packageName->import();   # this probably isn't necessary, but safe (import the module's exports)
-            
             # use a symbolic reference to call new in the package and include the returned object in the
             # myTableObjects hash
-            $myTableObjects{$_} = ($packageName . "::new")->($sqlClient);
+            $myTableObjects{$tableName} = ($packageName . "::new")->($sqlClient);
          }
       }
       
@@ -257,7 +257,6 @@ sub new
    {
       $parseSuccess = 0;
    }
-   
   
    if (($parseSuccess) && (!($$parameters{'command'} =~ /maintenance/i)))
    {   

@@ -4,11 +4,11 @@
 </head>
 
 <body>
-<a href='/cgi-bin/admin.pl?action=main'>Status Table</a>&nbsp<a href='/cgi-bin/admin.pl?action=browse'>Browse</a>&nbsp<a href='/cgi-bin/admin.pl?action=regex'>RegEx</a>&nbsp<a href='/cgi-bin/admin.pl?action=exceptions'>Exceptions</a><br/>
+<a href='%%base_url%%?action=main'>Status Table</a>&nbsp<a href='%%base_url%%?action=browse'>Browse</a>&nbsp<a href='%%base_url%%?action=regex'>RegEx</a>&nbsp<a href='%%base_url%%?action=exceptions'>Exceptions</a><br/>
 <h1>Regular Expressions</h1>
 <table>
 <tr><td>Add A Pattern</td></tr>
-<form action='/cgi-bin/admin.pl' method='post'>
+<form action='%%base_url%%' method='post'>
 <input type="hidden" name="action" value="regex"/>
 <input type="hidden" name="subAction" value="add"/>
 <tr><td>Field Name</td><td>%%html.regex.select.fieldname%%</td></tr>
@@ -28,35 +28,35 @@
 <table>
 <tr>
 <td>
-<form action='/cgi-bin/admin.pl' method='post'>
+<form action='%%base_url%%' method='post'>
 <input type="hidden" name="action" value="regex"/>
 <input type="hidden" name="subAction" value="export"/>
 <input type='submit' value='Export Table'/>
 </form>
 </td>
 <td>
-<form action='/cgi-bin/admin.pl' method='post'>
+<form action='%%base_url%%' method='post'>
 <input type="hidden" name="action" value="regex"/>
 <input type="hidden" name="subAction" value="import"/>
 <input type='submit' value='Import Table'/>
 </form>
 </td>
 <td>
-<form action='/cgi-bin/admin.pl' method='post'>
+<form action='%%base_url%%' method='post'>
 <input type="hidden" name="action" value="regex"/>
 <input type="hidden" name="subAction" value="create"/>
 <input type='submit' value='Create Table'/>
 </form>
 </td>
 <td>
-<form action='/cgi-bin/admin.pl' method='post'>
+<form action='%%base_url%%' method='post'>
 <input type="hidden" name="action" value="regex"/>
 <input type="hidden" name="subAction" value="clear"/>
 <input type='submit' value='Clear Table'/>
 </form>
 </td>
 <td>
-<form action='/cgi-bin/admin.pl' method='post'>
+<form action='%%base_url%%' method='post'>
 <input type="hidden" name="action" value="regex"/>
 <input type="hidden" name="subAction" value="drop"/>
 <input type='submit' value='Drop Table'/>
@@ -69,7 +69,7 @@
 <table>
 <tr>
 <td>RegEx Patterns for FieldName:</td>
-<form action='/cgi-bin/admin.pl' method='post'>
+<form action='%%base_url%%' method='post'>
 <input type="hidden" name="action" value="regex"/>
 <td>%%html.regex.select.fieldname%%</td><td><input type='submit' value='Go'/></td>
 <td></form>(%%regexpatterns.rows%% total)</td>
@@ -78,7 +78,7 @@
 
 <br/>
 
-<form action='/cgi-bin/admin.pl' method='get'>
+<form action='%%base_url%%' method='get'>
 <input type="hidden" name="action" value="regex"/>
 <input type="hidden" name="subAction" value="del"/>
 <table border='1'>

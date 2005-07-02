@@ -77,6 +77,8 @@
 #    the software architecture of all parsers
 # 30 June 2005 - added function lookupOriginatingHTMLFromSourceProfiles that fetches a list of OriginatingHTML 
 #    identifiers from the source profiles applying an optional WHERE clause.  Used for reparsing of originating html
+# 2 July 2005  - added function lookupIdentifiersWhere that fetches a list of identifiers from the WORKING VIEW
+#    where the specified constraint is true.  Added for the reparseWorkingView utility
 #
 # CONVENTIONS
 # _ indicates a private variable or method
@@ -1154,27 +1156,17 @@ sub _workingView_updateRecordWithChangeHash
 # adds a record of data to the WorkingView_AdvertisedPropertyProfiles table
 # This function UPDATES the change table if the record's identifier already exists
 # in the working view - otherwise it adds a new record
-
-# 
-# Purpose:
-#  Storing information in the database
 #
 # Parameters:
 #  integer Identifier - this is the identifier of the original record (foreign key)
 #   (the rest of the fields are obtained automatically using select syntax)
 #
-# Constraints:
-#  nil
-#
-# Uses:
-#  sqlClient
-#
-# Updates:
-#  nil
-#
 # Returns:
-#   TRUE (1) if successful, 0 otherwise
-#        
+#   (Identifier, BOOL changed, BOOL added)
+#    Returns Identifier as -1 if it failed
+#    Returns same existing identifier if changed or exists but unchanged
+#    Returns new identifier if added
+
 sub _workingView_addOrChangeRecord
 
 {
@@ -1231,7 +1223,7 @@ sub _workingView_addOrChangeRecord
             else
             {
                # this change is identical to the last change - it achieves nothing
-               $identifer = $$parametersRef{'Identifier'};
+               $identifier = $$parametersRef{'Identifier'};
             }
          }
          else
@@ -1493,6 +1485,58 @@ sub lookupRecordsMissingFromWorkingView
    # NOTE: this select statement uses a LEFT JOIN ON to determine where Table2 doesn't include an identifier of Table1 
    # in the join operation, the Identifier is set to null in Table 2 if it doesn't match the ON condition
    @identifierList = $sqlClient->doSQLSelect("SELECT AdvertisedPropertyProfiles.Identifier AS Identifier FROM AdvertisedPropertyProfiles LEFT JOIN WorkingView_AdvertisedPropertyProfiles ON AdvertisedPropertyProfiles.Identifier=WorkingView_AdvertisedPropertyProfiles.Identifier WHERE WorkingView_AdvertisedPropertyProfiles.Identifier IS NULL");
+
+   return \@identifierList;
+}
+
+
+# -------------------------------------------------------------------------------------------------
+# lookupIdentifiersWhere
+# This function returns a list of the identifiers of records from the WORKING VIEW where
+# the specified constraint is met.
+# 
+# Parameters:
+#   STRING whereClause (or undef if not needed)
+#   OPTIONAL INTEGER Limit
+#   OPTIONAL INTEGER Offset
+#
+# Returns
+#  reference to a list of identifiers
+#
+sub lookupIdentifiersWhere
+{
+   my $this = shift;
+   my $whereClause = shift;
+   my $limit = shift;
+   my $offset = shift;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $constraintSQL = undef;
+   
+   if ($whereClause)
+   {
+      $statementText = "SELECT Identifier from WorkingView_$tableName WHERE $whereClause";
+   }
+   else
+   {
+      $statementText = "SELECT Identifier from WorkingView_$tableName";
+   }
+   
+   $constraint = "";
+   if ($limit)
+   {
+      $constraint .= " LIMIT $limit";
+   }
+   if ($offset)
+   {
+      $constraint .= " OFFSET $offset";
+   }
+   $statementText .= $constraint;
+   
+   
+   # NOTE: this select statement uses a LEFT JOIN ON to determine where Table2 doesn't include an identifier of Table1 
+   # in the join operation, the Identifier is set to null in Table 2 if it doesn't match the ON condition
+   @identifierList = $sqlClient->doSQLSelect($statementText);
 
    return \@identifierList;
 }
@@ -1791,6 +1835,7 @@ sub matchSuburbName
    {       
       $quotedSuburbName = $sqlClient->quote($suburbName);
       $quotedState = $sqlClient->quote($state);
+     
       $statementText = "SELECT locality, postcode, SuburbIndex FROM AusPostCodes WHERE locality like $quotedSuburbName and state like $quotedState order by postcode limit 1";
             
       @suburbList = $sqlClient->doSQLSelect($statementText);
@@ -1800,6 +1845,39 @@ sub matchSuburbName
          $matchedSuburb{'SuburbName'} = $suburbList[0]{'locality'};
          $matchedSuburb{'postcode'} = $suburbList[0]{'postcode'};              
          $matchedSuburb{'SuburbIndex'} = $suburbList[0]{'SuburbIndex'};
+      }                    
+   }   
+   return %matchedSuburb;
+}  
+
+# -------------------------------------------------------------------------------------------------
+# searches the postcode list for a suburb matching the name specified IN ANY STATE
+# it returns the first matched ONLY if there's a single match for that suburb name as a DELIVERY AREA
+sub matchUniqueSuburbName
+{   
+   my $this = shift;
+   my $suburbName = shift;
+   my $state = shift;
+   my %matchedSuburb;
+   my $sqlClient = $this->{'sqlClient'};
+   
+   if (($sqlClient) && ($suburbName))
+   {       
+      $quotedSuburbName = $sqlClient->quote($suburbName);
+      $quotedState = $sqlClient->quote($state);
+     
+      $statementText = "SELECT State, Locality, postcode, SuburbIndex FROM AusPostCodes WHERE Locality like $quotedSuburbName and Comments = '' order by postcode limit 1";
+            
+      @suburbList = $sqlClient->doSQLSelect($statementText);
+      
+      # strictly only return a response if there's a SINGLE match
+      $noOfSuburbs = @suburbList;
+      if ($noOfSuburbs == 1)
+      {
+         $matchedSuburb{'SuburbName'} = $suburbList[0]{'Locality'};
+         $matchedSuburb{'postcode'} = $suburbList[0]{'postcode'};              
+         $matchedSuburb{'SuburbIndex'} = $suburbList[0]{'SuburbIndex'};
+         $matchedSuburb{'State'} = $suburbList[0]{'State'};
       }                    
    }   
    return %matchedSuburb;
@@ -1818,7 +1896,7 @@ sub matchSuburbName
 #  reference to regEx substititions hash
 #
 # Returns:
-#  list containing validated suburbname and suburb index
+#  list containing validated state, suburbname and suburb index
 #    
 sub repairSuburbName
 
@@ -1826,34 +1904,90 @@ sub repairSuburbName
    my $this = shift;
    my $profileRef = shift;
    my $regExSubstitutionsRef = $this->lookupRegExPatterns();
-    
+   my $stateIsOk = 0;
    my $suburbName = $$profileRef{'SuburbName'};
    my $matched = 0;
+   my $changedState = undef;
+   my $changedSuburbName = undef;
+   my $changedSuburbIndex = undef;
    
-   #print "suburbName='$suburbName'";
-
-   foreach (@$regExSubstitutionsRef)
+   # IMPORTANT: check if the state is defined first
+   if (!$$profileRef{'State'})
    {
-      if ($$_{'FieldName'} =~ /SuburbName/i)
+      # there is no state defined.  Can't proceed without this.  Try to extract the state name from another 
+      # attribute in the profile (the address of the agent works well)
+      $agencyAddress = $$profileRef{'AgencyAddress'};
+      
+      if ($agencyAddress)
       {
-         $regEx = $$_{'RegEx'};
-         $substitute = $$_{'Substitute'};
-                  #print "regEx='$regEx', substitute='$substitute'\n";
-   
-         $suburbName =~ s/$regEx/$substitute/egi;
+         # see if the address contains a state
+         if (($agencyAddress =~ /\sVIC\s/gi) || ($agencyAddress =~ /\sVIC$/gi))
+         {
+            $changedState = 'VIC';
+         }
+         elsif (($agencyAddress =~ /\sNSW\s/gi) || ($agencyAddress =~ /\sNSW$/gi))
+         {
+            $changedState = 'NSW';
+         }
+         elsif (($agencyAddress =~ /\sQLD\s/gi) || ($agencyAddress =~ /\sQLD$/gi))
+         {
+            $changedState = 'QLD';
+         }
+         elsif (($agencyAddress =~ /\sWA\s/gi) || ($agencyAddress =~ /\sWA$/gi))
+         {
+            $changedState = 'WA';
+         }
+         elsif (($agencyAddress =~ /\sSA\s/gi) || ($agencyAddress =~ /\sSA$/gi))
+         {
+            $changedState = 'SA';
+         }
+         elsif (($agencyAddress =~ /\sACT\s/gi) || ($agencyAddress =~ /\sACT$/gi))
+         {
+            $changedState = 'ACT';
+         }
+         elsif (($agencyAddress =~ /\sTAS\s/gi) || ($agencyAddress =~ /\sTAS$/gi))
+         {
+            $changedState = 'TAS';
+         }
+         elsif (($agencyAddress =~ /\sNT\s/gi) || ($agencyAddress =~ /\sNT$/gi))
+         {
+            $changedState = 'NT';
+         }
+      }
+      
+      if ($changedState)
+      {
+         $stateIsOk = 1;
       }
    }
-   
-   # try to remove non-alpha characters (- and ' and whitespace are allowed)
-   $suburbName =~ s/[^(\w|\-|\'|\s)]/ /gi;
-   
-   $suburbName = prettyPrint($suburbName, 1);
-   
-   if ($suburbName ne $$profileRef{'SuburbName'})
+   else
    {
+      # ok to proceed as the state is defined
+      $stateIsOk = 1;
+      $changedState = $$profileRef{'State'};
+   }
+   
+   if ($stateIsOk)
+   {
+      foreach (@$regExSubstitutionsRef)
+      {
+         if ($$_{'FieldName'} =~ /SuburbName/i)
+         {
+            $regEx = $$_{'RegEx'};
+            $substitute = $$_{'Substitute'};
+                     #print "regEx='$regEx', substitute='$substitute'\n";
       
+            $suburbName =~ s/$regEx/$substitute/egi;
+         }
+      }
+      
+      # try to remove non-alpha characters (- and ' and whitespace are allowed)
+      $suburbName =~ s/[^(\w|\-|\'|\s)]/ /gi;
+      
+      $suburbName = prettyPrint($suburbName, 1);
+         
       # match the suburb name to a recognised suburb name
-      %matchedSuburb = $this->matchSuburbName($suburbName, $$profileRef{'State'});
+      %matchedSuburb = $this->matchSuburbName($suburbName, $changedState);
         
       if (%matchedSuburb)
       {
@@ -1864,90 +1998,107 @@ sub repairSuburbName
          $matched = 1;
          #print "BadSuburbs=$badSuburbs FixedSuburbs = $fixedSuburbs\n";
       }
-   }
-   
-   if (!$matched)
-   {
-      # still haven't matched the suburb name - try searching for a close match on the assumption the suburbname is followed by crud
-      @wordList = split(/ /, $suburbName);
-      $noOfWords = @wordList;
-      $currentWord = $noOfWords;
-      $matched = 0;
-      # loop through the series of words (from last to first)
-      while ((!$matched) && ($currentWord > 0))
+      
+      if (!$matched)
       {
-         # concatenate the words of the string up to the current index
-         $currentString = "";
-         for ($index = 0; $index < $currentWord; $index++)
+         # still haven't matched the suburb name - try searching for a close match on the assumption the suburbname is followed by crud
+         @wordList = split(/ /, $suburbName);
+         $noOfWords = @wordList;
+         $currentWord = $noOfWords;
+         $matched = 0;
+         # loop through the series of words (from last to first)
+         while ((!$matched) && ($currentWord > 0))
          {
-            if ($index > 0)
+            # concatenate the words of the string up to the current index
+            $currentString = "";
+            for ($index = 0; $index < $currentWord; $index++)
             {
-               $currentString .= " ";
-            }  
-            $currentString .= $wordList[$index];
-         }
-         
-         # match the suburb name to a recognised suburb name
-         
-         %matchedSuburb = $this->matchSuburbName($currentString, $$profileRef{'State'});
-     
-         if (%matchedSuburb)
-         {
-            $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
-            $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
-            #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $changedProfile{'SuburbName'}, "'    NEW suburbIndex=", $changedProfile{'SuburbIndex'}, "\n";
-            $matched = 1;
-            $fixedSuburbs++;
-         }
-         else
-         {
-            # go back a word and try the series again
-            $currentWord--;
+               if ($index > 0)
+               {
+                  $currentString .= " ";
+               }  
+               $currentString .= $wordList[$index];
+            }
+            
+            # match the suburb name to a recognised suburb name
+            
+            %matchedSuburb = $this->matchSuburbName($currentString, $changedState);
+        
+            if (%matchedSuburb)
+            {
+               $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
+               $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
+               #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $changedProfile{'SuburbName'}, "'    NEW suburbIndex=", $changedProfile{'SuburbIndex'}, "\n";
+               $matched = 1;
+               $fixedSuburbs++;
+            }
+            else
+            {
+               # go back a word and try the series again
+               $currentWord--;
+            }
          }
       }
-   }
-   
-   if (!$matched)
-   {
-      #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='$suburbName' STILL INVALID SUBURBNAME - UNCHANGED\n";
       
-      
-      # still haven't matched the suburb name - try searching for a close match on the assumption the suburbname is SOMEWHERE 
-      # in the string
-      @wordList = split(/ /, $suburbName);
-      $noOfWords = @wordList;
-      $currentWord = 0;
-      $matched = 0;
-      # loop through the series of words (from left to right)
-      while ((!$matched) && ($currentWord < $noOfWords))
+      if (!$matched)
       {
-         # match the suburb name to a recognised suburb name
-         %matchedSuburb = $this->matchSuburbName($_, $$profileRef{'State'});
-     
+         #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='$suburbName' STILL INVALID SUBURBNAME - UNCHANGED\n";
+         
+         
+         # still haven't matched the suburb name - try searching for a close match on the assumption the suburbname is SOMEWHERE 
+         # in the string
+         @wordList = split(/ /, $suburbName);
+         $noOfWords = @wordList;
+         $currentWord = 0;
+         $matched = 0;
+         # loop through the series of words (from left to right)
+         while ((!$matched) && ($currentWord < $noOfWords))
+         {
+            # match the suburb name to a recognised suburb name
+            %matchedSuburb = $this->matchSuburbName($_, $changedState);
+        
+            if (%matchedSuburb)
+            {
+               $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
+               $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
+   
+               $matched = 1;
+               $fixedSuburbs++;
+               #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $changedProfile{'SuburbName'}, "'    NEW suburbIndex=", $changedProfile{'SuburbIndex'}, "\n";
+            }
+            else
+            {
+               # try the next word in the list
+               $currentWord++;
+            }
+         }      
+      }
+      
+      if (!$matched)
+      {
+         # see if the wrong state has been selected - maybe this suburb name is unique in one state only
+         %matchedSuburb = $this->matchUniqueSuburbName($suburbName);
+         
          if (%matchedSuburb)
          {
             $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
             $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
-
+            $changedState = $matchedSuburb{'State'};
+            
             $matched = 1;
             $fixedSuburbs++;
-            #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $changedProfile{'SuburbName'}, "'    NEW suburbIndex=", $changedProfile{'SuburbIndex'}, "\n";
          }
-         else
-         {
-            # try the next word in the list
-            $currentWord++;
-         }
-      }      
+      }
+      
+      if (!$matched)
+      {
+         #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $suburbName, "' FAILED\n";
+         $changedSuburbName = undef;
+         $changedSuburbIndex = undef;
+      }
    }
-   if (!$matched)
-   {
-      #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $suburbName, "' FAILED\n";
-      $changedSuburbName = undef;
-      $changedSuburbIndex = undef;
-   }
-   
-   return ($changedSuburbName, $changedSuburbIndex);
+
+   return ($changedState, $changedSuburbName, $changedSuburbIndex);
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -2846,19 +2997,20 @@ sub transferToWorkingView
    $newProfile{'SourceID'} = $$profileRef{'SourceID'};
    # TitleString is not transferred
    # Checksum is not transferred
-   $newProfile{'State'} = $$profileRef{'State'};
- 
+   
    # SuburbName needs to be validated - check the SuburbIndex
    # lookup the suburbindex (and repair suburbName if necessary)
-   ($suburbName, $suburbIndex) = $this->repairSuburbName($profileRef);
-   if (($suburbName) && ($suburbIndex))
+   ($state, $suburbName, $suburbIndex) = $this->repairSuburbName($profileRef);
+   if (($state) && ($suburbName) && ($suburbIndex))
    {
       $newProfile{'SuburbName'} = $suburbName;
       $newProfile{'SuburbIndex'} = $suburbIndex;
+      $newProfile{'State'} = $state;
    }
    else
    {   
       $newProfile{'SuburbName'} = $$profileRef{'SuburbName'};   # suburb index is not set (bad record)
+      $newProfile{'State'} = $$profileRef{'State'};
    }
    
    # type needs to be transfered and TypeIndex identified
@@ -2923,6 +3075,8 @@ sub transferToWorkingView
    $newProfile{'WarningCode'} = $warningCode;
    $newProfile{'OverriddenValidity'} = 0;   # clear override
    
+   #DebugTools::printHash("np", \%newProfile);
+   
    # add a new record (or change existing)
    ($identifier, $changed, $added) = $this->_workingView_addOrChangeRecord(\%newProfile);
     
@@ -2973,6 +3127,10 @@ sub countExceptions
       elsif ($exceptionEnum == 2)
       {
         $statementText = "SELECT count(*) as ExceptionCount FROM WorkingView_$tableName WHERE SuburbIndex is null";
+      }
+      elsif ($exceptionEnum == 3)
+      {
+        $statementText = "SELECT count(*) as ExceptionCount FROM WorkingView_$tableName WHERE State is null";
       }
       
       if ($statementText)
@@ -3026,6 +3184,10 @@ sub lookupProfilesByException
       elsif ($exceptionEnum == 2)
       {
         $statementText = "SELECT * FROM WorkingView_$tableName WHERE SuburbIndex is null LIMIT $limit OFFSET $offset";
+      }
+      elsif ($exceptionEnum == 3)
+      {
+        $statementText = "SELECT * FROM WorkingView_$tableName WHERE State is null LIMIT $limit OFFSET $offset";
       }
       
       if ($statementText)

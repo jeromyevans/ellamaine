@@ -4,11 +4,11 @@
 </head>
 
 <body>
-<a href='/cgi-bin/admin.pl?action=main'>Status Table</a>&nbsp<a href='/cgi-bin/admin.pl?action=browse'>Browse</a>&nbsp<a href='/cgi-bin/admin.pl?action=regex'>RegEx</a>&nbsp<a href='/cgi-bin/admin.pl?action=exceptions'>Exceptions</a><br/>
+<a href='%%base_url%%?action=main'>Status Table</a>&nbsp<a href='%%base_url%%?action=browse'>Browse</a>&nbsp<a href='%%base_url%%?action=regex'>RegEx</a>&nbsp<a href='%%base_url%%?action=exceptions'>Exceptions</a><br/>
 <h1>Browse Properties</h1>
 
 <h2>%%browse.table.name%%</h2>
-<form action='/cgi-bin/admin.pl' method='post'>Order By: %%html.browse.orderby.select%%
+<form action='%%base_url%%' method='post'>Order By: %%html.browse.orderby.select%%
 <input type="hidden" name="action" value="browse"/>
 <input type="hidden" name="offset" value="%%browse.table.first%%"/>
 <input type="hidden" name="limit" value="%%browse.table.limit%%"/>
@@ -16,9 +16,9 @@
 <input type='submit' value='Change'>
 </form>
 
-<a href="/cgi-bin/admin.pl?action=browse&offset=%%browse.table.prev.offset%%">Prev %%browse.table.limit%%</a>
+<a href="%%base_url%%?action=browse&offset=%%browse.table.prev.offset%%">Prev %%browse.table.limit%%</a>
 Records %%browse.table.first%% to %%browse.table.last%% of %%browse.table.total.rows%%
-<a href="/cgi-bin/admin.pl?action=browse&offset=%%browse.table.next.offset%%">Next %%browse.table.limit%%</a>
+<a href="%%base_url%%?action=browse&offset=%%browse.table.next.offset%%">Next %%browse.table.limit%%</a>
 <form>
 <input type="hidden" name="action" value="browse"/>
 <input type="hidden" name="limit" value="%%browse.table.limit%%"/>
@@ -33,7 +33,7 @@ Jump to<input type='text' name='offset'/><input type='submit' value='Jump'/></fo
 <th rowspan='1' valign='center'>Street Address</th>
 <th rowspan='1' valign='center'>Price String</th></tr>
 %%foreach::browse.table%%
-<tr><td align="center"><a href='/cgi-bin/admin.pl?action=adview&identifier=%%Identifier%%'>%%Identifier%%</a></td><td>%%DateEntered%%</td><td>%%SourceName%%</td><td align="center">%%SaleOrRentalFlag%%</td><td><code>%%State%%</code></td><td>%%SuburbName%%</td><td><code>%%StreetAddress%%</code></td><td><code>%%AdvertisedPriceString%%</code></td></tr>
+<tr><td align="center"><a href='%%base_url%%?action=adview&identifier=%%Identifier%%'>%%Identifier%%</a></td><td>%%DateEntered%%</td><td>%%SourceName%%</td><td align="center">%%SaleOrRentalFlag%%</td><td><code>%%State%%</code></td><td>%%SuburbName%%</td><td><code>%%StreetAddress%%</code></td><td><code>%%AdvertisedPriceString%%</code></td></tr>
 %%endforeach::browse.table%%
 </table>
 
