@@ -3190,6 +3190,10 @@ sub countExceptions
       {
         $statementText = "SELECT count(*) as ExceptionCount FROM WorkingView_$tableName WHERE State is null";
       }
+      elsif ($exceptionEnum == 4)
+      {
+        $statementText = "SELECT count(*) as ExceptionCount FROM WorkingView_$tableName WHERE ErrorCode = 1 AND WarningCode = 0";
+      }
       
       if ($statementText)
       {
@@ -3246,6 +3250,10 @@ sub lookupProfilesByException
       elsif ($exceptionEnum == 3)
       {
         $statementText = "SELECT * FROM WorkingView_$tableName WHERE State is null LIMIT $limit OFFSET $offset";
+      }
+      elsif ($exceptionEnum == 4)
+      {
+        $statementText = "SELECT * FROM WorkingView_$tableName WHERE ErrorCode = 1 AND WarningCode = 0 LIMIT $limit OFFSET $offset";
       }
       
       if ($statementText)

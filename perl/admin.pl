@@ -525,6 +525,7 @@ sub fetchExceptions
    $$customProperties{'exceptions.missing.sale.or.rental.flag.count'} = $advertisedPropertyProfiles->countExceptions(1);
    $$customProperties{'exceptions.unknown.suburb.name.count'} = $advertisedPropertyProfiles->countExceptions(2);
    $$customProperties{'exceptions.missing.state.count'} = $advertisedPropertyProfiles->countExceptions(3);
+   $$customProperties{'exceptions.only.missing.suburb.count'} = $advertisedPropertyProfiles->countExceptions(4);
 
    $$customProperties{'exceptions.selected.table.name'} = "";
    $$customProperties{'exceptions.selected.table.abbr'} = "";
@@ -561,6 +562,15 @@ sub fetchExceptions
       # fetch the status of the allocated threads
       $selectResults = $advertisedPropertyProfiles->lookupProfilesByException(3, $offset, $limit);
       $$customProperties{'exceptions.table.total.rows'} = $$customProperties{'exceptions.missing.state.count'};
+   }
+   elsif ($table =~ /ec1/i)
+   {
+      $$customProperties{'exceptions.selected.table.name'} = "Index of Records ONLY missing a valid suburb name";
+      $$customProperties{'exceptions.selected.table.abbr'} = "ec1";
+      
+      # fetch the status of the allocated threads
+      $selectResults = $advertisedPropertyProfiles->lookupProfilesByException(4, $offset, $limit);
+      $$customProperties{'exceptions.table.total.rows'} = $$customProperties{'exceptions.only.missing.suburb.count'};
    }
    else
    {
