@@ -258,6 +258,25 @@ sub extractRealEstateProfile
       }
    }
    
+   # 3Jul05: bugger me, yet another variant to consider - need to revisit these rules completely
+   # See testcase 928390
+   if ($saleOrRentalFlag == -1)
+   {
+      $htmlSyntaxTree->resetSearchConstraints();
+      if ($htmlSyntaxTree->containsTextPattern("Homes for Rent"))
+      {
+         $saleOrRentalFlag = 1;
+      }
+      else
+      {
+         if ($htmlSyntaxTree->containsTextPattern("Homes for Sale"))
+         {
+            $saleOrRentalFlag = 0;
+         }
+      }
+   }
+   
+   
    $propertyProfile{'SaleOrRentalFlag'} = $saleOrRentalFlag;
 
    $htmlSyntaxTree->resetSearchConstraints();
