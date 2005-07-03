@@ -820,8 +820,8 @@ sub parseREIWASearchDetails
    $statusTable = $documentReader->getStatusTable();
 
    $printLogger->print("in REIWA:parseSearchDetails ($parentLabel)\n");
-    
-   if (($url =~ /searchdetails\.cfm/) && ($htmlSyntaxTree->containsTextPattern("Save")) && ($htmlSyntaxTree->containsTextPattern("Map")))
+   # 3July tighter check for legacy REIWA (see test case 17155 - previously used "map' which is optional on the page) 
+   if (($url =~ /searchdetails\.cfm/) && ($htmlSyntaxTree->containsTextPattern("Save")) && ($htmlSyntaxTree->containsTextPattern("Suburb Profile")))
    {
       # this is a legacy REIWA record - a different extraction process needs to be followed
       $useLegacyExtraction = 1;
