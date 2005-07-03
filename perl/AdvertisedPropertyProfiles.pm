@@ -79,7 +79,11 @@
 #    identifiers from the source profiles applying an optional WHERE clause.  Used for reparsing of originating html
 # 2 July 2005  - added function lookupIdentifiersWhere that fetches a list of identifiers from the WORKING VIEW
 #    where the specified constraint is true.  Added for the reparseWorkingView utility
-#
+# 3 July 2005 - added function calculateChangeProfileRentainVitals that compares two profiles and returns a hash
+#   of the changed elements AND the VITAL elements from the original profile (regardless of whether these are changed or not)
+#   Used in for the replace writeMethod so that invalid values in the source record can be cleared while retaining 
+#   the important bits (which aren't known by the parser processing the html, but are still vital to maintain the 
+#   record. eg Identifier, DateEntered, LastEncountered and OriginatingHTML)
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -166,8 +170,8 @@ sub new
 #
 
 my $SQL_CREATE_TABLE_BODY = 
-   "DateEntered DATETIME NOT NULL, ".
-   "LastEncountered DATETIME, ".
+   "DateEntered DATETIME NOT NULL, ".      # VITAL
+   "LastEncountered DATETIME, ".           # VITAL
    "SaleOrRentalFlag INTEGER,".                   
    "SourceName TEXT, ".
    "SourceID VARCHAR(20), ".
@@ -185,7 +189,7 @@ my $SQL_CREATE_TABLE_BODY =
    "StreetAddress TEXT, ".
    "Description TEXT, ".    
    "Features TEXT,".
-   "OriginatingHTML INTEGER ZEROFILL,".       
+   "OriginatingHTML INTEGER ZEROFILL,".        # VITAL
    "AgencySourceID TEXT, ".
    "AgencyName TEXT, ".
    "AgencyAddress TEXT, ".   
@@ -2073,31 +2077,31 @@ sub repairSuburbName
             }
          }      
       }
+   }
+   
+   if (!$matched)
+   {
+      # see if the wrong state has been selected (or still undef)- maybe this suburb name is unique in one state only
+      %matchedSuburb = $this->matchUniqueSuburbName($suburbName);
       
-      if (!$matched)
+      if (%matchedSuburb)
       {
-         # see if the wrong state has been selected - maybe this suburb name is unique in one state only
-         %matchedSuburb = $this->matchUniqueSuburbName($suburbName);
+         $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
+         $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
+         $changedState = $matchedSuburb{'State'};
          
-         if (%matchedSuburb)
-         {
-            $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
-            $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
-            $changedState = $matchedSuburb{'State'};
-            
-            $matched = 1;
-            $fixedSuburbs++;
-         }
-      }
-      
-      if (!$matched)
-      {
-         #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $suburbName, "' FAILED\n";
-         $changedSuburbName = undef;
-         $changedSuburbIndex = undef;
+         $matched = 1;
+         $fixedSuburbs++;
       }
    }
-
+      
+   if (!$matched)
+   {
+      #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $suburbName, "' FAILED\n";
+      $changedSuburbName = undef;
+      $changedSuburbIndex = undef;
+   }
+   
    return ($changedState, $changedSuburbName, $changedSuburbIndex);
 }
 
@@ -2953,6 +2957,60 @@ sub calculateChangeProfile
    }
    
    #DebugTools::printHash("change", \%changedProfile);
+   
+   return %changedProfile;
+}
+
+# -------------------------------------------------------------------------------------------------
+# calculateChangeProfileRentainVitals
+# compares two profiles and returns a hash of the changed elements AND the VITAL elements (regardless
+# of whether these are changed or not)
+#
+# This is like clearUndef=1 for the calculateChangeProfile function, except the important fields
+# are always retained.
+# The Vitals are ONLY SET if there is a change being made to another field.
+# 
+# Note: the type of comparison used to detect changes will be STRING based if the value
+# contains non-digits,and INTEGER base if it's only digits.  (ie.  ne vs. !=)
+#  ie.  (0000544 == 544) but (0000544 ne 544)
+#
+# Parameters:
+#  originalProfileRef
+#  newProfileRef
+# 
+# Returns:
+#  HASH changedProfile
+#    
+sub calculateChangeProfileRetainVitals
+{
+   my $this = shift;
+   my $originalProfileRef = shift;
+   my $newProfileRef = shift;
+   my $clearUndefs = shift;
+   my %changedProfile;
+   
+   %changedProfile = $this->calculateChangeProfile($originalProfileRef, $newProfileRef, 1);
+   
+   # stictly ignore changes to the vitals - these are set to the original values by this
+   # change (the call above probably set them to undef, which is why this function is needed)
+   delete $changedProfile{'Identifier'};
+   delete $changedProfile{'DateEntered'};
+   delete $changedProfile{'LastEncountered'};
+   delete $changedProfile{'OriginatingHTML'};
+   
+   # determine if any changes were made
+   @changes = keys %changedProfile;
+   $noOfChanges = @changes;
+   
+   #  transfer the VITAL attributes only if a non-vital change was made
+   if ($noOfChanges > 0)
+   {
+      $changedProfile{'Identifier'} = $$originalProfileRef{'Identifier'};
+      $changedProfile{'DateEntered'} = $$originalProfileRef{'DateEntered'};
+      $changedProfile{'LastEncountered'} = $$originalProfileRef{'LastEncountered'};
+      $changedProfile{'OriginatingHTML'} = $$originalProfileRef{'OriginatingHTML'};
+   }
+   #DebugTools::printHash("change", \%changedPrle);
    
    return %changedProfile;
 }

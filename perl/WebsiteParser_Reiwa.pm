@@ -32,7 +32,10 @@
 #  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
 # 28 June 2005     - added support for the new parser callback template that receives an HTTPClient
 #  instead of just a URL.  This change was essential for this parser to access session data.
-#
+# 3 July 2005      - changed the function for a replace writeMethod slightly - when the changed profile is 
+#  generated now, values that are UNDEF in the new profile are CLEARed in the profile.  Previously they
+#  were retain as-is - which meant corrupt values are retains.  Reparing from the source html should completely
+#  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -96,11 +99,34 @@ sub extractREIWAProfile
    my $tablesRef = $documentReader->getTableObjects();
    my $sqlClient = $documentReader->getSQLClient();
    
-   my $saleOrRentalFlag = -1;
-   my $sourceID = undef;
+      # reset standard set of attributes
    my $sourceName = undef;
+   my $saleOrRentalFlag = -1;
    my $state = undef;
    my $titleString = undef;
+   my $suburbNameString = undef;
+   my $addressString = undef;
+   my $priceString = undef;
+   my $sourceID = undef;
+   my $type = undef;
+   my $bedrooms = undef;
+   my $bathrooms = undef;
+   my $landArea = undef;
+   my $buidingArea = undef;   
+   my $description = undef;
+   my $features = undef;
+   my $agencySourceID = undef;
+   my $agencyName = undef;
+   my $agencyAddress = undef;
+   my $salesNumberText = undef;
+   my $salesNumber = undef;
+   my $rentalsNumberText = undef;
+   my $renalsNumber = undef;
+   my $fax = undef;
+   my $contactName = undef;
+   my $mobileNumberText = undef;
+   my $mobileNumber = undef;
+   my $website = undef;
    
    # first, locate the pattern that identifies the source of the record as RealEstate.com
    if ($htmlSyntaxTree->containsTextPattern("REIWA Online"))
@@ -433,7 +459,35 @@ sub extractLegacyREIWAProfile
    my $WEBSITE = 5;
    
    my %propertyProfile;   
-
+   # reset standard set of attributes
+   my $sourceName = undef;
+   my $saleOrRentalFlag = -1;
+   my $state = undef;
+   my $titleString = undef;
+   my $suburbNameString = undef;
+   my $addressString = undef;
+   my $priceString = undef;
+   my $sourceID = undef;
+   my $type = undef;
+   my $bedrooms = undef;
+   my $bathrooms = undef;
+   my $landArea = undef;
+   my $buidingArea = undef;   
+   my $description = undef;
+   my $features = undef;
+   my $agencySourceID = undef;
+   my $agencyName = undef;
+   my $agencyAddress = undef;
+   my $salesNumberText = undef;
+   my $salesNumber = undef;
+   my $rentalsNumberText = undef;
+   my $renalsNumber = undef;
+   my $fax = undef;
+   my $contactName = undef;
+   my $mobileNumberText = undef;
+   my $mobileNumber = undef;
+   my $website = undef;
+   
    # first, locate the pattern that identifies the source of the record as RealEstate.com
    if ($htmlSyntaxTree->containsTextPattern("1st Place ILS"))
    {
@@ -765,7 +819,7 @@ sub parseREIWASearchDetails
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    $statusTable = $documentReader->getStatusTable();
 
-   $printLogger->print("in parseSearchDetails ($parentLabel)\n");
+   $printLogger->print("in REIWA:parseSearchDetails ($parentLabel)\n");
     
    if (($url =~ /searchdetails\.cfm/) && ($htmlSyntaxTree->containsTextPattern("Save")) && ($htmlSyntaxTree->containsTextPattern("Map")))
    {
@@ -830,7 +884,7 @@ sub parseREIWASearchDetails
                {
                   $printLogger->print("   parseSearchDetails: replacing record (id:$identifier).\n");  
                 
-                  %changeProfile = $advertisedPropertyProfiles->calculateChangeProfile($existingProfile, $propertyProfile);
+                  %changeProfile = $advertisedPropertyProfiles->calculateChangeProfileRetainVitals($existingProfile, $propertyProfile);
                   if (!$dryRun)
                   {
                      # a record has been specified to replace with this profile

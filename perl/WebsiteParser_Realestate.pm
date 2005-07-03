@@ -36,6 +36,10 @@
 #  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
 # 28 June 2005     - added support for the new parser callback template that receives an HTTPClient
 #  instead of just a URL.
+# 3 July 2005      - changed the function for a replace writeMethod slightly - when the changed profile is 
+#  generated now, values that are UNDEF in the new profile are CLEARed in the profile.  Previously they
+#  were retain as-is - which meant corrupt values are retains.  Reparing from the source html should completely
+#  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -153,16 +157,34 @@ sub extractRealEstateProfile
    my $tablesRef = $documentReader->getTableObjects();
    my $sqlClient = $documentReader->getSQLClient();
    
-   my $saleOrRentalFlag = -1;
+   # reset standard set of attributes
    my $sourceName = undef;
+   my $saleOrRentalFlag = -1;
    my $state = undef;
-   my $stateName = undef;
-   my $buildingArea = undef;
-   my $yearBuilt = undef;
+   my $titleString = undef;
+   my $suburbNameString = undef;
+   my $addressString = undef;
+   my $priceString = undef;
+   my $sourceID = undef;
+   my $type = undef;
+   my $bedrooms = undef;
+   my $bathrooms = undef;
+   my $landArea = undef;
+   my $buidingArea = undef;   
+   my $description = undef;
+   my $features = undef;
+   my $agencySourceID = undef;
+   my $agencyName = undef;
    my $agencyAddress = undef;
-   my $salesPhone = undef;
-   my $rentalsPhone = undef;
+   my $salesNumberText = undef;
+   my $salesNumber = undef;
+   my $rentalsNumberText = undef;
+   my $renalsNumber = undef;
    my $fax = undef;
+   my $contactName = undef;
+   my $mobileNumberText = undef;
+   my $mobileNumber = undef;
+   my $website = undef;
    
    # first, locate the pattern that identifies the source of the record as RealEstate.com
    # 20 May 05
@@ -586,7 +608,7 @@ sub parseRealEstateSearchDetails
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    $statusTable = $documentReader->getStatusTable();
 
-   $printLogger->print("in parseSearchDetails ($parentLabel)\n");
+   $printLogger->print("in RealEstate:parseSearchDetails ($parentLabel)\n");
    
    if ($htmlSyntaxTree->containsTextPattern("Property No"))
    {
@@ -635,7 +657,7 @@ sub parseRealEstateSearchDetails
                {
                   $printLogger->print("   parseSearchDetails: replacing record (id:$identifier).\n");  
                 
-                  %changeProfile = $advertisedPropertyProfiles->calculateChangeProfile($existingProfile, $propertyProfile);
+                  %changeProfile = $advertisedPropertyProfiles->calculateChangeProfileRetainVitals($existingProfile, $propertyProfile);
                   if (!$dryRun)
                   {
                      # a record has been specified to replace with this profile

@@ -50,6 +50,11 @@
 #  (ie. lastEncountered is propagated, and DateLastAdvertised in the MasterPropertiesTable)
 # 28 June 2005     - added support for the new parser callback template that receives an HTTPClient
 #  instead of just a URL.
+# 3 July 2005      - found another legacy domain variant - made modifications to the extraction function (testcase18879)
+#                  - changed the function for a replace writeMethod slightly - when the changed profile is 
+#  generated now, values that are UNDEF in the new profile are CLEARed in the profile.  Previously they
+#  were retain as-is - which meant corrupt values are retains.  Reparing from the source html should completely
+#  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
 package WebsiteParser_Domain;
 
 use PrintLogger;
@@ -110,23 +115,36 @@ sub extractDomainProfile
 
    my $tablesRef = $documentReader->getTableObjects();
    my $sqlClient = $documentReader->getSQLClient();
-   
-   my $saleOrRentalFlag = -1;
+ 
+   # reset standard set of attributes
    my $sourceName = undef;
+   my $saleOrRentalFlag = -1;
    my $state = undef;
+   my $titleString = undef;
+   my $suburbNameString = undef;
+   my $addressString = undef;
    my $priceString = undef;
-   my $buildingArea = undef;  
+   my $sourceID = undef;
+   my $type = undef;
+   my $bedrooms = undef;
+   my $bathrooms = undef;
+   my $landArea = undef;
+   my $buidingArea = undef;   
    my $description = undef;
+   my $features = undef;
    my $agencySourceID = undef;
    my $agencyName = undef;
    my $agencyAddress = undef;
    my $salesNumberText = undef;
+   my $salesNumber = undef;
    my $rentalsNumberText = undef;
+   my $renalsNumber = undef;
    my $fax = undef;
    my $contactName = undef;
    my $mobileNumberText = undef;
+   my $mobileNumber = undef;
    my $website = undef;
-  
+   
    # first, locate the pattern that identifies the source of the record as DOMAIN
    # 20 May 05
    if ($htmlSyntaxTree->containsTextPattern("domain\.com\.au"))
@@ -238,18 +256,20 @@ sub extractDomainProfile
    # ---- extract the address ----
    
    $htmlSyntaxTree->resetSearchConstraints();
-   $htmlSyntaxTree->setSearchStartConstraintByTag("h2");
-   
-   $firstLine = $htmlSyntaxTree->getNextText();            # usually suburb and price string (used above)
-   $addressString = $firstLine;
-   
-   # if the address contains the text bedrooms, bathrooms, car spaces or Add to Shortlist then reject it
-   # if the address is blank, sometimes the next pattern is variable
-   if ($addressString =~ /Bedrooms|Bathrooms|Car Spaces|Add to shortlist/i)
+   if ($htmlSyntaxTree->setSearchStartConstraintByTag("h2"))
    {
-      $addressString = undef;
-   }
+   
+      $firstLine = $htmlSyntaxTree->getNextText();            # usually suburb and price string (used above)
+      $addressString = $firstLine;
       
+      # if the address contains the text bedrooms, bathrooms, car spaces or Add to Shortlist then reject it
+      # if the address is blank, sometimes the next pattern is variable
+      if ($addressString =~ /Bedrooms|Bathrooms|Car Spaces|Add to shortlist/i)
+      {
+         $addressString = undef;
+      }
+   }    
+   
    if ($addressString) 
    {
       $propertyProfile{'StreetAddress'} = $addressString;
@@ -258,8 +278,16 @@ sub extractDomainProfile
    # --- extract price ---
    
    $htmlSyntaxTree->resetSearchConstraints();
-   $htmlSyntaxTree->setSearchStartConstraintByTag("h2");
-   $htmlSyntaxTree->setSearchEndConstraintByText("Latest Auction"); 
+   if (!$htmlSyntaxTree->setSearchStartConstraintByTag("h2"))
+   {
+      # 3 July 05: try a different variant - after the 'Property For x' text
+      $htmlSyntaxTree->setSearchStartConstraintByText("Property For");
+   }
+   if (!$htmlSyntaxTree->setSearchEndConstraintByText("Latest Auction"))
+   {
+      # 3 July 05: try a different variant that uses the copyright message at the bottom of the page
+      $htmlSyntaxTree->setSearchEndConstraintByText("Copyright");
+   }
    
    # if this is a SALE record...
    if ($saleOrRentalFlag == 0)
@@ -307,12 +335,30 @@ sub extractDomainProfile
    
    # --- extract property type ---
    
-   $type = trimWhitespace($htmlSyntaxTree->getNextText());  # always set (contains at least TYPE)
-   $type =~ s/\://gi;   
-   # 27 June 2005: if type is 'Land Area' type is "Land"
-   if ($type =~ /Land\sarea/i)
+   #3 July 2005 - introduced a while loop here to try a few lines to get the type
+
+   # sometimes there's other information before the type
+   # TYPE is assumed to be the FIRST USEFUL information after PRICE and Property ID 
+   $typeSet = 0;
+   $noOfTries = 0;
+   
+   while ((!$typeSet) && ($noOfTries < 5))
    {
-      $type = 'land';
+      $type = trimWhitespace($htmlSyntaxTree->getNextText());  # always set (contains at least TYPE)
+   
+      # look for the next type: line
+      if ($type =~ /(.+)\:/g)
+      {   
+         $type = $1;
+         # 27 June 2005: if type is 'Land Area' type is "Land"
+         if ($type =~ /Land\sarea/i)
+         {
+            $type = 'land';
+         }
+         $typeSet = 1;
+      }
+      # always break out if unsuccessful after a few tries
+      $noOfTries++;
    }
    
    if ($type)
@@ -359,6 +405,25 @@ sub extractDomainProfile
    
    $bedrooms = strictNumber(parseNumber($bedroomsString));
    $bathrooms = strictNumber(parseNumber($bathroomsString));
+
+   # 3Jul05: another frigg'n domain variation - the bedrooms is sometimes after the text 'Bedrooms:'
+   if (!$bedrooms)
+   {
+      $htmlSyntaxTree->resetSearchConstraints();
+      $htmlSyntaxTree->setSearchEndConstraintByText("Description");
+      $bedText = $htmlSyntaxTree->getNextTextAfterPattern("Bedrooms:");
+      $bedrooms = strictNumber(parseNumber($bedText));
+   }
+   
+   # 3Jul05: another frigg'n domain variation - the bathrooms is sometimes after the text 'Bathrooms:'
+   if (!$bathrooms)
+   {
+      $htmlSyntaxTree->resetSearchConstraints();
+      $htmlSyntaxTree->setSearchEndConstraintByText("Description");
+
+      $bathText = $htmlSyntaxTree->getNextTextAfterPattern("Bathrooms:");
+      $bathrooms = strictNumber(parseNumber($bathText));
+   }
    
    if ($bedrooms)
    {
@@ -371,7 +436,7 @@ sub extractDomainProfile
    }
    
    # --- extract land area ---
-   
+   $htmlSyntaxTree->resetSearchConstraints();
    $landArea = $htmlSyntaxTree->getNextTextAfterPattern("area:");  # optional
    
    if ($landArea)
@@ -395,11 +460,17 @@ sub extractDomainProfile
    {
       # 26 June 05 - this is the contraint in the current design - it also apears in the
       # legacy design though, so its applied first...
-      $htmlSyntaxTree->setSearchEndConstraintByTagAndClass("div", "propdetails-emailagentbox");
-      
-      # then try the second constraint as well (it'll only work if it's before the one above)
-      # (this is based on the legacy design of the page)
-      $htmlSyntaxTree->setSearchEndConstraintByTagAndClass("div", "auction-results");
+      if ($htmlSyntaxTree->setSearchEndConstraintByTagAndClass("div", "propdetails-emailagentbox"))
+      {
+         # then try the second constraint as well (it'll only work if it's before the one above)
+         # (this is based on the legacy design of the page)
+         $htmlSyntaxTree->setSearchEndConstraintByTagAndClass("div", "auction-results");
+      }
+      else
+      {
+         # another legacy variation - simply stop at the end of the table following the description
+         $htmlSyntaxTree->setSearchEndConstraintByTag("/table");
+      }
       
       # append all text in the features section
       $description = undef;
@@ -544,7 +615,7 @@ sub extractDomainProfile
 #      print "contactName:$contactName\n";
 #      print "mobileNo:$mobileNumberText\n";
    }
-     
+ 
    if ($agencySourceID)
    {
       $propertyProfile{'AgencySourceID'} = $agencySourceID;
@@ -585,7 +656,6 @@ sub extractDomainProfile
       $propertyProfile{'MobilePhone'} = $mobileNumberText;
    }
    
-   print "website=$website\n";
    if ($website)
    {
       $propertyProfile{'Website'} = $website;
@@ -643,7 +713,7 @@ sub parseDomainPropertyDetails
    
    $statusTable = $documentReader->getStatusTable();
 
-   $printLogger->print("in parsePropertyDetails ($parentLabel)\n");
+   $printLogger->print("in Domain:parsePropertyDetails ($parentLabel)\n");
      
    if ($htmlSyntaxTree->containsTextPattern("Property Details"))
    {                                         
@@ -696,9 +766,11 @@ sub parseDomainPropertyDetails
                   {
                      $printLogger->print("   parseSearchDetails: replacing record (id:$identifier).\n");  
                    
-                     %changeProfile = $advertisedPropertyProfiles->calculateChangeProfile($existingProfile, $propertyProfile);
+                     %changeProfile = $advertisedPropertyProfiles->calculateChangeProfileRetainVitals($existingProfile, $propertyProfile);
+                     
                      if (!$dryRun)
                      {
+
                         # a record has been specified to replace with this profile
                         if (!$advertisedPropertyProfiles->replaceRecord(\%changeProfile, $identifier))
                         {
