@@ -447,7 +447,7 @@ sub setHtmlRegExSelectFieldName
    my @selected;
    
    # clear selected flag for all options, then set for the orderby state
-   for ($i = 0; $i < 7; $i++)
+   for ($i = 0; $i < 8; $i++)
    {
       $selected[$i] = "";
    }
@@ -464,7 +464,9 @@ sub setHtmlRegExSelectFieldName
                      "<option value='3' ".$selected[3].">StreetNumber</option>".
                      "<option value='4' ".$selected[4].">UnitNumber</option>".
                      "<option value='5' ".$selected[5].">AdvertisedPriceString</option>".
-                     "<option value='6' ".$selected[6].">AddressString</option></select>";
+                     "<option value='6' ".$selected[6].">AddressString</option>".
+                     "<option value='7' ".$selected[7].">Locality</option></select>";
+
    $$customProperties{'html.regex.select.fieldname'} = $propertyValue;
 }
 

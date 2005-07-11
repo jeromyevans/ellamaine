@@ -11,6 +11,8 @@
 # History:
 #   19 June 2005 - extended so the table contains patterns for extracting fields from a pattern as well as performing substitutions
 #                - renamed to RegExPatterns (was RegExPatterns)
+#   11 July 2005 - added support for Locality fieldName - used for substitution of well-known suburb names with their correct names
+#                   according to the Australia Post conventions
 #
 # CONVENTIONS
 # _ indicates a private variable or method
@@ -50,7 +52,8 @@ sub new
       3 => "StreetNumber", 
       4 => "UnitNumber", 
       5 => "AdvertisedPriceString", 
-      6 => "AddressString"
+      6 => "AddressString",
+      7 => "Locality"
    };
    
    

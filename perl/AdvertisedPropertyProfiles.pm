@@ -84,6 +84,10 @@
 #   Used in for the replace writeMethod so that invalid values in the source record can be cleared while retaining 
 #   the important bits (which aren't known by the parser processing the html, but are still vital to maintain the 
 #   record. eg Identifier, DateEntered, LastEncountered and OriginatingHTML)
+# 4 July 2005 - added index to the workingview based on ErrorCode and WarningCode - for faster exception lookup functions
+# 11 July 2005 - added index to the working view based on State and SuburbName - for faster exception lookup functions
+#              - fixed bug in the repairSuburbName function that was preventing one of the passes from ever succeeeding
+#  (searching for a suburb name anywhere in the string).  Now fixed (need to reparse data though.
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -1066,7 +1070,7 @@ sub _createWorkingViewTable
    my $tableName = $this->{'tableName'};
 
    my $SQL_CREATE_WORKINGVIEW_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS WorkingView_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ";
-   my $SQL_CREATE_WORKINGVIEW_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex))";   # 23Jan05 - index!
+   my $SQL_CREATE_WORKINGVIEW_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";   # 23Jan05 - index!
    
    if ($sqlClient)
    {
@@ -1973,6 +1977,7 @@ sub repairSuburbName
    
    if ($stateIsOk)
    {
+      print "PASS0: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
       foreach (@$regExSubstitutionsRef)
       {
          if ($$_{'FieldName'} =~ /SuburbName/i)
@@ -1989,7 +1994,7 @@ sub repairSuburbName
       $suburbName =~ s/[^(\w|\-|\'|\s)]/ /gi;
       
       $suburbName = prettyPrint($suburbName, 1);
-         
+      print "PASS1: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
       # match the suburb name to a recognised suburb name
       %matchedSuburb = $this->matchSuburbName($suburbName, $changedState);
         
@@ -2002,7 +2007,8 @@ sub repairSuburbName
          $matched = 1;
          #print "BadSuburbs=$badSuburbs FixedSuburbs = $fixedSuburbs\n";
       }
-      
+      print "PASS2: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+
       if (!$matched)
       {
          # still haven't matched the suburb name - try searching for a close match on the assumption the suburbname is followed by crud
@@ -2043,7 +2049,8 @@ sub repairSuburbName
             }
          }
       }
-      
+      print "PASS3: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+
       if (!$matched)
       {
          #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='$suburbName' STILL INVALID SUBURBNAME - UNCHANGED\n";
@@ -2058,14 +2065,16 @@ sub repairSuburbName
          # loop through the series of words (from left to right)
          while ((!$matched) && ($currentWord < $noOfWords))
          {
+            $currentString = $wordList[$currentWord];
+            print "trying $currentString in $changedState...\n";
             # match the suburb name to a recognised suburb name
-            %matchedSuburb = $this->matchSuburbName($_, $changedState);
+            %matchedSuburb = $this->matchSuburbName($currentString, $changedState);
         
             if (%matchedSuburb)
             {
                $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
                $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
-   
+   print "found!\n";
                $matched = 1;
                $fixedSuburbs++;
                #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $changedProfile{'SuburbName'}, "'    NEW suburbIndex=", $changedProfile{'SuburbIndex'}, "\n";
@@ -2078,7 +2087,7 @@ sub repairSuburbName
          }      
       }
    }
-   
+      print "PASS4: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
    if (!$matched)
    {
       # see if the wrong state has been selected (or still undef)- maybe this suburb name is unique in one state only
@@ -2094,14 +2103,14 @@ sub repairSuburbName
          $fixedSuburbs++;
       }
    }
-      
+      print "PASS5: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
    if (!$matched)
    {
       #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $suburbName, "' FAILED\n";
       $changedSuburbName = undef;
       $changedSuburbIndex = undef;
    }
-   
+      print "PASS6: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
    return ($changedState, $changedSuburbName, $changedSuburbIndex);
 }
 

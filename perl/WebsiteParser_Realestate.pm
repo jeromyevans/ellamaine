@@ -40,6 +40,9 @@
 #  generated now, values that are UNDEF in the new profile are CLEARed in the profile.  Previously they
 #  were retain as-is - which meant corrupt values are retains.  Reparing from the source html should completely
 #  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
+# 11 July 2005     - found another variation of realestate.com records - fixed the way it extracts the suburb name
+#  that results in scarab defect #40 (suburb name = quick menu)
+
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -302,17 +305,27 @@ sub extractRealEstateProfile
    
    # --- extract the suburb name (cheat- use the parent label ---
    
-   # 27 June 2005 - when reparsing records the parent name cannot be relied upon to get the
-   # suburb name. Instead, get the suburb name from one of the anchors in the page
+
+
    $htmlSyntaxTree->resetSearchConstraints();
-   if ($htmlSyntaxTree->setSearchStartConstraintByTag("h2"))
+   # 11 July 2005 - the suburb name is enclosed in h2 tags - in some current realestate.com variants
+   # this is the only instance of h2, but in others it's the first in the div 'header'      
+
+   if ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass("div", "header"))      
    {
       $suburb = $htmlSyntaxTree->getNextText();
    }
    else
    {
-      
+      # 27 June 2005 - when reparsing records the parent name cannot be relied upon to get the
+      # suburb name. Instead, get the suburb name from one of the anchors in the page
+      if ($htmlSyntaxTree->setSearchStartConstraintByTag("h2"))
       {
+         $suburb = $htmlSyntaxTree->getNextText();
+      }   
+      else
+      {
+         
          # legacy record getting desparate - get suburb name from an anchor  
          #  (note some records have the suburbname in "xlg-mag-bold" span, but not consistently (sometimes it's a title)
          
@@ -327,6 +340,7 @@ sub extractRealEstateProfile
          ($suburb, $crud) = split(/\%26a/, $suburb, 2);
          # note, if the suburb name contains spaces it will be represented by %2520 - replace it with a space
          $suburb =~ s/\%2520/ /g;
+      
       }
    }
    
