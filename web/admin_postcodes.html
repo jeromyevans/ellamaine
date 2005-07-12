@@ -1,0 +1,110 @@
+<html>
+<head>
+<title>Ellamaine Administration Tool - Browse Post Codes</title>
+</head>
+
+<body>
+<a href='%%base_url%%?action=main'>Status Table</a>&nbsp<a href='%%base_url%%?action=browse'>Browse</a>&nbsp<a href='%%base_url%%?action=regex'>RegEx</a>&nbsp<a href='%%base_url%%?action=exceptions'>Exceptions</a>&nbsp<a href='%%base_url%%?action=postcodes'>Post Codes</a><br/>
+<h1>Browse Post Codes</h1>
+
+<table>
+<tr><td>Add a new Locality</td></tr>
+<form action='%%base_url%%' method='post'>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="subAction" value="add"/>
+<tr><td>State</td><td><input type='text' name='state'/></td></tr>
+<tr><td>Locality</td><td><input type='text' name='locality'/></td></tr>
+<tr><td>PostCode</td><td><input type='text' name='postcode'/></td></tr>
+<tr><td>Comments</td><td><input type='text' name='comments'/></td></tr>
+<tr><td colspan='2'><input type='submit' value='Add'/></td></tr>
+</form>
+</table>
+%%admin.error.description%%<br/>
+<hr/>
+WARNING: actions that change the SuburbIndex/Locality pair will invalidate ALL existing property records.  SuburbIndex is a vital foreign key.
+<table>
+<tr>
+<td>
+<form action='%%base_url%%' method='post'>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="subAction" value="export"/>
+<input type='submit' value='Export Table'/>
+</form>
+</td>
+<td>
+<form action='%%base_url%%' method='post'>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="subAction" value="import"/>
+<input type='submit' value='Import Table'/>
+</form>
+</td>
+<td>
+<form action='%%base_url%%' method='post'>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="subAction" value="create"/>
+<input type='submit' value='Create Table'/>
+</form>
+</td>
+<td>
+<form action='%%base_url%%' method='post'>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="subAction" value="clear"/>
+<input type='submit' value='Clear Table'/>
+</form>
+</td>
+<td>
+<form action='%%base_url%%' method='post'>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="subAction" value="drop"/>
+<input type='submit' value='Drop Table'/>
+</form>
+</td>
+<td>
+<form action='%%base_url%%' method='post'>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="subAction" value="update"/>
+<input type='submit' value='Update from CSV'/>
+%%html.browse.csv.select%%
+</form>
+</td>
+</tr>
+</table>
+%%admin.postcodes.msg%%<br/>
+<hr/>
+<h2>%%browse.table.name%%</h2>
+<form action='%%base_url%%' method='post'>Order By: %%html.browse.orderby.select%%
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="offset" value="%%browse.table.first%%"/>
+<input type="hidden" name="limit" value="%%browse.table.limit%%"/>
+%%html.browse.reverse.select%%
+<input type='submit' value='Change'>
+</form>
+
+<a href="%%base_url%%?action=postcodes&offset=%%browse.table.prev.offset%%">Prev %%browse.table.limit%%</a>
+Records %%browse.table.first%% to %%browse.table.last%% of %%browse.table.total.rows%%
+<a href="%%base_url%%?action=postcodes&offset=%%browse.table.next.offset%%">Next %%browse.table.limit%%</a>
+<form>
+<input type="hidden" name="action" value="postcodes"/>
+<input type="hidden" name="limit" value="%%browse.table.limit%%"/>
+Jump to<input type='text' name='offset'/><input type='submit' value='Jump'/></form>
+<table border='1'>
+<tr><th  rowspan='1' valign='center'>Delete</th>
+<th  rowspan='1' valign='center'>SuburbIndex</th>
+<th rowspan='1' valign='center'>State</th>
+<th rowspan='1' valign='center'>Locality</th>
+<th rowspan='1' valign='center'>PostCode</th>
+<th rowspan='1' valign='center'>Comments</th>
+%%foreach::browse.table%%
+<tr>
+<td align="center"><input type='checkbox' name='SuburbIndex' value='%%SuburbIndex%%'/>%%simplemvc.foreach.rowno%%</td>
+<td align="center"><a href='%%base_url%%?action=adview&identifier=%%SuburbIndex%%'>%%SuburbIndex%%</a></td>
+<td>%%State%%</td><td>%%Locality%%</td><td align="center">%%PostCode%%</td><td><code>%%Comments%%</code></td></td></tr>
+%%endforeach::browse.table%%
+</table>
+
+<table><tr><td>%%simplemvc.action%%</td></tr></table>
+<strong>MVC response:</strong>%%simplemvc.error.description%%<br/>
+
+</body>
+
+</html>

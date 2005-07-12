@@ -21,7 +21,7 @@ use RegExPatterns;
 use StringTools;
 use AdvertisedPropertyProfiles;
 use Ellamaine::Controller;
-
+use AusPostCodes;
 # -------------------------------------------------------------------------------------------------
 # define the actions available to the Simple model view controller    
 my %supportedActions = (
@@ -32,7 +32,8 @@ my %supportedActions = (
       'orightml' => \&loadOriginatingHTML,
       'browse' => \&browseProperties,
       'reparse' => \&reparseOriginatingHTML,
-      'transfer' => \&transferToWorkingView
+      'transfer' => \&transferToWorkingView,
+      'postcodes' => \&browsePostCodes
 );
 
 
@@ -46,7 +47,8 @@ my %supportedViews = (
       'adview' => 'admin_adview.html',
       'orightml' => 'admin_orightml.html',
       'browse' => 'admin_browse.html',
-      'reparse' => 'admin_reparse.html'
+      'reparse' => 'admin_reparse.html',
+      'postcodes' => 'admin_postcodes.html',
       );
 
 # -------------------------------------------------------------------------------------------------
@@ -958,6 +960,383 @@ sub transferToWorkingView
   
   return 'adview';
 }
+
+# -------------------------------------------------------------------------------------------------
+# browsePostCodes
+# this is an action callback function for the simpleMVC
+# it fetches the tables of post codes from the database (no conditions)
+#
+# Parameters
+#   Reference to hash of custom properties
+#
+# Returns
+#   'browse' View
+#
+sub browsePostCodes
+{
+   my $customProperties = shift;
+   my $sqlClient = SQLClient::new();
+   my $ausPostCodes = AusPostCodes::new($sqlClient);
+   my %parametersHash;
+   
+   # check the CGI parameters
+   $offset = CGI::param('offset');
+   $limit = CGI::param('limit');
+   $orderByParam = CGI::param('orderby');
+   $reverse = CGI::param('reverse');
+   $subAction = CGI::param('subAction');
+   $locality = CGI::param('locality');
+   $postcode = CGI::param('postcode');
+   $state = CGI::param('state');
+   $comments = CGI::param('comments');
+   $filename = CGI::param('filename');
+   
+   @parameters = CGI::param();      
+   # loop through all the parameters to extract all of the patternID values 
+   foreach (@parameters)
+   {
+      if ($_ =~ /SuburbIndex/)
+      {
+         push @suburbList, CGI::param($_);
+      }
+   }
+   
+   if ((!defined $offset) || ($offset < 1))
+   {
+      $offset = 0;
+   }
+   
+   if ((!defined $limit) || ($limit < 1))
+   {
+      $limit = 50;
+   }
+   
+   $$customProperties{"admin.postcodes.msg"} = "";
+   $$customProperties{"admin.error.description"} = "";
+   $$customProperties{'browse.table.total.rows'} = 0;
+   
+   $sqlClient->connect();
+   
+   if ($subAction =~ /add/i)
+   {
+      # add a new locality...
+      if ($state)
+      {
+         if ($locality) 
+         {
+            if ($postcode) 
+            {
+               if ($comments)
+               {
+                  $parametersHash{'State'} = $state;
+                  $parametersHash{'Locality'} = $locality;
+                  $parametersHash{'PostCode'} = $postcode;
+                  $parametersHash{'comments'} = $comments;
+                  
+                  $success = $ausPostCodes->addRecord(\%parametersHash);   
+                  if (!$success)
+                  {
+                     $$customProperties{"admin.error"} = 1;
+                     $$customProperties{"admin.error.description"} = "Failed to add the locality";
+                  }
+                  else
+                  {
+                      $$customProperties{"admin.postcodes.msg"} = "locality added successfully";
+                  }
+               }
+               else
+               {
+                  $$customProperties{"admin.error"} = 1;
+                  $$customProperties{"admin.error.description"} = "Comments is a mandatory parameter when adding a new locality";
+               }
+             
+            }
+            else
+            {
+               $$customProperties{"admin.error"} = 1;
+               $$customProperties{"admin.error.description"} = "PostCode is a mandatory parameter";
+            }
+         }
+         else
+         {
+            $$customProperties{"admin.error"} = 1;
+            $$customProperties{"admin.error.description"} = "Locality is a mandatory parameter";
+         }
+      }
+      else
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "State is a mandatory parameter";
+      }
+   }
+   elsif ($subAction =~ /del/i)
+   {
+      $noOfPatterns = @suburbList;
+      if ($noOfPatterns > 0)
+      {
+         # delete selected patterns (if any)
+         $recordsDeleted = 0;
+         foreach (@suburbList)
+         {
+            $deleted = $ausPostCodes->deleteSuburbIndex($_);
+            if ($deleted)
+            {
+               $recordsDeleted++;
+            }
+         }
+         
+         $$customProperties{"admin.postcodes.msg"} = "$recordDeleted localities deleted";
+      }
+      else
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "Failed to delete";
+      }
+   }
+   elsif ($subAction =~ /export/i)
+   {
+      $success = $ausPostCodes->exportTable();
+      
+      if ($success)
+      {  
+         $$customProperties{"admin.postcodes.msg"} = "Table exported successfully";
+      }
+      else
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "Export failed";
+      }
+   }
+   elsif ($subAction =~ /import/i)
+   {
+      $success = $ausPostCodes->importTable();
+      
+      if ($success)
+      {  
+         $$customProperties{"admin.postcodes.msg"} = "Table imported successfully";
+      }
+      else
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "Import failed";
+      }
+   }
+   elsif ($subAction =~ /create/i)
+   {
+      $success = $ausPostCodes->createTable();
+      
+      if ($success)
+      {  
+         $$customProperties{"admin.postcodes.msg"} = "Table created successfully";
+      }
+      else
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "Creation failed";
+      }
+   }
+   elsif ($subAction =~ /clear/i)
+   {
+      $success = $ausPostCodes->clearTable();
+      
+      if ($success)
+      {  
+         $$customProperties{"admin.postcodes.msg"} = "Table cleared successfully";
+      }
+      else
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "Clear failed";
+      }
+   }
+   elsif ($subAction =~ /drop/i)
+   {
+      $success = $ausPostCodes->dropTable();
+      
+      if ($success)
+      {  
+         $$customProperties{"admin.postcodes.msg"} = "Table dropped successfully";
+      }
+      else
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "Drop failed";
+      }
+   }
+   elsif ($subAction =~ /update/i)
+   {
+      if ($filename)
+      {
+         $ausPostCodes->overrideCSVFilename($filename);
+         $success = $ausPostCodes->importCSV();
+         
+         if ($success)
+         {  
+            $$customProperties{"admin.postcodes.msg"} = "Table updated successfully";
+         }
+         else
+         {
+            $$customProperties{"admin.error"} = 1;
+            $$customProperties{"admin.error.description"} = "Update from CSV failed";
+         }
+      }
+      else
+      {
+          $$customProperties{"admin.error"} = 1;
+          $$customProperties{"admin.error.description"} = "Select which CSV file to use";
+      }
+   }
+   else
+   {
+      if ($subAction)
+      {
+         $$customProperties{"admin.error"} = 1;
+         $$customProperties{"admin.error.description"} = "subAction not recognised";
+      }
+   }
+   
+   # determine how to order the table 
+   if (($orderByParam >= 0) && ($orderByParam <= 4))
+   {
+      $orderBy = $orderByParam;
+   }
+   
+   if (!defined $reverse)
+   {
+      $reverse = 0;
+   }
+   
+   setHtmlBrowsePostCodesOrderBySelect($customProperties, $orderBy);
+   setHtmlBrowsePostCodesReverseSelect($customProperties, $reverse);
+   setHtmlBrowsePostCodesCSVSelect($customProperties, $ausPostCodes);
+   
+   $selectResults = undef;
+   
+   $$customProperties{'browse.table.name'} = "Australian Post Codes";
+   $$customProperties{'browse.table.abbr'} = "apc";
+   $$customProperties{'browse.table.total.rows'} = $ausPostCodes->countEntries();
+   
+   $selectResults = $ausPostCodes->lookupPostCodes($orderBy, $reverse, $offset, $limit);
+
+   $sqlClient->disconnect();
+   
+   $$customProperties{'browse.table.first'} = $offset;
+   $$customProperties{'browse.table.last'} = ($offset+$limit-1);
+   $$customProperties{'browse.table.limit'} = $limit;
+   $$customProperties{'browse.table.next.offset'} = $offset+$limit;
+   $$customProperties{'browse.table.prev.offset'} = ($offset-$limit >= 0 ? $offset-$limit : 0); 
+
+   # populate the table into the customproperties
+   SimpleMVC::populateTable($customProperties, 'browse.table', $selectResults);
+      
+   return 'postcodes';
+}
+
+# -------------------------------------------------------------------------------------------------
+
+#sets the property html.browse.orderby.select
+sub setHtmlBrowsePostCodesOrderBySelect
+{
+   my $customProperties = shift;
+   my $orderBy = shift;   
+   
+   my @selected;
+   
+   # clear selected flag for all options, then set for the orderby state
+   for ($i = 0; $i < 4; $i++)
+   {
+      $selected[$i] = "";
+   }
+   $selected[$orderBy] = "selected";
+
+   $propertyValue =  "<select name='orderby'>".
+                     "<option value='0' ".$selected[0].">SuburbIndex</option>".
+                     "<option value='1' ".$selected[1].">State</option>".
+                     "<option value='2' ".$selected[2].">Locality</option>".
+                     "<option value='3' ".$selected[3].">PostCode</option></select>";
+      
+   $$customProperties{'html.browse.orderby.select'} = $propertyValue;
+}
+
+# -------------------------------------------------------------------------------------------------
+
+
+#sets the property html.reverse.select
+sub setHtmlBrowsePostCodesReverseSelect
+{
+   my $customProperties = shift;
+   my $reverse = shift;   
+   
+   my @selected;
+   # clear selected flag for all options, then set for the reverse state
+   for ($i = 0; $i < 2; $i++)
+   {
+      $selected[$i] = "";
+   }
+   $selected[$reverse] = "selected";
+
+   $propertyValue =  "<select name='reverse'>".
+                     "<option value='0' ".$selected[0].">Ascending</option>".
+                     "<option value='1' ".$selected[1].">Descending</option></select>";
+      
+   $$customProperties{'html.browse.reverse.select'} = $propertyValue;
+}
+
+# -------------------------------------------------------------------------------------------------
+
+sub setHtmlBrowsePostCodesCSVSelect
+
+{
+   my $customProperties = shift;
+   my $ausPostCodes = shift;
+   my $listing;
+   
+   # read the source.home directory and return the list of available modules
+   $listing = readDirectory($ausPostCodes->getImportPath());
+   
+   $$customProperties{'html.browse.csv.select'} = "<select name='filename'>";
+
+   foreach (@$listing)
+   {
+      # set the property for the view
+      $$customProperties{'html.browse.csv.select'} .= "<option>$_</option> ";
+   }
+    $$customProperties{'html.browse.csv.select'} .= "</select>";
+}
+
+# -------------------------------------------------------------------------------------------------
+
+
+# reads the contents of the specified directory 
+#
+# Parameters:
+#  String Path
+#
+# Returns
+#  Reference to list of files in the directories
+#
+sub readDirectory
+{
+   my $path = shift;
+   # load the list of projects
+   my @listing;
+   opendir(DIR, $path);
+   
+   $files = 0;
+   while ( defined ($file = readdir DIR) ) 
+   {
+      next if $file =~ /^\.\.?$/;     # skip . and ..
+      
+      # add this file...
+      $listing[$files] = $file;
+      $files++;
+     
+   }
+   closedir(BIN);
+   
+   return \@listing;
+}
+
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------

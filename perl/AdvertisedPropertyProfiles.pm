@@ -88,6 +88,10 @@
 # 11 July 2005 - added index to the working view based on State and SuburbName - for faster exception lookup functions
 #              - fixed bug in the repairSuburbName function that was preventing one of the passes from ever succeeeding
 #  (searching for a suburb name anywhere in the string).  Now fixed (need to reparse data though.
+# 12 July 2005 - added indexes to AusPostCodes for faster operation of matchSuburbName and matchUniqueSuburbName
+#    INDEX (state(3), locality(10)) and INDEX (Locality(10), Comments(10))
+#              - added support for Locality name substitutions in the repairSuburbName function - replaces the 
+#   locality name with the correct name for certain patterns (eg. Walsh Bay NSW is actually The Rocks)
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -1844,7 +1848,7 @@ sub matchSuburbName
       $quotedSuburbName = $sqlClient->quote($suburbName);
       $quotedState = $sqlClient->quote($state);
      
-      $statementText = "SELECT locality, postcode, SuburbIndex FROM AusPostCodes WHERE locality like $quotedSuburbName and state like $quotedState order by postcode limit 1";
+      $statementText = "SELECT locality, postcode, SuburbIndex FROM AusPostCodes WHERE state like $quotedState AND locality like $quotedSuburbName order by postcode limit 1";
             
       @suburbList = $sqlClient->doSQLSelect($statementText);
       
@@ -1977,10 +1981,24 @@ sub repairSuburbName
    
    if ($stateIsOk)
    {
-      print "PASS0: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+      #print "PASS0: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
       foreach (@$regExSubstitutionsRef)
       {
          if ($$_{'FieldName'} =~ /SuburbName/i)
+         {
+            $regEx = $$_{'RegEx'};
+            $substitute = $$_{'Substitute'};
+                     #print "regEx='$regEx', substitute='$substitute'\n";
+      
+            $suburbName =~ s/$regEx/$substitute/egi;
+         }
+      }
+      
+      # apply substitutions on the locality name - sometimes the name used is a common name 
+      # instead of a correct name (eg. Walsh Bay is The Rocks)
+      foreach (@$regExSubstitutionsRef)
+      {
+         if ($$_{'FieldName'} =~ /Locality/i)
          {
             $regEx = $$_{'RegEx'};
             $substitute = $$_{'Substitute'};
@@ -1994,7 +2012,7 @@ sub repairSuburbName
       $suburbName =~ s/[^(\w|\-|\'|\s)]/ /gi;
       
       $suburbName = prettyPrint($suburbName, 1);
-      print "PASS1: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+      #print "PASS1: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
       # match the suburb name to a recognised suburb name
       %matchedSuburb = $this->matchSuburbName($suburbName, $changedState);
         
@@ -2007,7 +2025,7 @@ sub repairSuburbName
          $matched = 1;
          #print "BadSuburbs=$badSuburbs FixedSuburbs = $fixedSuburbs\n";
       }
-      print "PASS2: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+      #print "PASS2: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
 
       if (!$matched)
       {
@@ -2049,7 +2067,7 @@ sub repairSuburbName
             }
          }
       }
-      print "PASS3: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+      #print "PASS3: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
 
       if (!$matched)
       {
@@ -2066,7 +2084,7 @@ sub repairSuburbName
          while ((!$matched) && ($currentWord < $noOfWords))
          {
             $currentString = $wordList[$currentWord];
-            print "trying $currentString in $changedState...\n";
+            #print "trying $currentString in $changedState...\n";
             # match the suburb name to a recognised suburb name
             %matchedSuburb = $this->matchSuburbName($currentString, $changedState);
         
@@ -2074,7 +2092,7 @@ sub repairSuburbName
             {
                $changedSuburbName = prettyPrint($matchedSuburb{'SuburbName'}, 1);    # change the name
                $changedSuburbIndex = $matchedSuburb{'SuburbIndex'};
-   print "found!\n";
+   #print "found!\n";
                $matched = 1;
                $fixedSuburbs++;
                #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $changedProfile{'SuburbName'}, "'    NEW suburbIndex=", $changedProfile{'SuburbIndex'}, "\n";
@@ -2087,7 +2105,7 @@ sub repairSuburbName
          }      
       }
    }
-      print "PASS4: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+      #print "PASS4: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
    if (!$matched)
    {
       # see if the wrong state has been selected (or still undef)- maybe this suburb name is unique in one state only
@@ -2103,14 +2121,15 @@ sub repairSuburbName
          $fixedSuburbs++;
       }
    }
-      print "PASS5: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+   
+     #print "PASS5: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
    if (!$matched)
    {
       #print "   OLD=", $$profileRef{'SuburbName'}, " NEW suburbName='", $suburbName, "' FAILED\n";
       $changedSuburbName = undef;
       $changedSuburbIndex = undef;
    }
-      print "PASS6: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
+    #  print "PASS6: suburbName=$suburbName changedSuburbName=$changedSuburbName\n";
    return ($changedState, $changedSuburbName, $changedSuburbIndex);
 }
 

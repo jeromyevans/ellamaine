@@ -36,6 +36,9 @@
 #  generated now, values that are UNDEF in the new profile are CLEARed in the profile.  Previously they
 #  were retain as-is - which meant corrupt values are retains.  Reparing from the source html should completely
 #  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
+# 12 July 2005     - fixed bug in the parseSearchList function that was resulting in an infinite loop
+#  if the search list contained more than 2 pages (it was posting an incorrect id value for the start
+#  of the next list (the value included the previous id(s) as well as the new one.
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -1133,7 +1136,17 @@ sub parseREIWASearchList
          
          # override the action for the from (it uses javascript to modidy the URL to specify the LIST action
          # and the identifier of the first property to list
-         $formList->overrideAction($formList->getAction()."&Action=LIST&ID=$nextPropertyID");
+         $currentAction = $formList->getAction();
+         print "lastAction=$currentAction\n";
+         if ($currentAction =~ /Id=/gi)
+         {
+            # the action already includes an ID attribute - this needs to be removed as a new ID is
+            # about to be set (bugfix 12 July 2005)
+            $currentAction =~ s/Id=(\d*)//gi;
+         }
+         print "fixdAction=$currentAction\n";
+         print "newwAction=$currentAction&Action=LIST&Id=$nextPropertyID\n";
+         $formList->overrideAction($currentAction."&Action=LIST&Id=$nextPropertyID");
          
          # the form contains two hidden values that are derived from the filter parameters for the search
          # Javascript is used to generate this.  It's a very odd design, but easy enough to emulate
