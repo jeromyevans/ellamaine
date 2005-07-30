@@ -1,45 +1,104 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
-<title>Ellamaine Administration Tool</title>
+  <title>Ellamaine Administration Tool</title>
+
+
+  <link rel="stylesheet" href="file:///D:/Projects/Web/test.css" type="text/css">
+
 </head>
 
 <body>
-<a href='%%base_url%%?action=main'>Status Table</a>&nbsp<a href='%%base_url%%?action=browse'>Browse</a>&nbsp<a href='%%base_url%%?action=regex'>RegEx</a>&nbsp<a href='%%base_url%%?action=exceptions'>Exceptions</a>&nbsp<a href='%%base_url%%?action=postcodes'>Post Codes</a><br/>
+
+<div class="header">Ellamaine Administration Tool</div>
+
+<a class="tab" href="%%base_url%%?action=main">Status Table</a>&nbsp;
+<a class="tab" href="%%base_url%%?action=browse">Browse</a>&nbsp;
+<a class="tab" href="%%base_url%%?action=regex">RegEx</a>&nbsp;
+<a class="tab" href="%%base_url%%?action=exceptions">Exceptions</a>&nbsp;
+<a class="tab" href="%%base_url%%?action=postcodes">Post Codes</a>
+<br>
+
 <h1>Browse Properties</h1>
 
 <h2>%%browse.table.name%%</h2>
-<form action='%%base_url%%' method='post'>Order By: %%html.browse.orderby.select%%
-<input type="hidden" name="action" value="browse"/>
-<input type="hidden" name="offset" value="%%browse.table.first%%"/>
-<input type="hidden" name="limit" value="%%browse.table.limit%%"/>
-%%html.browse.reverse.select%%
-<input type='submit' value='Change'>
-</form>
 
-<a href="%%base_url%%?action=browse&offset=%%browse.table.prev.offset%%">Prev %%browse.table.limit%%</a>
-Records %%browse.table.first%% to %%browse.table.last%% of %%browse.table.total.rows%%
-<a href="%%base_url%%?action=browse&offset=%%browse.table.next.offset%%">Next %%browse.table.limit%%</a>
-<form>
-<input type="hidden" name="action" value="browse"/>
-<input type="hidden" name="limit" value="%%browse.table.limit%%"/>
-Jump to<input type='text' name='offset'/><input type='submit' value='Jump'/></form>
-<table border='1'>
-<tr><th  rowspan='1' valign='center'>Identifier</th>
-<th rowspan='1' valign='center'>Date Entered</th>
-<th rowspan='1' valign='center'>Source</th>
-<th rowspan='1' valign='center'>SaleOrRental</th>
-<th rowspan='1' valign='center'>State</th>
-<th rowspan='1' valign='center'>Suburb Name</th>
-<th rowspan='1' valign='center'>Street Address</th>
-<th rowspan='1' valign='center'>Price String</th></tr>
+<form action="%%base_url%%" method="post">Order By:
+%%html.browse.orderby.select%%
+  <input name="action" value="browse" type="hidden"><input name="offset" value="%%browse.table.first%%" type="hidden"><input name="limit" value="%%browse.table.limit%%" type="hidden">%%html.browse.reverse.select%%
+  <input value="Change" type="submit"></form>
+
+<a href="%%base_url%%?action=browse&amp;offset=%%browse.table.prev.offset%%">Prev
+%%browse.table.limit%%</a>
+Records %%browse.table.first%% to %%browse.table.last%% of
+%%browse.table.total.rows%%
+<a href="%%base_url%%?action=browse&amp;offset=%%browse.table.next.offset%%">Next
+%%browse.table.limit%%</a>
+<form><input name="action" value="browse" type="hidden"><input name="limit" value="%%browse.table.limit%%" type="hidden">Jump to<input name="offset" type="text"><input value="Jump" type="submit"></form>
+
 %%foreach::browse.table%%
-<tr><td align="center"><a href='%%base_url%%?action=adview&identifier=%%Identifier%%'>%%Identifier%%</a></td><td>%%DateEntered%%</td><td>%%SourceName%%</td><td align="center">%%SaleOrRentalFlag%%</td><td><code>%%State%%</code></td><td>%%SuburbName%%</td><td><code>%%StreetAddress%%</code></td><td><code>%%AdvertisedPriceString%%</code></td></tr>
 %%endforeach::browse.table%%
+<table border="1">
+
+  <tbody>
+
+    <tr>
+
+      <th rowspan="1" valign="center">Identifier</th>
+
+      <th rowspan="1" valign="center">Date Entered</th>
+
+      <th rowspan="1" valign="center">Source</th>
+
+      <th rowspan="1" valign="center">SaleOrRental</th>
+
+      <th rowspan="1" valign="center">State</th>
+
+      <th rowspan="1" valign="center">Suburb Name</th>
+
+      <th rowspan="1" valign="center">Street Address</th>
+
+      <th rowspan="1" valign="center">Price String</th>
+
+    </tr>
+
+    <tr>
+
+      <td align="center"><a href="%%base_url%%?action=adview&amp;identifier=%%Identifier%%">%%Identifier%%</a></td>
+
+      <td>%%DateEntered%%</td>
+
+      <td>%%SourceName%%</td>
+
+      <td align="center">%%SaleOrRentalFlag%%</td>
+
+      <td><code>%%State%%</code></td>
+
+      <td>%%SuburbName%%</td>
+
+      <td><code>%%StreetAddress%%</code></td>
+
+      <td><code>%%AdvertisedPriceString%%</code></td>
+
+    </tr>
+
+  </tbody>
 </table>
 
-<table><tr><td>%%simplemvc.action%%</td></tr></table>
-<strong>MVC response:</strong>%%simplemvc.error.description%%<br/>
+<table>
+
+  <tbody>
+
+    <tr>
+
+      <td>%%simplemvc.action%%</td>
+
+    </tr>
+
+  </tbody>
+</table>
+
+<strong>MVC response:</strong>%%simplemvc.error.description%%<br>
 
 </body>
-
 </html>

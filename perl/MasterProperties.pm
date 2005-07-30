@@ -330,7 +330,7 @@ sub associateRecord
          $masterProfile{'StreetName'} = $$parametersRef{'StreetName'};
          $masterProfile{'StreetType'} = $$parametersRef{'StreetType'};
          $masterProfile{'StreetSection'} = $$parametersRef{'StreetSection'};
-         $masterProfile{'SuburbName'} = $$parametersRef{'SubirbName'};
+         $masterProfile{'SuburbName'} = $$parametersRef{'SuburbName'};
          $masterProfile{'SuburbIndex'} = $$parametersRef{'SuburbIndex'};
          $masterProfile{'State'} = $$parametersRef{'State'};
          
