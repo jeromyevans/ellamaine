@@ -190,7 +190,8 @@ sub lookupMasterPropertyIndex
       # where suburbindex = value and streetsection is null and ...
       # it never matches even though the values definitely exist in the database.  It seems to be related to
       # the index of text columns containing null values, but these should be supported for this table type
-      # as a workaround, use blank instead of null
+      # as a workaround, use "null" instead of null  (originally tried "" but some code converts those
+      # to null)
       if ($$parametersRef{'StreetSection'})
       {
          $whereClause .= " AND StreetSection like ". $sqlClient->quote($$parametersRef{'StreetSection'});
@@ -198,7 +199,7 @@ sub lookupMasterPropertyIndex
       else
       {
          #$whereClause .= " AND StreetSection is null";
-         $whereClause .= " AND StreetSection = \"\"";
+         $whereClause .= " AND StreetSection = \"null\"";
       }
       
       if ($$parametersRef{'StreetType'})                           
@@ -208,7 +209,7 @@ sub lookupMasterPropertyIndex
       else
       {
          #$whereClause .= " AND StreetType is null";
-         $whereClause .= " AND StreetType = \"\"";
+         $whereClause .= " AND StreetType = \"null\"";
       }
       
       if ($$parametersRef{'StreetName'})
@@ -239,7 +240,7 @@ sub lookupMasterPropertyIndex
       }
       
       $sqlStatement = "SELECT MasterPropertyIndex FROM $tableName WHERE SuburbIndex=$suburbIndex $whereClause";
-print "lookupMasterPropertyIndex():$sqlStatement\n";
+#print "lookupMasterPropertyIndex():$sqlStatement\n";
       @selectResults = $sqlClient->doSQLSelect($sqlStatement);
      
       # only ZERO or ONE result should be returned 
@@ -323,7 +324,7 @@ sub associateRecord
       if ($masterPropertyIndex >= 0)
       {
          # that property record already exists - the identifier can be returned as-as
-         print "   property($identifier) already created.\n";
+         #print "   property($identifier) already created.\n";
          
          # lookup & (re)calculate the master components for the property
          if ($this->_calculateMasterComponents($masterPropertyIndex))
@@ -409,7 +410,7 @@ sub associateRecord
          $statementText = $statementText.$appendString . ")";
                    
          $statement = $sqlClient->prepareStatement($statementText);
-   print "newMaster: $statement\n";
+   
          if ($sqlClient->executeStatement($statement))
          {
             $masterPropertyIndex = $sqlClient->lastInsertID();

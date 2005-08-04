@@ -94,8 +94,8 @@
 #   locality name with the correct name for certain patterns (eg. Walsh Bay NSW is actually The Rocks)
 # 4 August 2005 - modified the repairStreetAddress function to set StreetSection and StreetType to blank "" instead
 #   of undef to work-around defect #44 - that the mysql index on the masterProperties table is not working for
-#   the where criteria 'streetsection is null' (instead using streetsection = "").  Likewise for StreetType (which is 
-#   rarer).
+#   the where criteria 'streetsection is null' (instead using streetsection = "null").  Likewise for StreetType (which is 
+#   rarer).  (Originally set value to "" but this is interpreted the same as null in some code)
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -2805,11 +2805,11 @@ sub repairStreetAddress
    # on the table not handling 'where streetsection is null" properly (use where streetsection = "" instead)
    if (!$streetSection)
    {
-      $streetSection = "";
+      $streetSection = "null";
    }
    if (!$streetType)
    {
-      $streetType = "";
+      $streetType = "null";
    }
    
    return ($unitNumber, $streetNumber, $streetName, $streetType, $streetSection);  
