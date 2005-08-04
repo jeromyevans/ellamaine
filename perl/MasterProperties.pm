@@ -24,6 +24,12 @@
 #   so would have failed on next create command) Now fixed.
 #  22 Jun 2005 - renamed to MasterProperties from MasterPropertyTable (package and table)
 #              - modified to support the format of the new workingView table
+#  4 August 2005 - defect #44 (raised at mysql.com - waiting for bug confirmation)
+#    A very strange phenonenom occurs with the mysql server V4.0.18-nt when the query looks like this:
+#    where suburbindex = value and streetsection is null and ...
+#    it never matches even though the values definitely exist in the database.  It seems to be related to
+#    the index of text columns containing null values, but these should be supported for this table type
+#    as a workaround, use blank instead of null
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -178,14 +184,20 @@ sub lookupMasterPropertyIndex
       $suburbIndex = $$parametersRef{'SuburbIndex'};
 
       $whereClause = "";
-      
+      # defect #44 (raised at mysql.com - waiting for bug confirmation)
+      # A very strange phenonenom occurs with the mysql server V4.0.18-nt when the query looks like this:
+      # where suburbindex = value and streetsection is null and ...
+      # it never matches even though the values definitely exist in the database.  It seems to be related to
+      # the index of text columns containing null values, but these should be supported for this table type
+      # as a workaround, use blank instead of null
       if ($$parametersRef{'StreetSection'})
       {
          $whereClause .= " AND StreetSection like ". $sqlClient->quote($$parametersRef{'StreetSection'});
-      }
+      }     
       else
       {
-         $whereClause .= " AND StreetSection is null";
+         #$whereClause .= " AND StreetSection is null";
+         $whereClause .= " AND StreetSection = \"\"";
       }
       
       if ($$parametersRef{'StreetType'})                           
@@ -194,7 +206,8 @@ sub lookupMasterPropertyIndex
       }
       else
       {
-         $whereClause .= " AND StreetType is null";
+         #$whereClause .= " AND StreetType is null";
+         $whereClause .= " AND StreetType = \"\"";
       }
       
       if ($$parametersRef{'StreetName'})
@@ -203,7 +216,7 @@ sub lookupMasterPropertyIndex
       }
       else
       {
-         $whereClause .= " AND StreetName is null";
+         $whereClause .= " AND StreetName is null";  # (this is never null though)
       }
          
       if ($$parametersRef{'StreetNumber'})
@@ -212,7 +225,7 @@ sub lookupMasterPropertyIndex
       }
       else
       {
-         $whereClause .= " AND StreetNumber is null";
+         $whereClause .= " AND StreetNumber is null"; # (this shouldn't be null though)
       }
       
       if ($$parametersRef{'UnitNumber'})
@@ -221,10 +234,11 @@ sub lookupMasterPropertyIndex
       }
       else
       {
-         $whereClause .= " AND UnitNumber is null";
+         $whereClause .= " AND UnitNumber is null"; # this is frequently the case
       }
       
       $sqlStatement = "SELECT MasterPropertyIndex FROM $tableName WHERE SuburbIndex=$suburbIndex $whereClause";
+print "lookupMasterPropertyIndex():$sqlStatement\n";
       @selectResults = $sqlClient->doSQLSelect($sqlStatement);
      
       # only ZERO or ONE result should be returned 
@@ -308,7 +322,7 @@ sub associateRecord
       if ($masterPropertyIndex >= 0)
       {
          # that property record already exists - the identifier can be returned as-as
-         #print "   property($identifier) already created.\n";
+         print "   property($identifier) already created.\n";
          
          # lookup & (re)calculate the master components for the property
          if ($this->_calculateMasterComponents($masterPropertyIndex))

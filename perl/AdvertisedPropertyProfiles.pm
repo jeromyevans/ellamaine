@@ -92,6 +92,10 @@
 #    INDEX (state(3), locality(10)) and INDEX (Locality(10), Comments(10))
 #              - added support for Locality name substitutions in the repairSuburbName function - replaces the 
 #   locality name with the correct name for certain patterns (eg. Walsh Bay NSW is actually The Rocks)
+# 4 August 2005 - modified the repairStreetAddress function to set StreetSection and StreetType to blank "" instead
+#   of undef to work-around defect #44 - that the mysql index on the masterProperties table is not working for
+#   the where criteria 'streetsection is null' (instead using streetsection = "").  Likewise for StreetType (which is 
+#   rarer).
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -2795,6 +2799,17 @@ sub repairStreetAddress
          $streetNumber = undef;
          $streetSection = undef;
       }
+   }
+   
+   # 4 August 05 - set the undef values to blank - see defect #44.  This is a workaround for the index
+   # on the table not handling 'where streetsection is null" properly (use where streetsection = "" instead)
+   if (!$streetSection)
+   {
+      $streetSection = "";
+   }
+   if (!$streetType)
+   {
+      $streetType = "";
    }
    
    return ($unitNumber, $streetNumber, $streetName, $streetType, $streetSection);  
