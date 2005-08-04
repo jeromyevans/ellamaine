@@ -29,7 +29,8 @@
 #    where suburbindex = value and streetsection is null and ...
 #    it never matches even though the values definitely exist in the database.  It seems to be related to
 #    the index of text columns containing null values, but these should be supported for this table type
-#    as a workaround, use blank instead of null
+#    as a workaround, use blank instead of null for the fields StreetSection and StreetType (this mostly affects
+#    the WorkingView, not MasterProperties - just check for blanks instead of null here)
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -408,7 +409,7 @@ sub associateRecord
          $statementText = $statementText.$appendString . ")";
                    
          $statement = $sqlClient->prepareStatement($statementText);
-         
+   print "newMaster: $statement\n";
          if ($sqlClient->executeStatement($statement))
          {
             $masterPropertyIndex = $sqlClient->lastInsertID();
