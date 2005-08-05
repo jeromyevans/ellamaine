@@ -96,6 +96,7 @@
 #   of undef to work-around defect #44 - that the mysql index on the masterProperties table is not working for
 #   the where criteria 'streetsection is null' (instead using streetsection = "null").  Likewise for StreetType (which is 
 #   rarer).  (Originally set value to "" but this is interpreted the same as null in some code)
+#  5 August 2005 - upgraded mysql server to 4.1.x to fix defect #44.  Undo of changes of 4Aug05.
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -2799,18 +2800,7 @@ sub repairStreetAddress
          $streetNumber = undef;
          $streetSection = undef;
       }
-   }
-   
-   # 4 August 05 - set the undef values to blank - see defect #44.  This is a workaround for the index
-   # on the table not handling 'where streetsection is null" properly (use where streetsection = "" instead)
-   if (!$streetSection)
-   {
-      $streetSection = "null";
-   }
-   if (!$streetType)
-   {
-      $streetType = "null";
-   }
+   }      
    
    return ($unitNumber, $streetNumber, $streetName, $streetType, $streetSection);  
 }

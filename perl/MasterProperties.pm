@@ -31,6 +31,7 @@
 #    the index of text columns containing null values, but these should be supported for this table type
 #    as a workaround, use blank instead of null for the fields StreetSection and StreetType (this mostly affects
 #    the WorkingView, not MasterProperties - just check for blanks instead of null here)
+#  5 August 2005 - upgraded mysql server to 4.1.x to fix defect #44.  Undo of changes of 4Aug05.
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -185,21 +186,14 @@ sub lookupMasterPropertyIndex
       $suburbIndex = $$parametersRef{'SuburbIndex'};
 
       $whereClause = "";
-      # defect #44 (raised at mysql.com - waiting for bug confirmation)
-      # A very strange phenonenom occurs with the mysql server V4.0.18-nt when the query looks like this:
-      # where suburbindex = value and streetsection is null and ...
-      # it never matches even though the values definitely exist in the database.  It seems to be related to
-      # the index of text columns containing null values, but these should be supported for this table type
-      # as a workaround, use "null" instead of null  (originally tried "" but some code converts those
-      # to null)
+      
       if ($$parametersRef{'StreetSection'})
       {
          $whereClause .= " AND StreetSection like ". $sqlClient->quote($$parametersRef{'StreetSection'});
       }     
       else
       {
-         #$whereClause .= " AND StreetSection is null";
-         $whereClause .= " AND StreetSection = \"null\"";
+         $whereClause .= " AND StreetSection is null";
       }
       
       if ($$parametersRef{'StreetType'})                           
@@ -208,8 +202,7 @@ sub lookupMasterPropertyIndex
       }
       else
       {
-         #$whereClause .= " AND StreetType is null";
-         $whereClause .= " AND StreetType = \"null\"";
+         $whereClause .= " AND StreetType is null";
       }
       
       if ($$parametersRef{'StreetName'})
