@@ -32,6 +32,10 @@
 #    as a workaround, use blank instead of null for the fields StreetSection and StreetType (this mostly affects
 #    the WorkingView, not MasterProperties - just check for blanks instead of null here)
 #  5 August 2005 - upgraded mysql server to 4.1.x to fix defect #44.  Undo of changes of 4Aug05.
+#  6 August 2005 - still fixing issues related to defect #44 - changing like statements in where clause
+#    to = (where an exact match except for case is intended, and case has already been predetermined).  
+#    In the new server version the is null works but the like is not matching unless there's a wildcard included
+#    (which is undesirable).  This change only impacts MasterProperties.
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -189,7 +193,7 @@ sub lookupMasterPropertyIndex
       
       if ($$parametersRef{'StreetSection'})
       {
-         $whereClause .= " AND StreetSection like ". $sqlClient->quote($$parametersRef{'StreetSection'});
+         $whereClause .= " AND StreetSection = ". $sqlClient->quote($$parametersRef{'StreetSection'});
       }     
       else
       {
@@ -198,7 +202,7 @@ sub lookupMasterPropertyIndex
       
       if ($$parametersRef{'StreetType'})                           
       {
-         $whereClause .= " AND StreetType like ". $sqlClient->quote($$parametersRef{'StreetType'});
+         $whereClause .= " AND StreetType = ". $sqlClient->quote($$parametersRef{'StreetType'});
       }
       else
       {
@@ -207,7 +211,7 @@ sub lookupMasterPropertyIndex
       
       if ($$parametersRef{'StreetName'})
       {
-         $whereClause .= " AND StreetName like ". $sqlClient->quote($$parametersRef{'StreetName'});
+         $whereClause .= " AND StreetName = ". $sqlClient->quote($$parametersRef{'StreetName'});
       }
       else
       {
@@ -216,7 +220,7 @@ sub lookupMasterPropertyIndex
          
       if ($$parametersRef{'StreetNumber'})
       {
-         $whereClause .= " AND StreetNumber like ". $sqlClient->quote($$parametersRef{'StreetNumber'});
+         $whereClause .= " AND StreetNumber = ". $sqlClient->quote($$parametersRef{'StreetNumber'});
       }
       else
       {
@@ -225,7 +229,7 @@ sub lookupMasterPropertyIndex
       
       if ($$parametersRef{'UnitNumber'})
       {
-         $whereClause .= " AND UnitNumber like ". $sqlClient->quote($$parametersRef{'UnitNumber'});
+         $whereClause .= " AND UnitNumber = ". $sqlClient->quote($$parametersRef{'UnitNumber'});
       }
       else
       {
