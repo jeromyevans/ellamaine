@@ -42,6 +42,10 @@
 #  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
 # 11 July 2005     - found another variation of realestate.com records - fixed the way it extracts the suburb name
 #  that results in scarab defect #40 (suburb name = quick menu)
+# 28 Aug 2005      - have to override the action in the search form because it was recently changed to
+# a relative address of the value:  "cgi-bin/rsearch" instead of "/cgi-bin/rsearch".  
+# The new value does not comping properly with the base path to generate the URL for the form's GET
+# request.  Now override the value to "/cgi-bin/research".                   
 
 # ---CVS---
 # Version: $Revision$
@@ -1103,7 +1107,12 @@ sub parseRealEstateSearchForm
                if (!$sessionProgressTable->hasSuburbBeenProcessed($threadID, $_->{'text'}))
                { 
                   
-                  #print "accepted\n";               
+                  #print "accepted\n";                            
+                  #27 August 2005 - have to override the action because it was recently changed to
+                  # a relative address of the form:  "cgi-bin/rsearch" instead of "/cgi-bin/rsearch"
+                  # in the new form, the url for the GET is corrupted by the relative path when combined
+                  # with the base url
+                  $htmlForm->overrideAction("/cgi-bin/rsearch");
                   my $newHTTPTransaction = HTTPTransaction::new($htmlForm, $url, $parentLabel.".".trimWhitespace($_->{'text'}));
                   #print $htmlForm->getEscapedParameters(), "\n";
                

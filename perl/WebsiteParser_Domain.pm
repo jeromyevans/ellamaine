@@ -55,6 +55,8 @@
 #  generated now, values that are UNDEF in the new profile are CLEARed in the profile.  Previously they
 #  were retain as-is - which meant corrupt values are retains.  Reparing from the source html should completely
 #  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
+# 28 Aug 2005      - Domain property details page has been redesigned slightly changing the way suburbname
+#  has to be extracted.  Now performs an additional check to see if the page is the new variant
 package WebsiteParser_Domain;
 
 use PrintLogger;
@@ -230,9 +232,19 @@ sub extractDomainProfile
    # (this is used to match searchresults)
    
    # get the suburb name out of the <h1> heading
-   #first word(s) is suburb name, then price or 
+   #first word(s) is suburb name, then price or
    $htmlSyntaxTree->resetSearchConstraints();
-   $htmlSyntaxTree->setSearchStartConstraintByTag("h1");
+   #Ella45 28August05 - The domain site has been redesigned to place the suburb name within 
+   # a div after a section that provides search information - it's no longer the first h1 on the page.   
+   if ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass("div", "propdetails-address"))
+   {      
+      # next text is the titlestring (which contains suburbName)
+   }
+   else
+   {
+      # original variant - first h1 on the page is the suburb name
+      $htmlSyntaxTree->setSearchStartConstraintByTag("h1");
+   }
    $titleString = $htmlSyntaxTree->getNextText();
    
    if ($titleString)
