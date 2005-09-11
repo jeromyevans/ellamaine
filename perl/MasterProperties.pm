@@ -36,6 +36,12 @@
 #    to = (where an exact match except for case is intended, and case has already been predetermined).  
 #    In the new server version the is null works but the like is not matching unless there's a wildcard included
 #    (which is undesirable).  This change only impacts MasterProperties.
+# 11 September 2005 - fixed bug in _calculateMasterComponents that was preventing records with Type Unknown from 
+#    being entered into Master Properties (or any record where type was blank). Was caused by a typo (Ella49).
+#                   - modified associateRecord so that the AdvertisedSalePriceSource or AdvertisedRentalPriceSource
+#    is only set if the corresponding value is included in the profile.  Previously the rental price source could
+#    be set even if there is no rental price data available - now the presences of source can be used to count
+#    the number of records of each type
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -361,14 +367,20 @@ sub associateRecord
          $masterProfile{'BuildingArea'} = $$parametersRef{'BuildingArea'};
          $masterProfile{'YearBuiltSource'} = $$parametersRef{'Identifier'};
          $masterProfile{'YearBuilt'} = $$parametersRef{'YearBuilt'};
-         $masterProfile{'AdvertisedPriceSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'AdvertisedPriceLower'} = $$parametersRef{'AdvertisedPriceLower'};
-         $masterProfile{'AdvertisedPriceUpper'} = $$parametersRef{'AdvertisedPriceUpper'};
-         $masterProfile{'AdvertisedWeeklyRentSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'AdvertisedWeeklyRent'} = $$parametersRef{'AdvertisedWeeklyRent'};
+         # 11Sep05 make sure the source is set only if the price values are present
+         if ($$parametersRef{'AdvertisedPriceLower'})
+         {
+            $masterProfile{'AdvertisedPriceSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'AdvertisedPriceLower'} = $$parametersRef{'AdvertisedPriceLower'};
+            $masterProfile{'AdvertisedPriceUpper'} = $$parametersRef{'AdvertisedPriceUpper'};
+         }
+         if ($$parametersRef{'AdvertisedWeeklyRent'})
+         {         
+            $masterProfile{'AdvertisedWeeklyRentSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'AdvertisedWeeklyRent'} = $$parametersRef{'AdvertisedWeeklyRent'};
+         }
 
-         # insert the record into the table
-         
+         # insert the record into the table        
 
          $statementText = "INSERT INTO $tableName (";
       
@@ -680,7 +692,7 @@ sub _calculateMasterComponents
             if (!$$masterProfile{'Type'})
             {
                $changeProfile{'TypeSource'} = $$_{'Identifier'};
-               $changeProfile{'TypeType'} = $$_{'Type'};
+               $changeProfile{'Type'} = $$_{'Type'};
                $changeProfile{'TypeIndex'} = $$_{'TypeIndex'};
             }
             else

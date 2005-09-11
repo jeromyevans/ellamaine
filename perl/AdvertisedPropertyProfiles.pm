@@ -97,6 +97,9 @@
 #   the where criteria 'streetsection is null' (instead using streetsection = "null").  Likewise for StreetType (which is 
 #   rarer).  (Originally set value to "" but this is interpreted the same as null in some code)
 #  5 August 2005 - upgraded mysql server to 4.1.x to fix defect #44.  Undo of changes of 4Aug05.
+# 11 September 2005 - found bug in assessRecordValidity that referenced 'AdvertisedWeeklRent' (typo) when checking
+#  if the price was valid.  Caused all workingview rental records to be marked invalid, prevent them from 
+#  ever being transferred into MasterProperties.
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -2857,7 +2860,7 @@ sub assessRecordValidity
    }
    
    if ((($$profileRef{'SaleOrRentalFlag'} == 0) && (!$$profileRef{'AdvertisedPriceLower'})) ||
-       (($$profileRef{'SaleOrRentalFlag'} == 1) && (!$$profileRef{'AdvertisedWeeklRent'})))
+       (($$profileRef{'SaleOrRentalFlag'} == 1) && (!$$profileRef{'AdvertisedWeeklyRent'})))
    {
       $errorCode |= 16;
    }
