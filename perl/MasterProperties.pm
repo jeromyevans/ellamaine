@@ -42,6 +42,9 @@
 #    is only set if the corresponding value is included in the profile.  Previously the rental price source could
 #    be set even if there is no rental price data available - now the presences of source can be used to count
 #    the number of records of each type
+# 16 September 2005 - fixed bug in associateRecord that only appeared after implementing the change above - the
+#    hash containing the masterProperty attributes was not declared, so it was global and previous values for
+#    sale/rental price remained set when they should have been undef
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -318,7 +321,8 @@ sub associateRecord
    my $masterPropertyIndex = -1;
    my $added = 0;
    my $changed = 0;
-  
+   my %masterProfile;
+   
    if ($sqlClient)
    {
       # check if the property already exists for the specified address...
@@ -368,13 +372,13 @@ sub associateRecord
          $masterProfile{'YearBuiltSource'} = $$parametersRef{'Identifier'};
          $masterProfile{'YearBuilt'} = $$parametersRef{'YearBuilt'};
          # 11Sep05 make sure the source is set only if the price values are present
-         if ($$parametersRef{'AdvertisedPriceLower'})
+         if ((defined $$parametersRef{'AdvertisedPriceLower'}) && ($$parametersRef{'AdvertisedPriceLower'} > 0.0))
          {
             $masterProfile{'AdvertisedPriceSource'} = $$parametersRef{'Identifier'};
             $masterProfile{'AdvertisedPriceLower'} = $$parametersRef{'AdvertisedPriceLower'};
             $masterProfile{'AdvertisedPriceUpper'} = $$parametersRef{'AdvertisedPriceUpper'};
          }
-         if ($$parametersRef{'AdvertisedWeeklyRent'})
+         if ((defined $$parametersRef{'AdvertisedWeeklyRent'}) && ($$parametersRef{'AdvertisedWeeklyRent'} > 0.0))
          {         
             $masterProfile{'AdvertisedWeeklyRentSource'} = $$parametersRef{'Identifier'};
             $masterProfile{'AdvertisedWeeklyRent'} = $$parametersRef{'AdvertisedWeeklyRent'};
