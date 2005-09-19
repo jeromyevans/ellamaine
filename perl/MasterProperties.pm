@@ -45,6 +45,16 @@
 # 16 September 2005 - fixed bug in associateRecord that only appeared after implementing the change above - the
 #    hash containing the masterProperty attributes was not declared, so it was global and previous values for
 #    sale/rental price remained set when they should have been undef
+# 19 September 2005 - Ella52 - modified lookupMasterPropertyIndex that's used to find if an advertisement matches
+#    a known property - needed to apply additional constraints to protect against combining properties that are missing the
+#    unit number BUT are actually different.  Unfortunately if address, type, beds and baths all match, 
+#    there's no way to split the property - this is generally ok though, as at least the components
+#    are all in the same StatisticalGroup used in the analysis (suburb,type,beds,baths), so the stats are
+#    not significantly affected (compared to combing properties of different number of bedrooms for instance)         
+#    Ella52: protect against properties of different types at the same address (missing unit number)
+#                  - extended changes to associateRecord so that source for ALL values is only set if the 
+#    value is present (as per the price fix on 11 Sep 2005)
+#
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -243,13 +253,45 @@ sub lookupMasterPropertyIndex
       else
       {
          $whereClause .= " AND UnitNumber is null"; # this is frequently the case
+                  
+         # Ella52 - need to apply additional constraints to protect against combining properties that are missing the
+         # unit number BUT are actually different.  Unfortunately if address, type, beds and baths all match, 
+         # there's no way to split the property - this is generally ok though, as at least the components
+         # are all in the same StatisticalGroup used in the analysis (suburb,type,beds,baths), so the stats are
+         # not significantly affected (compared to combing properties of different number of bedrooms for instance)         
+         # Ella52: protect against properties of different types at the same address (missing unit number) 
+         if ($$parametersRef{'TypeIndex'})
+         {
+            $whereClause .= " AND TypeIndex = ". $sqlClient->quote($$parametersRef{'TypeIndex'});
+         }
+
+         # Ella52: protect against properties of different bedrooms at the same address (missing unit number)          
+         if ($$parametersRef{'Bedrooms'})
+         {
+            $whereClause .= " AND Bedrooms = ". $sqlClient->quote($$parametersRef{'Bedrooms'});
+         }
+         
+         # Ella52: protect against properties of different bedrooms at the same address (missing unit number)          
+         if ($$parametersRef{'Bathrooms'})
+         {
+            $whereClause .= " AND Bathrooms = ". $sqlClient->quote($$parametersRef{'Bathrooms'});
+         }
       }
+      
+      # simple case - as the address is complete, any variations in type/bedrooms is retained
+      # (eg. after a renovation)
+      $sqlStatement = "SELECT MasterPropertyIndex FROM $tableName WHERE SuburbIndex=$suburbIndex $whereClause";
+      
+      # zero or one result should be returned
+      $hashRef = $selectResults[0];
+      $masterPropertyIndex = $$hashRef{'MasterPropertyIndex'};
       
       $sqlStatement = "SELECT MasterPropertyIndex FROM $tableName WHERE SuburbIndex=$suburbIndex $whereClause";
 #print "lookupMasterPropertyIndex():$sqlStatement\n";
       @selectResults = $sqlClient->doSQLSelect($sqlStatement);
      
-      # only ZERO or ONE result should be returned 
+      #  only ZERO or ONE result should be returned       
+         
       $hashRef = $selectResults[0];
       $masterPropertyIndex = $$hashRef{'MasterPropertyIndex'};
 
@@ -358,19 +400,43 @@ sub associateRecord
          $masterProfile{'State'} = $$parametersRef{'State'};
          
          # copy other properties
-         $masterProfile{'TypeSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'Type'} = $$parametersRef{'Type'};
-         $masterProfile{'TypeIndex'} = $$parametersRef{'TypeIndex'};   
-         $masterProfile{'BedroomsSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'Bedrooms'} = $$parametersRef{'Bedrooms'};
-         $masterProfile{'BathroomsSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'Bathrooms'} = $$parametersRef{'Bathrooms'};
-         $masterProfile{'LandAreaSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'LandArea'} = $$parametersRef{'LandArea'};
-         $masterProfile{'BuildingAreaSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'BuildingArea'} = $$parametersRef{'BuildingArea'};
-         $masterProfile{'YearBuiltSource'} = $$parametersRef{'Identifier'};
-         $masterProfile{'YearBuilt'} = $$parametersRef{'YearBuilt'};
+         # 19Sep05 make sure the source is set only if the values are present         
+         if (defined $$parametersRef{'TypeIndex'})
+         {
+            $masterProfile{'TypeSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'Type'} = $$parametersRef{'Type'};
+            $masterProfile{'TypeIndex'} = $$parametersRef{'TypeIndex'};   
+         }         
+         # 19Sep05 make sure the source is set only if the values are present         
+         if (defined $$parametersRef{'Bedrooms'})
+         {
+            $masterProfile{'BedroomsSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'Bedrooms'} = $$parametersRef{'Bedrooms'};
+         }
+         # 19Sep05 make sure the source is set only if the values are present
+         if (defined $$parametersRef{'Bathrooms'})
+         {
+            $masterProfile{'BathroomsSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'Bathrooms'} = $$parametersRef{'Bathrooms'};
+         }
+         # 19Sep05 make sure the source is set only if the values are present
+         if (defined $$parametersRef{'LandArea'})
+         {
+            $masterProfile{'LandAreaSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'LandArea'} = $$parametersRef{'LandArea'};
+         }
+         # 19Sep05 make sure the source is set only if the values are present
+         if (defined $$parametersRef{'BuildingArea'})
+         {
+            $masterProfile{'BuildingAreaSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'BuildingArea'} = $$parametersRef{'BuildingArea'};
+         }
+         # 19Sep05 make sure the source is set only if the values are present
+         if (defined $$parametersRef{'YearBuilt'})
+         {
+            $masterProfile{'YearBuiltSource'} = $$parametersRef{'Identifier'};
+            $masterProfile{'YearBuilt'} = $$parametersRef{'YearBuilt'};
+         }
          # 11Sep05 make sure the source is set only if the price values are present
          if ((defined $$parametersRef{'AdvertisedPriceLower'}) && ($$parametersRef{'AdvertisedPriceLower'} > 0.0))
          {
