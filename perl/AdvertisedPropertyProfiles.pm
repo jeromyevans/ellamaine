@@ -3364,6 +3364,7 @@ sub lookupProfilesByException
 #    Identifier; or
 #    SaleOrRentalFlag and SourceName and SourceID; or
 #    Address
+#    AND the DateEntered is older than the profile's dateEntered field
 #
 # Parameters:
 #  reference to hash of profile
@@ -3379,15 +3380,15 @@ sub existsInMostRecent
    my $sqlClient = $this->{'sqlClient'};
    my $existsInTable = 0;
          
-   my $addressClause = "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
+   my $addressClause = "";
    
-   if ($$parametersRef{'StreetSection'})
+   if ($$parametersRef{'SuburbIndex'})
    {
-      $addressClause .= " AND StreetSection = ". $sqlClient->quote($$parametersRef{'StreetSection'});
+      $addressClause .= "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
    }     
    else
    {
-      $addressClause .= " AND StreetSection is null";
+      $addressClause .= "SuburbIndex is null";
    }
    
    if ($$parametersRef{'StreetType'})                           
@@ -3426,10 +3427,11 @@ sub existsInMostRecent
       $addressClause .= " AND UnitNumber is null"; # this is frequently the case
    }               
    
-   @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".
+   my @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".
                                              " (Identifier = ".$$parametersRef{'Identifier'}.")".
                                              " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".
-                                             " OR ($addressClause)");                          
+                                             " OR ($addressClause)".
+                                             " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")");                          
 
    $length = @identifierList;
    
@@ -3448,6 +3450,7 @@ sub existsInMostRecent
 #    Identifier; or
 #    SaleOrRentalFlag and SourceName and SourceID; or
 #    Address 
+#    AND the DateEntered is older than the profile's dateEntered field
 #
 # May delete zero or more records.
 #
@@ -3464,7 +3467,16 @@ sub deleteFromMostRecent
    
    my $sqlClient = $this->{'sqlClient'};
    my $success = 0;
-   my $addressClause = "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
+   my $addressClause = "";
+   
+   if ($$parametersRef{'SuburbIndex'})
+   {
+      $addressClause .= "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
+   }     
+   else
+   {
+      $addressClause .= "SuburbIndex is null";
+   }
    
    if ($$parametersRef{'StreetSection'})
    {
@@ -3511,10 +3523,11 @@ sub deleteFromMostRecent
       $addressClause .= " AND UnitNumber is null"; # this is frequently the case
    }               
         
-   $statementText = "DELETE FROM $tableName WHERE".
+   $statementText = "DELETE FROM MostRecent_$tableName WHERE".
                      " (Identifier = ".$$parametersRef{'Identifier'}.")".
                      " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".
-                     " OR ($addressClause)";                                       
+                     " OR ($addressClause)".
+                     " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")";                                  
                         
    $statement = $sqlClient->prepareStatement($statementText);
       
@@ -3557,7 +3570,7 @@ sub _createMostRecentTable
    my $sqlClient = $this->{'sqlClient'};
    my $tableName = $this->{'tableName'};
 
-   my $SQL_CREATE_MOSTRECENT_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS MostRecent_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ";
+   my $SQL_CREATE_MOSTRECENT_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS MostRecent_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY, ";  # note no auto_increment for this one
    my $SQL_CREATE_MOSTRECENT_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";  
    
    if ($sqlClient)
@@ -3672,16 +3685,21 @@ sub updateMostRecent
    my $localTime;
    my $identifier = -1;
    my $recordAdded = 0;
+   my $exists = 0;
+   my @columnNames;
+   my $appendString;
+   my $index;
+   my $statement;
    
    if ($sqlClient)
    {   
       if ($parametersRef)
       {
          # first, determine if this record (or an equivalent) already exists in the most recent table...         
-         if ($this->existsInMostRecent($parametersRef))
+         if ($exists = $this->existsInMostRecent($parametersRef))
          {
             # one or more records do exist - delete them so the new record can replace it
-            $this->deleteMostRecentPropertyProfile($$existingProfile{'Identifier'});
+            $success = $this->deleteFromMostRecent($parametersRef);
             $recordAdded = 0;  # replacing record
          }
          else
