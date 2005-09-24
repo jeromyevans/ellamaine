@@ -100,6 +100,13 @@
 # 11 September 2005 - found bug in assessRecordValidity that referenced 'AdvertisedWeeklRent' (typo) when checking
 #  if the price was valid.  Caused all workingview rental records to be marked invalid, prevent them from 
 #  ever being transferred into MasterProperties.
+# 24 September 2005 - created support for the MostRecent table.  This table contains only the MostRecent advertisement
+#  for a property appearing in the WorkingView.  Unlike the MasterProperties table that guarantees uniqueness by address, 
+#  the MostRecent table attempts to get close-to-uniqueness using the SourceName, SourceID and the address if available.
+#  If there's no address, the property is still listed in the MostRecent table but uniquess can't be guaranteed
+#  (if there's mutliple sources in the databases).  The MostRecent table can be used as another source of analysis
+#  data (as the datapoints are more plentiful than master properties)
+#
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -240,16 +247,16 @@ sub createTable
          
        # 21June05
       }
-         # 27Nov04: create the corresponding change table
-         $this->_createChangeTable();
-         # 29Nov04: create the corresponding working view
-         $this->_createWorkingViewTable();
-         
-         # create the originatingHTML table
-         $originatingHTML = $this->{'originatingHTML'};
-         $originatingHTML->createTable();
-    #  }
-     
+      # 27Nov04: create the corresponding change table
+      $this->_createChangeTable();
+      # 29Nov04: create the corresponding working view
+      $this->_createWorkingViewTable();
+      #24Sep05: create the MostRecent view table
+      $this->_createMostRecentTable();
+      
+      # create the originatingHTML table
+      $originatingHTML = $this->{'originatingHTML'};
+      $originatingHTML->createTable();      
    }
    
    return $success;   
@@ -1164,6 +1171,9 @@ sub _workingView_updateRecordWithChangeHash
       if ($sqlClient->executeStatement($statement))
       {
          $success = 1;
+         
+         # important: propagate changes into the MostRecentView
+         $this->_mostRecent_updateRecordWithChangeHash($parametersRef, $sourceIdentifier);
       }
    }
    
@@ -1291,6 +1301,9 @@ sub _workingView_addOrChangeRecord
             {
                $identifer = $sqlClient->lastInsertID();
                $added = 1;
+               
+               # propagate the new record into the MostRecent view
+               $this->updateMostRecent($parametersRef);
             }
          }
       }
@@ -1509,6 +1522,35 @@ sub lookupRecordsMissingFromWorkingView
    return \@identifierList;
 }
 
+# -------------------------------------------------------------------------------------------------
+# lookupAllWorkingView
+# This function returns a list of ALL the identifiers in the WorkingView
+# 
+# Parameters:
+#  Optional INTEGER ConstraintEnum
+#
+# Returns
+#  reference to a list of identifiers
+#
+sub lookupAllWorkingView
+{
+   my $this = shift;
+   my $constraintEnum = shift;
+   my $sqlClient = $this->{'sqlClient'};
+   my $constraintSQL = undef;
+   
+   if ($constraintEnum == 1)
+   {
+      $constraintSQL = " AND ComponentOf is null"; 
+   }
+   
+   
+   @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM WorkingView_AdvertisedPropertyProfiles");
+
+   return \@identifierList;
+}
+
+
 
 # -------------------------------------------------------------------------------------------------
 # lookupIdentifiersWhere
@@ -1626,6 +1668,7 @@ sub _createChangeTable
 #  data transaction.   Note ONLY the WORKING VIEW and CHANGE TABLE is updated, not the source table 
 # ADDITIONAL NOTE: if the workingview record is in the MasterProperties table, then the masterProperties
 # table is updated too
+# ADDITIONAL NOTE: The MostRecent view is also brought into sync with the change if applicable
 #
 # Purpose:
 #  Storing information in the database
@@ -1787,7 +1830,7 @@ sub changeRecord
          {
             $success = 1;
             
-            # --- now update the working view ---
+            # --- now update the working view (which propagates into MostRecent if applicable) ---
             $this->_workingView_updateRecordWithChangeHash($parametersRef, $sourceIdentifier);
             
             if ($masterPropertyID)
@@ -3302,5 +3345,396 @@ sub lookupProfilesByException
       }
    }
    return $listRef;
+}
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+
+# -------------------------------------------------------------------------------------------------
+# exitsInMostRecent
+# This function returns the identifier of a record in the MostRecent view that matches the
+# specified profile.  The conditions used to find a match are:
+#    Identifier; or
+#    SaleOrRentalFlag and SourceName and SourceID; or
+#    Address
+#
+# Parameters:
+#  reference to hash of profile
+#
+# Returns
+#  reference to a list of identifiers
+#
+sub existsInMostRecent
+{
+   my $this = shift;
+   my $parametersRef = shift;
+   
+   my $sqlClient = $this->{'sqlClient'};
+   my $existsInTable = 0;
+         
+   my $addressClause = "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
+   
+   if ($$parametersRef{'StreetSection'})
+   {
+      $addressClause .= " AND StreetSection = ". $sqlClient->quote($$parametersRef{'StreetSection'});
+   }     
+   else
+   {
+      $addressClause .= " AND StreetSection is null";
+   }
+   
+   if ($$parametersRef{'StreetType'})                           
+   {
+      $addressClause .= " AND StreetType = ". $sqlClient->quote($$parametersRef{'StreetType'});
+   }
+   else
+   {
+      $addressClause .= " AND StreetType is null";
+   }
+   
+   if ($$parametersRef{'StreetName'})
+   {
+      $addressClause .= " AND StreetName = ". $sqlClient->quote($$parametersRef{'StreetName'});
+   }
+   else
+   {
+      $addressClause .= " AND StreetName is null";  # (this is never null though)
+   }
+      
+   if ($$parametersRef{'StreetNumber'})
+   {
+      $addressClause .= " AND StreetNumber = ". $sqlClient->quote($$parametersRef{'StreetNumber'});
+   }
+   else
+   {
+      $addressClause .= " AND StreetNumber is null"; # (this shouldn't be null though)
+   }
+   
+   if ($$parametersRef{'UnitNumber'})
+   {
+      $addressClause .= " AND UnitNumber = ". $sqlClient->quote($$parametersRef{'UnitNumber'});
+   }
+   else
+   {
+      $addressClause .= " AND UnitNumber is null"; # this is frequently the case
+   }               
+   
+   @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".
+                                             " (Identifier = ".$$parametersRef{'Identifier'}.")".
+                                             " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".
+                                             " OR ($addressClause)");                          
+
+   $length = @identifierList;
+   
+   if ($length > 0)
+   {
+      $existsInTable = 1;
+   }
+                        
+   return $existsInTable;
+}
+
+# -------------------------------------------------------------------------------------------------
+# deleteFromMostRecent
+# This function deletes the record in the MostRecent view that match the
+# specified profile.  The conditions used to find a match are:
+#    Identifier; or
+#    SaleOrRentalFlag and SourceName and SourceID; or
+#    Address 
+#
+# May delete zero or more records.
+#
+# Parameters:
+#  reference to hash of profile
+#
+# Returns
+#  reference to a list of identifiers
+#
+sub deleteFromMostRecent
+{
+   my $this = shift;
+   my $parametersRef = shift;
+   
+   my $sqlClient = $this->{'sqlClient'};
+   my $success = 0;
+   my $addressClause = "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
+   
+   if ($$parametersRef{'StreetSection'})
+   {
+      $addressClause .= " AND StreetSection = ". $sqlClient->quote($$parametersRef{'StreetSection'});
+   }     
+   else
+   {
+      $addressClause .= " AND StreetSection is null";
+   }
+   
+   if ($$parametersRef{'StreetType'})                           
+   {
+      $addressClause .= " AND StreetType = ". $sqlClient->quote($$parametersRef{'StreetType'});
+   }
+   else
+   {
+      $addressClause .= " AND StreetType is null";
+   }
+   
+   if ($$parametersRef{'StreetName'})
+   {
+      $addressClause .= " AND StreetName = ". $sqlClient->quote($$parametersRef{'StreetName'});
+   }
+   else
+   {
+      $addressClause .= " AND StreetName is null";  # (this is never null though)
+   }
+      
+   if ($$parametersRef{'StreetNumber'})
+   {
+      $addressClause .= " AND StreetNumber = ". $sqlClient->quote($$parametersRef{'StreetNumber'});
+   }
+   else
+   {
+      $addressClause .= " AND StreetNumber is null"; # (this shouldn't be null though)
+   }
+   
+   if ($$parametersRef{'UnitNumber'})
+   {
+      $addressClause .= " AND UnitNumber = ". $sqlClient->quote($$parametersRef{'UnitNumber'});
+   }
+   else
+   {
+      $addressClause .= " AND UnitNumber is null"; # this is frequently the case
+   }               
+        
+   $statementText = "DELETE FROM $tableName WHERE".
+                     " (Identifier = ".$$parametersRef{'Identifier'}.")".
+                     " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".
+                     " OR ($addressClause)";                                       
+                        
+   $statement = $sqlClient->prepareStatement($statementText);
+      
+   if ($sqlClient->executeStatement($statement))
+   {
+      $success = 1;
+   }       
+                        
+   return success;
+}
+
+# -------------------------------------------------------------------------------------------------
+# _createMostRecentTable
+# attempts to create the MostRecent_AdvertisedSaleProfiles table in the database if it doesn't already exist
+# 
+# Purpose:
+#  Initialising a new database
+#
+# Parameters:
+#  nil
+#
+# Constraints:
+#  nil
+#
+# Uses:
+#  sqlClient
+#
+# Updates:
+#  nil
+#
+# Returns:
+#   TRUE (1) if successful, 0 otherwise
+#   
+
+sub _createMostRecentTable
+
+{
+   my $this = shift;
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+
+   my $SQL_CREATE_MOSTRECENT_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS MostRecent_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ";
+   my $SQL_CREATE_MOSTRECENT_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";  
+   
+   if ($sqlClient)
+   {
+      # append change table prefix, original table body and change table suffix
+      $sqlStatement = $SQL_CREATE_MOSTRECENT_TABLE_PREFIX.$SQL_CREATE_WORKINGVIEW_TABLE_BODY.$SQL_CREATE_MOSTRECENT_TABLE_SUFFIX;
+      
+      $statement = $sqlClient->prepareStatement($sqlStatement);
+      
+      if ($sqlClient->executeStatement($statement))
+      {
+         $success = 1;
+      }
+   }
+   
+   return $success;   
+}
+
+
+# -------------------------------------------------------------------------------------------------
+# _mostRecent_updateRecordWithChangeHash
+# alters a record of data in the MostRecent_AdvertisedPropertyProfiles table in response to 
+# a change in the WorkingView 
+# it accepts a changedHash.
+# It's reasonable to expect that the record may not even exist in the MostRecent view.  This is fine (no 
+# records will be affected)
+# 
+# Purpose:
+#  Storing information in the database
+#
+# Parameters:
+#  reference to a hash containing the values to insert (only those that have changed)
+#  integer sourceIdentifier
+#
+# Constraints:
+#  nil
+#
+# Uses:
+#  sqlClient
+#
+# Updates:
+#  nil
+#
+# Returns:
+#   TRUE (1) if successful, 0 otherwise
+#        
+sub _mostRecent_updateRecordWithChangeHash
+
+{
+   my $this = shift;
+   my $parametersRef = shift;   
+   my $sourceIdentifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $localTime;
+   my $tableName = $this->{'tableName'};
+   
+   if ($sqlClient)
+   {      
+      $appendString = "UPDATE MostRecent_$tableName SET ";
+      # modify the statement to specify each column value to set 
+      $index = 0;
+      while(($field, $value) = each(%$parametersRef)) 
+      {
+         if ($index > 0)
+         {
+            $appendString = $appendString . ", ";
+         }
+         
+         $quotedValue = $sqlClient->quote($value);
+         
+         $appendString = $appendString . "$field = $quotedValue ";
+         $index++;
+      }      
+      
+      $statementText = $appendString." WHERE identifier=$sourceIdentifier";
+      #print "statement=$statementText\n";
+      $statement = $sqlClient->prepareStatement($statementText);
+      
+      if ($sqlClient->executeStatement($statement))
+      {
+         $success = 1;         
+      }
+   }
+   
+   return $success;   
+}
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# updateMostRecent
+# transfers a record from the workingView to the MostRecent view 
+#
+# Parameters:
+#  reference to hash of parameters
+#
+# Returns:
+#   true if record added, false if record replaced
+
+sub updateMostRecent
+
+{
+   my $this = shift;
+   my $parametersRef = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $tableName = $this->{'tableName'};
+   my $localTime;
+   my $identifier = -1;
+   my $recordAdded = 0;
+   
+   if ($sqlClient)
+   {   
+      if ($parametersRef)
+      {
+         # first, determine if this record (or an equivalent) already exists in the most recent table...         
+         if ($this->existsInMostRecent($parametersRef))
+         {
+            # one or more records do exist - delete them so the new record can replace it
+            $this->deleteMostRecentPropertyProfile($$existingProfile{'Identifier'});
+            $recordAdded = 0;  # replacing record
+         }
+         else
+         {
+            $recordAdded = 1;  # adding record
+         }
+               
+         # add a new record ot the table
+         $statementText = "INSERT INTO MostRecent_$tableName (";
+      
+         @columnNames = keys %$parametersRef;
+         
+         # modify the statement to specify each column value to set 
+         $appendString = "";
+         $index = 0;
+         foreach (@columnNames)
+         {
+            if ($index != 0)
+            {
+               $appendString = $appendString.", ";
+            }
+           
+            $appendString = $appendString . $_;
+            $index++;
+         }      
+         
+         $statementText = $statementText.$appendString . ") VALUES (";
+         
+         # modify the statement to specify each column value to set 
+         $appendString = "";
+         $index = 0;
+         foreach (@columnNames)
+         {
+            if ($index != 0)
+            {
+               $appendString = $appendString.", ";
+            }
+           
+            $appendString = $appendString.$sqlClient->quote($$parametersRef{$_});
+            
+            $index++;
+         }
+         $statementText = $statementText.$appendString . ")";
+               
+         $statement = $sqlClient->prepareStatement($statementText);
+         
+         if ($sqlClient->executeStatement($statement))
+         {
+            $identifer = $sqlClient->lastInsertID();            
+         }         
+      }
+   }
+   
+   return $recordAdded;   
 }
 
