@@ -106,6 +106,11 @@
 #  If there's no address, the property is still listed in the MostRecent table but uniquess can't be guaranteed
 #  (if there's mutliple sources in the databases).  The MostRecent table can be used as another source of analysis
 #  data (as the datapoints are more plentiful than master properties)
+# 25 September 2005 - bugfix to previous change - it was replacing records in the MostRecent table if they
+#  were in the same suburb and had no address - even if they had different sourceID's.  Now the content
+#  of the address is completely ignored.  
+#                   - also added an index to the MostRecent table on DateEntered to see if this speeds
+#  up the functions
 #
 # CONVENTIONS
 # _ indicates a private variable or method
@@ -3362,9 +3367,9 @@ sub lookupProfilesByException
 # This function returns the identifier of a record in the MostRecent view that matches the
 # specified profile.  The conditions used to find a match are:
 #    Identifier; or
-#    SaleOrRentalFlag and SourceName and SourceID; or
-#    Address
+#    SaleOrRentalFlag and SourceName and SourceID;
 #    AND the DateEntered is older than the profile's dateEntered field
+#   (note: can't use address because of the blanks)
 #
 # Parameters:
 #  reference to hash of profile
@@ -3379,58 +3384,11 @@ sub existsInMostRecent
    
    my $sqlClient = $this->{'sqlClient'};
    my $existsInTable = 0;
-         
-   my $addressClause = "";
-   
-   if ($$parametersRef{'SuburbIndex'})
-   {
-      $addressClause .= "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
-   }     
-   else
-   {
-      $addressClause .= "SuburbIndex is null";
-   }
-   
-   if ($$parametersRef{'StreetType'})                           
-   {
-      $addressClause .= " AND StreetType = ". $sqlClient->quote($$parametersRef{'StreetType'});
-   }
-   else
-   {
-      $addressClause .= " AND StreetType is null";
-   }
-   
-   if ($$parametersRef{'StreetName'})
-   {
-      $addressClause .= " AND StreetName = ". $sqlClient->quote($$parametersRef{'StreetName'});
-   }
-   else
-   {
-      $addressClause .= " AND StreetName is null";  # (this is never null though)
-   }
-      
-   if ($$parametersRef{'StreetNumber'})
-   {
-      $addressClause .= " AND StreetNumber = ". $sqlClient->quote($$parametersRef{'StreetNumber'});
-   }
-   else
-   {
-      $addressClause .= " AND StreetNumber is null"; # (this shouldn't be null though)
-   }
-   
-   if ($$parametersRef{'UnitNumber'})
-   {
-      $addressClause .= " AND UnitNumber = ". $sqlClient->quote($$parametersRef{'UnitNumber'});
-   }
-   else
-   {
-      $addressClause .= " AND UnitNumber is null"; # this is frequently the case
-   }               
+          
    
    my @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".
                                              " (Identifier = ".$$parametersRef{'Identifier'}.")".
-                                             " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".
-                                             " OR ($addressClause)".
+                                             " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".                                           
                                              " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")");                          
 
    $length = @identifierList;
@@ -3448,10 +3406,9 @@ sub existsInMostRecent
 # This function deletes the record in the MostRecent view that match the
 # specified profile.  The conditions used to find a match are:
 #    Identifier; or
-#    SaleOrRentalFlag and SourceName and SourceID; or
-#    Address 
+#    SaleOrRentalFlag and SourceName and SourceID;   
 #    AND the DateEntered is older than the profile's dateEntered field
-#
+#   (note: can't use address because of the blanks)
 # May delete zero or more records.
 #
 # Parameters:
@@ -3469,64 +3426,11 @@ sub deleteFromMostRecent
    my $success = 0;
    my $addressClause = "";
    
-   if ($$parametersRef{'SuburbIndex'})
-   {
-      $addressClause .= "SuburbIndex = ".$$parametersRef{'SuburbIndex'};
-   }     
-   else
-   {
-      $addressClause .= "SuburbIndex is null";
-   }
-   
-   if ($$parametersRef{'StreetSection'})
-   {
-      $addressClause .= " AND StreetSection = ". $sqlClient->quote($$parametersRef{'StreetSection'});
-   }     
-   else
-   {
-      $addressClause .= " AND StreetSection is null";
-   }
-   
-   if ($$parametersRef{'StreetType'})                           
-   {
-      $addressClause .= " AND StreetType = ". $sqlClient->quote($$parametersRef{'StreetType'});
-   }
-   else
-   {
-      $addressClause .= " AND StreetType is null";
-   }
-   
-   if ($$parametersRef{'StreetName'})
-   {
-      $addressClause .= " AND StreetName = ". $sqlClient->quote($$parametersRef{'StreetName'});
-   }
-   else
-   {
-      $addressClause .= " AND StreetName is null";  # (this is never null though)
-   }
-      
-   if ($$parametersRef{'StreetNumber'})
-   {
-      $addressClause .= " AND StreetNumber = ". $sqlClient->quote($$parametersRef{'StreetNumber'});
-   }
-   else
-   {
-      $addressClause .= " AND StreetNumber is null"; # (this shouldn't be null though)
-   }
-   
-   if ($$parametersRef{'UnitNumber'})
-   {
-      $addressClause .= " AND UnitNumber = ". $sqlClient->quote($$parametersRef{'UnitNumber'});
-   }
-   else
-   {
-      $addressClause .= " AND UnitNumber is null"; # this is frequently the case
-   }               
+               
         
    $statementText = "DELETE FROM MostRecent_$tableName WHERE".
                      " (Identifier = ".$$parametersRef{'Identifier'}.")".
-                     " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".
-                     " OR ($addressClause)".
+                     " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".                     
                      " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")";                                  
                         
    $statement = $sqlClient->prepareStatement($statementText);
@@ -3571,7 +3475,7 @@ sub _createMostRecentTable
    my $tableName = $this->{'tableName'};
 
    my $SQL_CREATE_MOSTRECENT_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS MostRecent_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY, ";  # note no auto_increment for this one
-   my $SQL_CREATE_MOSTRECENT_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";  
+   my $SQL_CREATE_MOSTRECENT_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(DateEntered), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";  
    
    if ($sqlClient)
    {
