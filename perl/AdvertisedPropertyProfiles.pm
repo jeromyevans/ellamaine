@@ -111,6 +111,9 @@
 #  of the address is completely ignored.  
 #                   - also added an index to the MostRecent table on DateEntered to see if this speeds
 #  up the functions
+#                   - added index to the WorkingVew on DateEntered so records in the WorkingView table
+#  can be selected that are NEWER than the MostRecent record in the MostRecent table.  This supports
+#  incremental batch transfer from the WorkingView to the MostRecent table
 #
 # CONVENTIONS
 # _ indicates a private variable or method
@@ -1094,7 +1097,7 @@ sub _createWorkingViewTable
    my $tableName = $this->{'tableName'};
 
    my $SQL_CREATE_WORKINGVIEW_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS WorkingView_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ";
-   my $SQL_CREATE_WORKINGVIEW_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";   # 23Jan05 - index!
+   my $SQL_CREATE_WORKINGVIEW_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(DateEntered), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";   # 23Jan05 - index!
    
    if ($sqlClient)
    {
@@ -1497,6 +1500,30 @@ sub lookupValidRecords
    return \@identifierList;
 }
 
+
+# -------------------------------------------------------------------------------------------------
+# lookupWorkingViewByDate
+# This function returns a list of the identifiers of records in the WorkingView table with a 
+# dateEntered newer than the DateTime (string) provided
+#
+# Parameters:
+#  string sql DateTime
+#
+# Returns
+#  reference to a list of identifiers
+#
+sub lookupWorkingViewByDate
+{
+   my $this = shift;
+   my $timestamp = shift;
+   my $sqlClient = $this->{'sqlClient'};
+   my $constraintSQL = undef;
+         
+   @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM WorkingView_AdvertisedPropertyProfiles WHERE DateEntered > ".$sqlClient->quote($timestamp)." ORDER BY DateEntered");
+
+   return \@identifierList;
+}
+
 # -------------------------------------------------------------------------------------------------
 # lookupRecordsMissingFromWorkingView
 # This function returns a list of the identifiers of records in the SourceView table
@@ -1550,7 +1577,7 @@ sub lookupAllWorkingView
    }
    
    
-   @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM WorkingView_AdvertisedPropertyProfiles");
+   @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM WorkingView_AdvertisedPropertyProfiles order by DateEntered");
 
    return \@identifierList;
 }
@@ -3386,11 +3413,14 @@ sub existsInMostRecent
    my $existsInTable = 0;
           
    
-   my @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".
-                                             " (Identifier = ".$$parametersRef{'Identifier'}.")".
-                                             " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".                                           
-                                             " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")");                          
-
+  # my @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".
+  #                                           " (Identifier = ".$$parametersRef{'Identifier'}.")".
+  #                                           " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".                                           
+  #                                           " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")");
+  
+   my @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".                                             
+                                                " SaleOrRentalFlag = ".$$parametersRef{'SaleOrRentalFlag'}." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'})." AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")";  
+            
    $length = @identifierList;
    
    if ($length > 0)
@@ -3428,10 +3458,13 @@ sub deleteFromMostRecent
    
                
         
-   $statementText = "DELETE FROM MostRecent_$tableName WHERE".
-                     " (Identifier = ".$$parametersRef{'Identifier'}.")".
-                     " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".                     
-                     " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")";                                  
+   #$statementText = "DELETE FROM MostRecent_$tableName WHERE".
+   #                  " (Identifier = ".$$parametersRef{'Identifier'}.")".
+   #                  " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".                     
+   #                  " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")";
+   # See if this is faster 
+   $statementText = "DELETE FROM MostRecent_$tableName WHERE".                     
+                     " SaleOrRentalFlag = ".$$parametersRef{'SaleOrRentalFlag'}." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'})." AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")";
                         
    $statement = $sqlClient->prepareStatement($statementText);
       
@@ -3475,7 +3508,7 @@ sub _createMostRecentTable
    my $tableName = $this->{'tableName'};
 
    my $SQL_CREATE_MOSTRECENT_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS MostRecent_$tableName (Identifier INTEGER ZEROFILL PRIMARY KEY, ";  # note no auto_increment for this one
-   my $SQL_CREATE_MOSTRECENT_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(DateEntered), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";  
+   my $SQL_CREATE_MOSTRECENT_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10), DateEntered), INDEX(DateEntered), INDEX(ComponentOf), INDEX(ErrorCode, ComponentOf), INDEX(SuburbIndex), INDEX(ErrorCode, WarningCode), INDEX(State, SuburbName(10)))";  
    
    if ($sqlClient)
    {
@@ -3566,6 +3599,37 @@ sub _mostRecent_updateRecordWithChangeHash
 }
 
 # -------------------------------------------------------------------------------------------------
+# lookupMostRecentRecord
+#  Gets the timestamp of the most recent record in the MostRecent table.  This is used to limit
+# the working view properties to transfer to records newer than the timestamp (ie. for incremental
+# batch update of the MostRecent table
+#
+# Parameters:
+#  nil
+#
+# Returns:
+#   reference to a hash of properties for the most recent entry
+#        
+sub lookupMostRecentRecord
+
+{
+   my $this = shift;
+   my $identifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'tableName'};
+   my $profileRef = undef;
+   
+   if ($sqlClient)
+   {           
+      @selectResults = $sqlClient->doSQLSelect("select * from MostRecent_$tableName order by DateEntered desc limit 1");
+      $profileRef = $selectResults[0];     
+   }
+   return $profileRef;
+}
+
+# -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # updateMostRecent
 # transfers a record from the workingView to the MostRecent view 
@@ -3599,17 +3663,22 @@ sub updateMostRecent
    {   
       if ($parametersRef)
       {
-         # first, determine if this record (or an equivalent) already exists in the most recent table...         
-         if ($exists = $this->existsInMostRecent($parametersRef))
-         {
-            # one or more records do exist - delete them so the new record can replace it
-            $success = $this->deleteFromMostRecent($parametersRef);
-            $recordAdded = 0;  # replacing record
-         }
-         else
-         {
-            $recordAdded = 1;  # adding record
-         }
+         # first, determine if this record (or an equivalent) already exists in the most recent table...
+
+# skip the select to see if this makes it signifcantly faster      
+         $success = $this->deleteFromMostRecent($parametersRef);
+         $recordAdded = 1;  
+         
+         #if ($exists = $this->existsInMostRecent($parametersRef))
+         #{
+         #   # one or more records do exist - delete them so the new record can replace it
+         #   $success = $this->deleteFromMostRecent($parametersRef);
+         #   $recordAdded = 0;  # replacing record
+         #}
+         #else
+         #{
+         #   $recordAdded = 1;  # adding record
+         #}
                
          # add a new record ot the table
          $statementText = "INSERT INTO MostRecent_$tableName (";
