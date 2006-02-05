@@ -50,6 +50,7 @@
 #   and a crawler warning system has been included.
 #                  - Renamed to Crawler*
 #                  - Moved Parsing code out to Parser*
+#                  - Modified to use the AdvertisementCache instead of AdvertisedPropertyProfiles
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -60,17 +61,16 @@ package Crawler_Realestate;
 use PrintLogger;
 use CGI qw(:standard);
 use HTTPClient;
+use SQLClient;
+use DebugTools;
 use Ellamaine::HTMLSyntaxTree;
 use Ellamaine::DocumentReader;
-use SQLClient;
-use SuburbProfiles;
-#use URI::URL;
-use DebugTools;
-use AdvertisedPropertyProfiles;
-use PropertyTypes;
-use WebsiteParserTools;
 use Ellamaine::StatusTable;
-use Ellamaine::SessionProgressTable;   # 23Jan05
+use Ellamaine::SessionProgressTable;
+use CrawlerTools;
+use AdvertisementCache;
+use AdvertisementRepository;
+use CrawlerWarning;
 use StringTools;
 
 @ISA = qw(Exporter);
@@ -111,7 +111,7 @@ sub extractRealEstatePropertyAdvertisement
    my $sourceName =  $documentReader->getGlobalParameter('source');
    my $crawlerWarning = CrawlerWarning::new($sqlClient);
    
-   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $advertisementCache = $$tablesRef{'advertisementCache'};
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    $statusTable = $documentReader->getStatusTable();
 
@@ -128,7 +128,7 @@ sub extractRealEstatePropertyAdvertisement
          if ($sqlClient->connect())
          {		 	          
             $printLogger->print("   extractAdvertisement: storing record in repository for CacheID:$cacheID.\n");
-            $identifier = $advertisedPropertyProfiles->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
+            $identifier = $advertisementCache->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
             $statusTable->addToRecordsParsed($threadID, 1, 1, $url);                
          }
          else
@@ -207,7 +207,7 @@ sub parseRealEstateSearchResults
    my $ignoreNextButton = 0;
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
-   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $advertisementCache = $$tablesRef{'advertisementCache'};
    my $saleOrRentalFlag = -1;
    my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
       
@@ -330,7 +330,7 @@ sub parseRealEstateSearchResults
                if (($sourceID) && ($anchor))
                {
                   # check if the cache already contains a profile matching this source ID and title           
-                  $cacheID = $advertisedPropertyProfiles->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+                  $cacheID = $advertisementCache->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
                   if ($cacheID == 0)
                   {
                      $printLogger->print("   parseSearchResults: record already in advertisement cache.\n");

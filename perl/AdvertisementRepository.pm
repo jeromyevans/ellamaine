@@ -6,7 +6,7 @@
 # Version 0.0  
 #
 # Description:
-#   Module that encapsulate the OriginatingHTMLTable database component
+#   Module that encapsulate the AdvertisementRepository database component
 #
 # History:
 # 19 Feb 2005 - hardcoded absolute log directory temporarily 
@@ -34,6 +34,10 @@
 #  that updates the Cache
 #             - removed the CreatesRecord field from OriginatingHTML.  One OriginatingHTML can create multiple
 #  cache entries now
+# 5 Feb 2006  - renamed from OriginatingHTML to AdvertisementRepository in accordance with the new architecture
+#             - the name OriginatingHTML is still stored in the generated repository files and in the 
+#  default path to the repository (for backwards compatibility with the existing repository) 
+#
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -41,7 +45,7 @@
 # Date: $Date$
 # $Id$
 #
-package OriginatingHTML;
+package AdvertisementRepository;
 require Exporter;
 
 use DBI;
@@ -58,14 +62,14 @@ my $DEFAULT_LOG_PATH = "./originatinghtml";
 # -------------------------------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------------------------
-# This variable is populated with a reference to a hash of properties for the OriginatingHTML that
+# This variable is populated with a reference to a hash of properties for the AdvertisementRepository that
 # are read from disk by the first constructor
 my $localProperties = undef;
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 
-# Contructor for the OriginatingHTML - returns an instance of an OriginatingHTMLTable object
+# Contructor for the AdvertisementRepository - returns an instance of an AdvertisementRepositoryTable object
 # PUBLIC
 sub new
 {   
@@ -81,22 +85,23 @@ sub new
          $$localProperties{'originatinghtml.log.path'} = $DEFAULT_LOG_PATH;
       }
    } 
-   my $originatingHTML = { 
+   
+   my $advertisementRepository = { 
       sqlClient => $sqlClient,
-      tableName => "OriginatingHTML",
+      tableName => "AdvertisementRepository",
       basePath => $$localProperties{'originatinghtml.log.path'}, 
       useFlatPath => 0
    }; 
       
-   bless $originatingHTML;  
+   bless $advertisementRepository;  
    
-   return $originatingHTML;   # return this
+   return $advertisementRepository;   # return this
 }
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # createTable
-# attempts to create the OriginatingHTML table in the database if it doesn't already exist
+# attempts to create the AdvertisementRepository table in the database if it doesn't already exist
 # 
 # Purpose:
 #  Initialising a new database
@@ -116,9 +121,9 @@ sub new
 # Returns:
 #   TRUE (1) if successful, 0 otherwise
 #
-my $SQL_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS OriginatingHTML ".
-   "(DateEntered DATETIME NOT NULL, ".
-   "Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ".
+my $SQL_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS AdvertisementRepository ".
+   "(ID INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ".
+   "DateEntered DATETIME NOT NULL, ".   
    "SourceURL TEXT)";   
       
 sub createTable
@@ -142,95 +147,8 @@ sub createTable
 }
 
 # -------------------------------------------------------------------------------------------------
-# addRecord
-# adds a record of data to the OriginatingHTML table
-# also saves the content of the HTMLSyntaxTree to disk
-# 
-# Purpose:
-#  Storing information in the database
-#
-# Parameters:
-#  integer foreignIdentifier - foreign key to record that was created
-#  string sourceURL   
-#  HTMLSyntaxTree          - html content will be saved to disk
-#  string foreignTableName -  name of the table that contains the created record.  It will be altered with the this new key
-#
-# Constraints:
-#  nil
-#
-# Uses:
-#  sqlClient
-#
-# Updates:
-#  nil
-#
-# Returns:
-#   TRUE (1) if successful, 0 otherwise
-#  
-      
-sub addRecord
-
-{
-   my $this = shift;
-   my $timestamp = shift;
-   my $foreignIdentifier = shift;
-   my $url = shift;
-   my $htmlSyntaxTree = shift;
-   my $foreignTableName = shift;
-   
-   my $success = 0;
-   my $sqlClient = $this->{'sqlClient'};
-   my $statementText;
-   my $identifier = -1;
-   
-   if ($sqlClient)
-   {
-      $statementText = "INSERT INTO OriginatingHTML (";
-            
-      # modify the statement to specify each column value to set 
-      $appendString = "DateEntered, identifier, sourceurl";
-      
-      $statementText = $statementText.$appendString . ") VALUES (";
-      
-      # modify the statement to specify each column value to set 
-      $index = 0;
-      $quotedUrl = $sqlClient->quote($url);   
-      $quotedTimestamp = $sqlClient->quote($timestamp);
-      $appendString = "$quotedTimestamp, null, $quotedUrl)";
-
-      $statementText = $statementText.$appendString;
-      
-      # prepare and execute the statement
-      $statement = $sqlClient->prepareStatement($statementText);         
-      if ($sqlClient->executeStatement($statement))
-      {
-         $success = 1;
-       
-         # 25 May 2005 - use lastInsertID to get the primary key identifier of the record just inserted
-         $identifier = $sqlClient->lastInsertID();
-                  
-         if ($identifier >= 0)
-         {
-            #print "altering foreign key in $foreignTableName identifier=$foreignIdentifier createdBy=$identifier\n";
-            # alter the foreign record - add this primary key as the CreatedBy foreign key - completing the relationship
-            # between the two tables (in both directions)
-            $sqlClient->alterForeignKey($foreignTableName, 'identifier', $foreignIdentifier, 'originatingHTML', $identifier);
-            
-            $timeStamp = time();
-            
-            # save the HTML content to disk using the primarykey as the filename
-            $this->saveHTMLContent($identifier, $htmlSyntaxTree->getContent(), $url, $timestamp);
-         }
-      }
-   }
-   
-   return $identifier;   
-}
-
-
-# -------------------------------------------------------------------------------------------------
 # addRecordToRepository
-# adds a record of data to the OriginatingHTML table
+# adds a record of data to the AdvertisementRepository table
 # also saves the content of the HTMLSyntaxTree to disk
 # uses the new Cache table architecture 
 # (SUPERCEEDS addRecord)
@@ -274,10 +192,10 @@ sub addRecordToRepository
    
    if ($sqlClient)
    {
-      $statementText = "INSERT INTO OriginatingHTML (";
+      $statementText = "INSERT INTO AdvertisementRepository (";
             
       # modify the statement to specify each column value to set 
-      $appendString = "DateEntered, identifier, sourceurl";
+      $appendString = "ID, DateEntered, sourceurl";
       
       $statementText = $statementText.$appendString . ") VALUES (";
       
@@ -286,7 +204,7 @@ sub addRecordToRepository
       $quotedUrl = $sqlClient->quote($url);
       $quotedForeignIdentifier = $sqlClient->quote($foreignIdentifier);
       $quotedTimestamp = $sqlClient->quote($timestamp);
-      $appendString = "$quotedTimestamp, null, $quotedUrl)";
+      $appendString = "null, $quotedTimestamp, $quotedUrl)";
 
       $statementText = $statementText.$appendString;
       
@@ -304,7 +222,7 @@ sub addRecordToRepository
             #print "altering foreign key in $foreignTableName identifier=$foreignIdentifier createdBy=$identifier\n";
             # alter the foreign record - add this primary key as the CreatedBy foreign key - completing the relationship
             # between the two tables (in both directions)
-            $sqlClient->alterForeignKey($foreignTableName, 'ID', $foreignIdentifier, 'originatingHTML', $identifier);
+            $sqlClient->alterForeignKey($foreignTableName, 'ID', $foreignIdentifier, 'repositoryID', $identifier);
             
             $timeStamp = time();
             
@@ -321,7 +239,7 @@ sub addRecordToRepository
 # -------------------------------------------------------------------------------------------------
 
 # dropTable
-# attempts to drop the OriginatingHTML table 
+# attempts to drop the AdvertisementRepository table 
 # 
 # Purpose:
 #  Initialising a new database
@@ -341,7 +259,7 @@ sub addRecordToRepository
 # Returns:
 #   TRUE (1) if successful, 0 otherwise
 #
-my $SQL_DROP_TABLE_STATEMENT = "DROP TABLE OriginatingHTML";
+my $SQL_DROP_TABLE_STATEMENT = "DROP TABLE AdvertisementRepository";
         
 sub dropTable
 
@@ -366,7 +284,7 @@ sub dropTable
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 #
-# returns the base path used for the originating HTML files
+# returns the base path used for the AdvertisementRepository files
 #
 sub basePath
 {
@@ -377,7 +295,7 @@ sub basePath
 
 # -------------------------------------------------------------------------------------------------
 #
-# returns the path to be used for the originating HTML with the specified identifier
+# returns the path to be used for the AdvertisementRepository with the specified identifier
 sub targetPath
 {
    my $this = shift;
@@ -432,7 +350,7 @@ sub useFlatPath
 #  Debugging
 #
 # Parameters:
-#  integer identifier (primary key of the OriginatingHTML)
+#  integer identifier (primary key of the AdvertisementRepository)
 #
 # Constraints:
 #  nil
@@ -491,8 +409,8 @@ sub saveHTMLContent ($ $ $ $)
 #  Debugging
 #
 # Parameters:
-#  integer identifier (primary key of the OriginatingHTML)
-#  optional integer flag stripHeader - if set, the OriginatingHTML header is removed from the content
+#  integer identifier (primary key of the AdvertisementRepository)
+#  optional integer flag stripHeader - if set, the AdvertisementRepository header is removed from the content
 # Constraints:
 #  nil
 #
@@ -604,8 +522,8 @@ sub readHTMLContentWithHeader
 #  maintenance
 #
 # Parameters:
-#  integer identifier (primary key of the OriginatingHTML)
-#  optional integer flag stripHeader - if set, the OriginatingHTML header is removed from the content
+#  integer identifier (primary key of the AdvertisementRepository)
+#  optional integer flag stripHeader - if set, the AdvertisementRepository header is removed from the content
 # Constraints:
 #  nil
 #
@@ -629,8 +547,8 @@ sub readHTMLContent
 # -------------------------------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------------------------
-# lookupOriginatingHTMLIdentifiers
-#  Returns a list of ALL the identifiers in the OriginatingHTML table
+# lookupAdvertisementRepositoryIdentifiers
+#  Returns a list of ALL the identifiers in the AdvertisementRepository table
 #
 # Parameters:
 #  OPTIONAL INTEGER Limit  - maximum number of records to return
@@ -639,7 +557,7 @@ sub readHTMLContent
 # Returns:
 #   reference to a hash of properties
 #        
-sub lookupOriginatingHTMLIdentifiers
+sub lookupAdvertisementRepositoryIdentifiers
 
 {
    my $this = shift;

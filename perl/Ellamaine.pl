@@ -45,6 +45,7 @@
 #  rather than having multiople.config files - the config is loaded from the database (but note, when the ConfigTable
 #  is created, it reads the templates for data from the ./configs/*.config files
 #  25 June 2005  - moved body of code to a package so Ellamaine can be started from another module
+#  5 Feb 2006    - reads database configuration from local properties file
 # To do:
 #
 #  - front page for monitoring progress
@@ -73,8 +74,11 @@ my %parameters = undef;
 my %myTableObjects;
 my %myParsers;
 
+# load the properties...
+my $myProperties = loadProperties("ellamaine.properties");
+   
 # initialise the SQL client
-$sqlClient = SQLClient::new();
+$sqlClient = SQLClient::new($$myProperties{'sql.database.name'}, $$myProperties{'sql.user.name'}, $$myProperties{'sql.user.password'});
 
 print("Connecting to database...\n");
 $sqlClient->connect();

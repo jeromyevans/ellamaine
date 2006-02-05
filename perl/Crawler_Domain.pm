@@ -61,26 +61,23 @@
 #   and a crawler warning system has been included.
 #                  - Renamed to Crawler*
 #                  - Moved Parsing code out to Parser*
+#                  - Modified to use the AdvertisementCache instead of AdvertisedPropertyProfiles
 package Crawler_Domain;
 
 use PrintLogger;
 use CGI qw(:standard);
 use HTTPClient;
 use SQLClient;
-use SuburbProfiles;
-#use URI::URL;
 use DebugTools;
 use Ellamaine::HTMLSyntaxTree;
 use Ellamaine::DocumentReader;
-use AdvertisedPropertyProfiles;
-use PropertyTypes;
-use WebsiteParserTools;
-use OriginatingHTML;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;
-use StringTools;
-use PrettyPrint;
+use CrawlerTools;
+use AdvertisementCache;
+use AdvertisementRepository;
 use CrawlerWarning;
+use StringTools;
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -127,7 +124,7 @@ sub extractDomainPropertyAdvertisement
    my $sourceName =  $documentReader->getGlobalParameter('source');
    my $crawlerWarning = CrawlerWarning::new($sqlClient);
    
-   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $advertisementCache = $$tablesRef{'advertisementCache'};
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    $statusTable = $documentReader->getStatusTable();
 
@@ -144,7 +141,7 @@ sub extractDomainPropertyAdvertisement
          if ($sqlClient->connect())
          {		 	          
             $printLogger->print("   extractAdvertisement: storing record in repository for CacheID:$cacheID.\n");
-            $identifier = $advertisedPropertyProfiles->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
+            $identifier = $advertisementCache->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
             $statusTable->addToRecordsParsed($threadID, 1, 1, $url);                
          }
          else
@@ -219,7 +216,7 @@ sub parseDomainSearchResults
    my $ignoreNextButton = 0;
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
-   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $advertisementCache = $$tablesRef{'advertisementCache'};
    my $saleOrRentalFlag = -1;
    my $cachedID;
    
@@ -295,7 +292,7 @@ sub parseDomainSearchResults
                $sourceURL = new URI::URL($sourceURL, $url)->abs()->as_string();      # convert to absolute
               
                # check if the cache already contains a profile matching this source ID and title           
-               $cacheID = $advertisedPropertyProfiles->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+               $cacheID = $advertisementCache->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
                if ($cacheID == 0)
                {                                 
                   $printLogger->print("   parserSearchResults: record already in advertisement cache.\n");

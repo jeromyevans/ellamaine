@@ -29,7 +29,8 @@
 #   but have since decided that's not necessary)
 # 18 June 2005 - migrated some functions that were related to fixing records over to the AdvertisedPropertyProfile
 # package 
-package WebsiteParserTools;
+# 5 Feb 2006 - renamed to CrawlerTools.  Now only used by the crawlers in the new architecture.
+package CrawlerTools;
 
 use CGI qw(:standard);
 use Ellamaine::HTMLSyntaxTree;
@@ -45,117 +46,7 @@ use PrettyPrint;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(tidyRecord repairSuburbName regexEscape isSuburbNameInRange extractOnlyParentName populatePropertyProfileHash reportParserWarning);
-
-
-# -------------------------------------------------------------------------------------------------
-# tidyRecord
-# validates the fields in the property record (for correctness)
-#
-# Purpose:
-#  construction of the repositories
-#
-# Parameters:
-#  saleProfile hash
-
-# Updates:
-#  database
-#
-# Returns:
-#  validated sale profile
-#    
-sub tidyRecord
-{
-   my $sqlClient = shift;
-   my $profileRef = shift; 
-   
-   # state to uppercase
-   $$profileRef{'State'} =~ tr/[a-z]/[A-Z]/;
-   
-   # format the text using standard conventions to easy comparison later
-   $$profileRef{'SuburbName'} = prettyPrint($$profileRef{'SuburbName'}, 1);
-   
-   # type to lowercase
-   if (defined $$profileRef{'Type'})
-   {
-      $$profileRef{'Type'} =~ tr/[A-Z]/[a-z]/;
-   }
-   
-   # validate number of bedrooms
-   if (($$profileRef{'Bedrooms'} > 0) || (!defined $$profileRef{'Bedrooms'}))
-   {
-   }
-   else
-   {
-       delete $$profileRef{'Bedrooms'};
-   }
-
-   # validate number of bathrooms
-   if (($$profileRef{'Bathrooms'} > 0) || (!defined $$profileRef{'Bathrooms'}))
-   {
-   }
-   else
-   {
-       delete $$profileRef{'Bathrooms'};
-   }
-   
-   # validate land area
-   if (($$profileRef{'LandArea'} > 0) || (!defined $$profileRef{'LandArea'}))
-   {
-   }
-   else
-   {
-       delete $$profileRef{'LandArea'};
-   }
-   
-   # validate building area
-   if (($$profileRef{'BuildingArea'} > 0) || (!defined $$profileRef{'BuildingArea'}))
-   {
-   }
-   else
-   {
-       delete $$profileRef{'BuildingArea'};
-   }
-  
-   # yearbuilt to lowercase
-   if (defined $$profileRef{'YearBuilt'})
-   {
-      $$profileRef{'YearBuilt'} =~ tr/[A-Z]/[a-z]/;
-   }
-   
-   # pricestring to lowercase
-   $$profileRef{'AdvertisedPriceString'} =~ tr/[A-Z]/[a-z]/;
-     
-   if (defined $$profileRef{'StreetAddress'})
-   {
-      $$profileRef{'StreetAddress'} = prettyPrint($$profileRef{'StreetAddress'}, 1);
-   }
-   
-   if (defined $$profileRef{'Description'})
-   {
-      $$profileRef{'Description'} = prettyPrint($$profileRef{'Description'}, 0);
-   }
-
-   if (defined $$profileRef{'Features'})
-   {
-      $$profileRef{'Features'} = prettyPrint($$profileRef{'Features'}, 0);
-   }
-   
-   if (defined $$profileRef{'AgencyName'})
-   {
-      $$profileRef{'AgencyName'} = prettyPrint($$profileRef{'AgencyName'}, 1);
-   }
-   
-   if (defined $$profileRef{'AgencyAddress'})
-   {
-      $$profileRef{'AgencyAddress'} = prettyPrint($$profileRef{'AgencyAddress'}, 1);
-   }
-   
-   if (defined $$profileRef{'ContactName'})
-   {
-      $$profileRef{'ContactName'} = prettyPrint($$profileRef{'ContactName'}, 1);
-   }
-}
+@EXPORT = qw(isSuburbNameInRange extractOnlyParentName);
 
 # -------------------------------------------------------------------------------------------------
 
@@ -213,27 +104,5 @@ sub extractOnlyParentName
    return $parentName;
 }
 # -------------------------------------------------------------------------------------------------
-
-   
-# constructs a hash of the fields for a property, tidies it up a little and calculates the checksum used
-# for fast lookups
-# returns reference to the hash
-sub populatePropertyProfileHash
-
-{
-   my $sqlClient = shift;
-   my $documentReader = shift;
-   my $propertyProfile = shift;
-   
-   tidyRecord($sqlClient, $propertyProfile);        # 27Nov04 - used to be called validateProfile
-   # calculate a checksum for the information - the checksum is used to approximately 
-   # identify the uniqueness of the data
-   $checksum = $documentReader->calculateChecksum($propertyProfile);
-  
-   $$propertyProfile{'Checksum'} = $checksum;
-   
-   return $propertyProfile;  
-}
-
 # -------------------------------------------------------------------------------------------------
 1;

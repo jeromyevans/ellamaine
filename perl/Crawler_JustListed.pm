@@ -11,6 +11,7 @@
 # History:
 #    This version uses the new Ellamaine Crawler Architecture that splits the crawler from the parser and includes
 #  a crawler warning system
+# 5 Feb 06 - Modified to use the AdvertisementCache instead of AdvertisedPropertyProfiles
 #
 #
 package Crawler_JustListed;
@@ -18,19 +19,17 @@ package Crawler_JustListed;
 use PrintLogger;
 use CGI qw(:standard);
 use HTTPClient;
+use SQLClient;
+use DebugTools;
 use Ellamaine::HTMLSyntaxTree;
 use Ellamaine::DocumentReader;
-use SQLClient;
-use SuburbProfiles;
-#use URI::URL;
-use DebugTools;
-use AdvertisedPropertyProfiles;
-use PropertyTypes;
-use WebsiteParserTools;
 use Ellamaine::StatusTable;
-use Ellamaine::SessionProgressTable;   # 23Jan05
-use StringTools;
+use Ellamaine::SessionProgressTable;
+use CrawlerTools;
+use AdvertisementCache;
+use AdvertisementRepository;
 use CrawlerWarning;
+use StringTools;
 
 @ISA = qw(Exporter);
 
@@ -69,7 +68,7 @@ sub extractJustListedPropertyAdvertisement
    my $sourceName =  $documentReader->getGlobalParameter('source');
    my $crawlerWarning = CrawlerWarning::new($sqlClient);
    
-   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $advertisementCache = $$tablesRef{'advertisementCache'};
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    $statusTable = $documentReader->getStatusTable();
 
@@ -86,7 +85,7 @@ sub extractJustListedPropertyAdvertisement
          if ($sqlClient->connect())
          {		 	          
             $printLogger->print("   extractAdvertisement: storing record in repository for CacheID:$cacheID.\n");
-            $identifier = $advertisedPropertyProfiles->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
+            $identifier = $advertisementCache->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
             $statusTable->addToRecordsParsed($threadID, 1, 1, $url);                
          }
          else
@@ -166,7 +165,7 @@ sub parseJustListedSearchResults
    my $ignoreNextButton = 0;
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
-   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $advertisementCache = $$tablesRef{'advertisementCache'};
    my $saleOrRentalFlag = -1;
    my $cacheID;   
    my $originatingHTMLId = undef;
@@ -301,7 +300,7 @@ sub parseJustListedSearchResults
                #$printLogger->print("   parseSearchResults: encountered anchor id ", $sourceID, " title='$titleString'...\n");
                
                # check if the cache already contains a profile matching this source ID and title           
-               $cacheID = $advertisedPropertyProfiles->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+               $cacheID = $advertisementCache->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
                if ($cacheID == 0)
                {
                   $printLogger->print("   parseSearchResults: record already in advertisement cache.\n");
@@ -316,7 +315,7 @@ sub parseJustListedSearchResults
                         # this page has already been submitted to the repository      
                         $printLogger->print("   parseSearchDetails: adding another cache reference (rental) for OriginationHTML:$cacheID.\n");
                      
-                        $advertisedPropertyProfiles->addReferenceToAdvertisementRepository($cacheID, $originatingHTMLId);
+                        $advertisementCache->addReferenceToAdvertisementRepository($cacheID, $originatingHTMLId);
                         $statusTable->addToRecordsParsed($threadID, 1, 1, $url);
                      }
                      else
@@ -325,7 +324,7 @@ sub parseJustListedSearchResults
                         # this single page generates multiple properties, so save this page now
                         $printLogger->print("   parseSearchDetails: storing rental record in repository for CacheID:$cacheID.\n");
                      
-                        $originatingHTMLId = $advertisedPropertyProfiles->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
+                        $originatingHTMLId = $advertisementCache->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
                         $statusTable->addToRecordsParsed($threadID, 1, 1, $url);
                      }
                   }
