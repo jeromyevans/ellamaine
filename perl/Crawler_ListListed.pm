@@ -12,12 +12,8 @@
 #    This version uses the new Ellamaine Crawler Architecture that splits the crawler from the parser and includes
 #  a crawler warning system
 #
-# ---CVS---
-# Version: $Revision$
-# Date: $Date$
-# $Id$
 #
-package WebsiteParser_JustListed;
+package Crawler_JustListed;
 
 use PrintLogger;
 use CGI qw(:standard);
@@ -39,53 +35,6 @@ use CrawlerWarning;
 @ISA = qw(Exporter);
 
 # -------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------
-# parseRealEstateDisplayResponse
-# parser that just displays the content of a response 
-#
-# Purpose:
-#  testing
-#
-# Parameters:
-#  DocumentReader
-#  HTMLSyntaxTree to use
-#  String URL
-#
-# Constraints:
-#  nil
-#
-# Updates:
-#  database
-#
-# Returns:
-#  a list of HTTP transactions or URL's.
-#    
-sub parseJustListedDisplayResponse
-
-{	
-   my $documentReader = shift;
-   my $htmlSyntaxTree = shift;
-   my $url = shift;         
-   my $instanceID = shift;   
-   my $transactionNo = shift;
-   my $threadID = shift;
-   my $parentLabel = shift;
-   my $dryRun = shift;
-   
-   my @anchors;
-   my $printLogger = $documentReader->getGlobalParameter('printLogger');
-   
-   # --- now extract the property information for this page ---
-   $printLogger->print("in ParseDisplayResponse:\n");
-   $htmlSyntaxTree->printText();
-   
-   # return a list with just the anchor in it  
-   return @emptyList;
-   
-}
-
-# -------------------------------------------------------------------------------------------------
-
 # -------------------------------------------------------------------------------------------------
 # extractJustListedPropertyAdvertisement
 # Parses the HTML syntax tree  to extract sufficient information for the cache
@@ -901,6 +850,53 @@ sub parseJustListedRentalsHomePage
       $printLogger->print("   ParseRentalsHomePage:returning zero transactions.\n");
       return @emptyList;
    }   
+}
+
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# parseJustListedDisplayResponse
+# parser that just displays the content of a response 
+#
+# Purpose:
+#  testing
+#
+# Parameters:
+#  DocumentReader
+#  HTMLSyntaxTree to use
+#  String URL
+#
+# Constraints:
+#  nil
+#
+# Updates:
+#  database
+#
+# Returns:
+#  a list of HTTP transactions or URL's.
+#    
+sub parseJustListedDisplayResponse
+
+{	
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $url = shift;         
+   my $instanceID = shift;   
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   
+   my @anchors;
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+   
+   # --- now extract the property information for this page ---
+   $printLogger->print("in ParseDisplayResponse:\n");
+   $htmlSyntaxTree->printText();
+   
+   # return a list with just the anchor in it  
+   return @emptyList;
+   
 }
 
 # -------------------------------------------------------------------------------------------------
