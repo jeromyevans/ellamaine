@@ -174,9 +174,10 @@ sub parseJustListedSearchResults
    # --- now extract the property information for this page ---
    $printLogger->print("inParseSearchResults ($parentLabel):\n");
    
-   #@splitLabel = split /\./, $parentLabel;
-   #$suburbName = $splitLabel[$#splitLabel];  # extract the suburb name from the parent label
-   #sessionProgressTable->reportRegionOrSuburbChange($threadID, undef, $suburbName);     
+   # this is essential for this variant
+   @splitLabel = split /\./, $parentLabel;
+   $suburbName = $splitLabel[$#splitLabel];  # extract the suburb name from the parent label
+   $sessionProgressTable->reportRegionOrSuburbChange($threadID, undef, $suburbName);     
    
    #$htmlSyntaxTree->printText();
    
