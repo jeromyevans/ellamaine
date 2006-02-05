@@ -30,6 +30,10 @@
 #   now just calls readHTMLContentWithHEader but discards the unused unformation.  The stripHeader flag is still
 #   used by both functions.
 # 2 July 2005 - Directory for logging of OriginatingHTML is now specified in ellamaine.properties
+# 30 Jan 2006 - added support for separation of the Crawler from the Parser - new method to add OriginatinghTML
+#  that updates the Cache
+#             - removed the CreatesRecord field from OriginatingHTML.  One OriginatingHTML can create multiple
+#  cache entries now
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -115,8 +119,7 @@ sub new
 my $SQL_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS OriginatingHTML ".
    "(DateEntered DATETIME NOT NULL, ".
    "Identifier INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ".
-   "SourceURL TEXT, ".
-   "CreatesRecord INTEGER ZEROFILL)";
+   "SourceURL TEXT)";   
       
 sub createTable
 
@@ -150,7 +153,7 @@ sub createTable
 #  integer foreignIdentifier - foreign key to record that was created
 #  string sourceURL   
 #  HTMLSyntaxTree          - html content will be saved to disk
-#  string foreignTableName - name of the table that contains the created record.  It will be altered with the this new key
+#  string foreignTableName -  name of the table that contains the created record.  It will be altered with the this new key
 #
 # Constraints:
 #  nil
@@ -185,16 +188,15 @@ sub addRecord
       $statementText = "INSERT INTO OriginatingHTML (";
             
       # modify the statement to specify each column value to set 
-      $appendString = "DateEntered, identifier, sourceurl, CreatesRecord";
+      $appendString = "DateEntered, identifier, sourceurl";
       
       $statementText = $statementText.$appendString . ") VALUES (";
       
       # modify the statement to specify each column value to set 
       $index = 0;
-      $quotedUrl = $sqlClient->quote($url);
-      $quotedForeignIdentifier = $sqlClient->quote($foreignIdentifier);
+      $quotedUrl = $sqlClient->quote($url);   
       $quotedTimestamp = $sqlClient->quote($timestamp);
-      $appendString = "$quotedTimestamp, null, $quotedUrl, $quotedForeignIdentifier)";
+      $appendString = "$quotedTimestamp, null, $quotedUrl)";
 
       $statementText = $statementText.$appendString;
       
@@ -224,6 +226,97 @@ sub addRecord
    
    return $identifier;   
 }
+
+
+# -------------------------------------------------------------------------------------------------
+# addRecordToRepository
+# adds a record of data to the OriginatingHTML table
+# also saves the content of the HTMLSyntaxTree to disk
+# uses the new Cache table architecture 
+# (SUPERCEEDS addRecord)
+#
+# Purpose:
+#  Storing information in the database
+#
+# Parameters:
+#  integer foreignIdentifier - foreign key to record that was created
+#  string sourceURL   
+#  HTMLSyntaxTree          - html content will be saved to disk
+#  string foreignTableName - name of the table that contains the created record.  It will be altered with the this new key
+#
+# Constraints:
+#  nil
+#
+# Uses:
+#  sqlClient
+#
+# Updates:
+#  nil
+#
+# Returns:
+#   TRUE (1) if successful, 0 otherwise
+#  
+      
+sub addRecordToRepository
+
+{
+   my $this = shift;
+   my $timestamp = shift;
+   my $foreignIdentifier = shift;
+   my $url = shift;
+   my $htmlSyntaxTree = shift;
+   my $foreignTableName = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $identifier = -1;
+   
+   if ($sqlClient)
+   {
+      $statementText = "INSERT INTO OriginatingHTML (";
+            
+      # modify the statement to specify each column value to set 
+      $appendString = "DateEntered, identifier, sourceurl";
+      
+      $statementText = $statementText.$appendString . ") VALUES (";
+      
+      # modify the statement to specify each column value to set 
+      $index = 0;
+      $quotedUrl = $sqlClient->quote($url);
+      $quotedForeignIdentifier = $sqlClient->quote($foreignIdentifier);
+      $quotedTimestamp = $sqlClient->quote($timestamp);
+      $appendString = "$quotedTimestamp, null, $quotedUrl)";
+
+      $statementText = $statementText.$appendString;
+      
+      # prepare and execute the statement
+      $statement = $sqlClient->prepareStatement($statementText);         
+      if ($sqlClient->executeStatement($statement))
+      {
+         $success = 1;
+       
+         # 25 May 2005 - use lastInsertID to get the primary key identifier of the record just inserted
+         $identifier = $sqlClient->lastInsertID();
+                  
+         if ($identifier >= 0)
+         {
+            #print "altering foreign key in $foreignTableName identifier=$foreignIdentifier createdBy=$identifier\n";
+            # alter the foreign record - add this primary key as the CreatedBy foreign key - completing the relationship
+            # between the two tables (in both directions)
+            $sqlClient->alterForeignKey($foreignTableName, 'ID', $foreignIdentifier, 'originatingHTML', $identifier);
+            
+            $timeStamp = time();
+            
+            # save the HTML content to disk using the primarykey as the filename
+            $this->saveHTMLContent($identifier, $htmlSyntaxTree->getContent(), $url, $timestamp);
+         }
+      }
+   }
+   
+   return $identifier;   
+}
+
 
 # -------------------------------------------------------------------------------------------------
 

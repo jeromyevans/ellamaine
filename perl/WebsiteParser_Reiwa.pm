@@ -39,6 +39,8 @@
 # 12 July 2005     - fixed bug in the parseSearchList function that was resulting in an infinite loop
 #  if the search list contained more than 2 pages (it was posting an incorrect id value for the start
 #  of the next list (the value included the previous id(s) as well as the new one.
+# 5 Feb 2006       - Modified to use the new crawler architecture - the crawler has been separated from the parser 
+#   and a crawler warning system has been included.
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -929,6 +931,91 @@ sub parseREIWASearchDetails
 
 
 # -------------------------------------------------------------------------------------------------
+# extractREIWAPropertyAdvertisement
+# Parses the HTML syntax tree  to extract sufficient information for the cache
+# and submits the record to the cache and repository
+#
+# Purpose:
+#  construction of the repositories
+#
+# Parameters:
+#  DocumentReader
+#  HTMLSyntaxTree to use
+#  String URL
+#
+# Returns:
+#  a list of HTTP transactions or URL's.
+#    
+sub extractREIWAPropertyAdvertisement
+
+{	
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $httpClient = shift;
+   my $instanceID = shift;
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   my $url = $httpClient->getURL();
+   my $useLegacyExtraction = 0;
+   
+   
+   my $sqlClient = $documentReader->getSQLClient();
+   my $tablesRef = $documentReader->getTableObjects();
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($sqlClient);
+   
+   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+   $statusTable = $documentReader->getStatusTable();
+
+   $printLogger->print("in extractREIWAPropertyAdvertisement ($parentLabel)\n");
+
+   # IMPORTANT: extract the cacheID from the parent label   
+   @splitLabel = split /\./, $parentLabel;
+   $cacheID = $splitLabel[$#splitLabel];  # extract the cacheID from the parent label
+   
+   # 3July tighter check for legacy REIWA (see test case 17155 - previously used "map' which is optional on the page) 
+   if (($url =~ /searchdetails\.cfm/) && ($htmlSyntaxTree->containsTextPattern("Save")) && 
+       (($htmlSyntaxTree->containsTextPattern("Suburb Profile")) || ($htmlSyntaxTree->containsTextPattern("Map")) || ($htmlSyntaxTree->containsTextPattern("Print"))))
+   {
+      # this is a legacy REIWA record - a different extraction process needs to be followed
+      $useLegacyExtraction = 1;
+   }
+   
+   # two possible entry patterns - NEW and LEGACY
+   if (($htmlSyntaxTree->containsTextPattern("View Property Details")) || ($useLegacyExtraction))     
+   {
+      if ($cacheID)
+      {
+         if ($sqlClient->connect())
+         {		 	          
+            $printLogger->print("   extractAdvertisement: storing record in repository for CacheID:$cacheID.\n");
+            $identifier = $advertisedPropertyProfiles->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
+            $statusTable->addToRecordsParsed($threadID, 1, 1, $url);                
+         }
+         else
+         {
+            $printLogger->print("   extractAdvertisement:", $sqlClient->lastErrorMessage(), "\n");
+         }
+      }
+      else
+      {
+         $printLogger->print("   extractAdvertisement: cannot proceed. CacheID not set (record not added to repository)\n");
+      }
+   }
+   else
+   {
+      $printLogger->print("   extractAdvertisement: page identifier not found\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "extractAdvertisement: page identifier not found");
+   }
+      
+   # return an empty list
+   return @emptyList;
+}
+
+# -------------------------------------------------------------------------------------------------
 # parseREIWASearchList
 # parses the htmlsyntaxtree that contains the list of homes generated in response 
 # to a query
@@ -973,6 +1060,7 @@ sub parseREIWASearchList
    my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
    my $saleOrRentalFlag = -1;
    my $length = 0;
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
    
    # --- now extract the property information for this page ---
    $printLogger->print("inParseSearchList ($parentLabel):\n");
@@ -991,6 +1079,10 @@ sub parseREIWASearchList
       {
          $saleOrRentalFlag = 1;
       }
+      else
+      {
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchList: sale or rental pattern not found");
+      }      
    
       # loop through table data specifying the suburbname until no more properties can be found....
       while ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass('table', 'lstl-container'))
@@ -1040,16 +1132,17 @@ sub parseREIWASearchList
             $sourceURL = $urlString."?Id=$sourceID";
             
             # check if the cache already contains a profile matching this source ID and title           
-            if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($saleOrRentalFlag, $sourceName, $sourceID, undef, $titleString, undef))
+            $cacheID = $advertisedPropertyProfiles->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+            if ($cacheID == 0)
             {
-               $printLogger->print("   parseSearchList: updated LastEncountered for existing record (sourceID:$sourceID).\n");
+               $printLogger->print("   parseSearchResults: record already in advertisement cache.\n");
                $recordsSkipped++;
-            }
+            }                                   
             else
             {
-               $printLogger->print("   parseSearchList: adding source id ", $sourceID, "...\n");
+               $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, " (cacheID:$cacheID)...\n");
                #$printLogger->print("   parseSearchList: url=", $sourceURL, "\n");          
-               my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$sourceID);                  
+               my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$cacheID);                  
           
                push @urlList, $httpTransaction;
             }
@@ -1137,15 +1230,15 @@ sub parseREIWASearchList
          # override the action for the from (it uses javascript to modidy the URL to specify the LIST action
          # and the identifier of the first property to list
          $currentAction = $formList->getAction();
-         print "lastAction=$currentAction\n";
+         #print "lastAction=$currentAction\n";
          if ($currentAction =~ /Id=/gi)
          {
             # the action already includes an ID attribute - this needs to be removed as a new ID is
             # about to be set (bugfix 12 July 2005)
             $currentAction =~ s/Id=(\d*)//gi;
          }
-         print "fixdAction=$currentAction\n";
-         print "newwAction=$currentAction&Action=LIST&Id=$nextPropertyID\n";
+         #print "fixdAction=$currentAction\n";
+         #print "newwAction=$currentAction&Action=LIST&Id=$nextPropertyID\n";
          $formList->overrideAction($currentAction."&Action=LIST&Id=$nextPropertyID");
          
          # the form contains two hidden values that are derived from the filter parameters for the search
@@ -1182,6 +1275,7 @@ sub parseREIWASearchList
    else 
    {
       $printLogger->print("   parseSearchList: pattern not found\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchList: pattern not found");
    }
    
    
@@ -1311,6 +1405,8 @@ sub parseREIWASearchForm
    my $endLetter =  $documentReader->getGlobalParameter('endrange');
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
    
    $printLogger->print("in parseSearchForm ($parentLabel)\n");
       
@@ -1381,6 +1477,7 @@ sub parseREIWASearchForm
    else 
    {
       $printLogger->print("   parseSearchForm:Search form not found.\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_FORM_NOT_FOUND'}, " parseSearchForm:Search form not found.");
    }
    
    if ($noOfTransactions > 0)

@@ -29,7 +29,11 @@
 #   order redundant, but not sure yet.
 # 25 May 2005 - added function overrideAction to set the action for the form.  Only necessary if the from
 # uses javascript to modify the action onsubmit
-#
+# 30 Jan 2006 - found a bug in getPostParameters that could result in the last parameter being repeated in 
+#  a POST or GET
+#  5 Feb 2005 - fix an issue in HTMLFormSelection that wasn't returning the first option in the selection when
+# a there was no selected or default value.  This affects the operation of getPostParameters
+
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -490,59 +494,49 @@ sub getPostParameters
       
    if ($this->{'simpleInputListLength'} > 0)
    {
-#      print "addingSimpleInputs\n";
+      #print "addingSimpleInputs\n";
       $simpleInputListRef = $this->{'simpleInputListRef'};
    
       # loop for all of the defined simple inputs
       foreach (@$simpleInputListRef)
       {
-         $name = $_->getName();
-         $value = undef;    
-#print "   name = $name\n";         
-         # only include this input if a value is set
-         #if ($_->isValueSet())
-         {
-            $value = $_->getValue();
-#            print "value=$value\n";
-#         print "simpleInput[$index] $name=$value\n";
-            $postParameters[$index]{'name'} = $name;
-            $postParameters[$index]{'value'} = $value;
-            $index++;
-            
-         }
+         $name = $_->getName();    
+       
+         $value = $_->getValue();  
+         #print "simpleInput[$index] $name=$value\n";
+         $postParameters[$index]{'name'} = $name;
+         $postParameters[$index]{'value'} = $value;
+         $index++;                     
       }
    }            
                        
    # check if there's any SELECTions
    if ($this->{'selectionListLength'} > 0)
    {
-#      print "addingSelectionInputs\n";
+      #print "addingSelectionInputs\n";
 
       $selectionListRef = $this->{'selectionListRef'};
       
       # for each selection, get the name and default value    
       foreach (@$selectionListRef)
       {
-         $name = $_->getName();
-         if ($_->isValueSet())
-         {
-            $value = $_->getValue();
-#         print "selection[$index] $name=$value\n";
+         $name = $_->getName();         
+         $value = $_->getValue();
+ #        print "selection[$index] $name=$value\n";
          
          # selections are always added - either the value, the default (is set) or
          # the first item in the list
          
-            $postParameters[$index]{'name'} = $name;
-            $postParameters[$index]{'value'} = $value;
-            $index++;
-         }            
+         $postParameters[$index]{'name'} = $name;
+         $postParameters[$index]{'value'} = $value;
+         $index++;                  
       }
    }
    
    # check if there's any CHECKBOXes
    if ($this->{'checkboxListLength'} > 0)
    {
-#      print "addingCheckboxInputs\n";
+ #     print "addingCheckboxInputs\n";
 
       $checkboxListRef = $this->{'checkboxListRef'};
  
@@ -556,8 +550,7 @@ sub getPostParameters
             $value = $_->getValue();         
             if (defined $value)
             {
-#print "checkbox[$index] $name=$value\n";
-
+#      print "   check[$index]: $name=$value\n";         
                $postParameters[$index]{'name'} = $name;
                $postParameters[$index]{'value'} = $value;
                $index++;
@@ -584,15 +577,22 @@ sub getPostParameters
    $postParameters[0]{'name'} = '_internalPOSTOrder_';
    $postParameters[0]{'value'} = '';
    
+  
+   
+   $length = (@postParameters)-1;
    # 4 Oct 2004 - special - add parameter defining post order
-   for ($index = 0; $index < $this->{'formElementListLength'}; $index++)
+   
+   # loop for all the input elements in this form (even those that don't have a value yet)
+   # (the superset of elements)
+   $length = $this->{'formElementListLength'};
+   for ($index = 0; $index < $length; $index++)
    {
       if ($index > 0)
       {
          $postParameters[0]{'value'} .= ",";
       }
       
-      $name = $this->{'formElementListRef'}[$index];
+      $name = $this->{'formElementListRef'}[$index];      
       $postParameters[0]{'value'} .= $name;
    }
 
@@ -770,7 +770,7 @@ sub addSimpleInput
   
    # define the element in the form if not done so already... 
    $this->defineFormElement($name);   
-#    print "   added simple input($name)=$value ($isValueSet).\n";
+   #print "   added simple input($name)=$value ($isValueSet).\n";
 
    #  add this input to the simple input list
    $this->{'simpleInputListRef'}[$this->{'simpleInputListLength'}] = $htmlFormSimpleInput;                                                                     
@@ -851,7 +851,7 @@ sub setInputValue
          if (($_->getName() eq $name) && ($_->getValue() eq $value))
          {
             $_->setValue($value);
-#            print "setCheckboxInput($name) = $value\n";
+            #print "setCheckboxInput($name) = $value\n";
             $valueSet = 1;
             last;
          }            
@@ -1008,7 +1008,7 @@ sub escapeParameters
    my $unescapedString;     
    my $escapedString = '';
    my $isFirst = 1;
-
+     
    # check if the order for posting has been defined
    if ($$postParametersRef[0]{'name'} eq '_internalPOSTOrder_')
    {
@@ -1028,8 +1028,7 @@ sub escapeParameters
             {
                
                $value = $$_{'value'};
-#               print "X      ", $$_{'name'}, "=", $$_{'value'}, "\n";
-
+               #print "X      ", $$_{'name'}, "=", $$_{'value'}, "\n";
                
                # generate the string from the value in the hash
                $escapedKey = uri_escape($name)."=".uri_escape($value);

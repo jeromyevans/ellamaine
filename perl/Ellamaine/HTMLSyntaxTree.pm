@@ -106,6 +106,19 @@
 # 28 June 2005 - when an anchor is encountered that doesn't have an attribute 'href', instead the
 #    href value is now set to the onClick attribute's value (if availble).  ie. if javascript is run
 #    instead of immediately following the anchor, then the javascript function name is returned
+# 30 Jan 2006 - the 'Last Found Index' and names of methods are a bit inconsistent - sometimes getNext gets the
+#    first item after the search start constraint, and sometimes gets the next item after the last found text.
+#    Added getNextTagMatchingPatternFromLastFound method that is explict about where it starts.
+#    Also added setSearchStartConstraintByTagAndClassFromLastFound
+#    (the naming convention really neads an overhaul though)
+#             - MAJOR: when building the syntax tree, if the tag is an END TAG is no longer inherits
+#    the attributes of the opening tag (eg. id). This was a feature of the TreeBuilder and may have been 
+#    the cause of several problems (that have been worked around in the parsers).  Eg. it matches on the closing 
+#    tag instead of the next opening tag with the same pattern (eg. Tag and Class, or Tag and ID).
+#    THIS CHANGE HAS POTENTIAL TO BREAK EXISTING PARSERS
+#             - MEDIUM: fixed a bug parsing forms that ignored initial values of simple inputs that were to to 
+#    zero (0).  The code treated them as undefs and so thought the value was not set (fixed by setting the default
+#    value if the value is 'defined')
 # Description:
 #   Module that accepts an HTTP::Response and runs a parser (HTTP:TreeBuilder)
 # over it to generate a SyntaxTree object.  The SyntaxTree class is designed for 
@@ -295,6 +308,11 @@ sub _treeBuilder_callBack
    my $tagName;
    my $textIndex;
    
+   my $id = undef;                
+   my $class = undef;            
+   my $title = undef;
+   my $name = undef;  
+   
    # TODO 22/2/04 this will cause problems under multithreading - instead need
    # to create an instance of the callback for this object instance (this is sharing
    # a global variable for this package)
@@ -428,7 +446,7 @@ sub _treeBuilder_callBack
                      {
                         # if both a value and name have been defined for the submit button, then add it as a simple input
                         # with value set
-                        if (($value) && ($name))
+                        if ((defined $value) && ($name))
                         {
                            # only use if a value has been defined for the submit button
                            $this->{'htmlFormListRef'}[$this->{'htmlFormListLength'}-1]->addSimpleInput($name, $value, 1);
@@ -483,7 +501,7 @@ sub _treeBuilder_callBack
                               else
                               {
                                  # this is a simple input type - add it to the form if it has a name and/or value
-                                 if (($name) && ($value))
+                                 if (($name) && (defined $value))
                                  {
                                     $this->{'htmlFormListRef'}[$this->{'htmlFormListLength'}-1]->addSimpleInput($name, $value, 1);
                                  }
@@ -605,6 +623,19 @@ sub _treeBuilder_callBack
       if ($startFlag)
       {
          $tagName = $currentElement->tag();
+         
+         # 30Jan06 - attributes only apply to the opening tag, not the closing 
+         # get the id - this is used by one of the constraint functions (for lookups/parsing)
+         $id = $currentElement->attr('id');
+         
+         # get the class - this is used by one of the constraint functions (for lookups/parsing)
+         $class = $currentElement->attr('class');
+         
+         # get the title - this is used by one of the constraint functions (for lookups/parsing)
+         $title = $currentElement->attr('title');
+         
+         # get the name - this is used by one of the constraint functions (for lookups/parsing)
+         $name = $currentElement->attr('name');         
       }
       else
       {
@@ -614,20 +645,7 @@ sub _treeBuilder_callBack
       # the a reference to the content of this tag
       # note: this is dsabled now - as the content of the treebuilder is released from memory
       # this reference has no purpose  
-      #$tagContent = $currentElement->content();
-      
-      # get the id - this is used by one of the constraint functions (for lookups/parsing)
-      $id = $currentElement->attr('id');
-      
-      # get the class - this is used by one of the constraint functions (for lookups/parsing)
-      $class = $currentElement->attr('class');
-      
-      # get the title - this is used by one of the constraint functions (for lookups/parsing)
-      $title = $currentElement->attr('title');
-      
-      # get the name - this is used by one of the constraint functions (for lookups/parsing)
-      $name = $currentElement->attr('name');
-      
+      #$tagContent = $currentElement->content();              
       
       # record the tag information used for searching
       $this->{'elementListRef'}[$this->{'elementListLength'}] = 
@@ -2697,7 +2715,7 @@ sub getNextText
    {
       $offset = 0;
    }
-      
+  
    # loop through all of the elements in the page
    # (note a forloop is used here instead of foreach because 
    # we don't need $_ to match the element in the list)
@@ -3105,6 +3123,244 @@ sub DESTORY
 {
    print "HTMLSyntaxTree:destroy called ****************\n";
 }
+
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# sub getNextAnchorContainingPatternFromLastFound
+# returns an anchor URL containing the specified pattern
+# 
+# Purpose:
+#  Parsing file
+#
+# Parameters:
+#  STRING searchPattern
+#
+# Constraints:
+#  $this->{'searchStartIndex'}
+#  $this->{'searchEndIndex'}
+#
+# Updates:
+#  nil
+#
+# Returns:
+#   STRING url of anchor
+#
+ 
+sub getNextAnchorContainingPatternFromLastFound
+
+{
+   my $this = shift; # get this object's instance (always the first parameter)
+   my $searchPattern = shift;
+         
+   my $url = undef;
+   my $anchorsFound = 0;   
+   my $anchorIndex;
+   my $tagContent;   
+   my $elementIndex;
+   my $offset = 1;
+   my $textElementIndex;
+      
+    # this global variable is set immediately after setting the start search 
+   # contraint to overcome the special circumstance that the lastFoundIndex
+   # is the position to start from
+   if ($this->{'startAtLastFoundIndex'})
+   {
+      $offset = 0;
+   }
+   
+   # loop through all of the anchor elements in the page
+   $anchorIndex = 0;
+   while (($anchorIndex < $this->{'anchorElementIndexLength'}) && (!$url))   
+   {                                     
+      # if this anchor has at least one text element
+      if ($this->{'anchorElementIndexRef'}[$anchorIndex]{'textListLength'} > 0)
+      {
+           
+         # loop for all of the text elements
+         $listRef = $this->{'anchorElementIndexRef'}[$anchorIndex]{'textListRef'};
+         #print "textListRef: $listRef\n"; 
+         foreach (@$listRef)
+         {                
+            $textElementIndex = $_;
+            # only search from the last successful match
+            if ($textElementIndex >= $this->{'lastFoundIndex'}+$offset) 
+            {
+               if ($textElementIndex <= $this->{'searchEndIndex'})         
+               {                     
+                  # $_ is the index of the text element in the element list
+                  # this is text - see if it contains the pattern
+                  $thisText = $this->{'elementListRef'}[$textElementIndex]{'string'};
+                  if ($thisText =~ /$searchPattern/gi)
+                  {                 
+                     # found a match - extract the URL and exit
+                     $elementIndex = $this->{'anchorElementIndexRef'}[$anchorIndex]{'elementIndex'};                     
+                     $url = $this->{'elementListRef'}[$elementIndex]{'href'};                     
+                                                               
+                     last;                           
+                  }
+               }
+               else
+               {
+                  # gone further than the last search constraint
+                  last;
+               }
+            }
+         }                                                      
+              
+      }
+      $anchorIndex++;
+   }      
+      
+   return $url;     
+}
+
+
+# -------------------------------------------------------------------------------------------------
+# sub setSearchStartConstraintByTagAndClassFromLastFound
+# sets the search start constraint to start on the TEXT ELEMENT AFTER the element with tag and
+# attribute matching the specified class attribute
+#
+# returns TRUE if constraint element found.  Search is case insensitive
+# 
+# Purpose:
+#  Preparation for search
+#
+# Parameters:
+#  STRING tag name (pattern)
+#  STRING class attribute value (pattern)
+#  optional integer - Don't align to next text.  If true, doesn't move the start index to the next text item
+#   (this is useful when looking for a tag instead of text)
+#
+# Constraints:
+#  $this->{'searchStartIndex'}
+#  $this->{'searchEndIndex'}
+#
+# Updates:
+#  $this->{'searchStartIndex'} to the text element after the matching elementList index if FOUND
+#  $this->{'lastFoundIndex'} to the matching elementList index if FOUND
+#
+# Returns:
+#   TRUE (1) if found, FALSE (0) is not found
+#
+ 
+sub setSearchStartConstraintByTagAndClassFromLastFound
+
+{
+   my $this = shift; # get this object's instance (always the first parameter)
+   my $tagSearchPattern = shift;   
+   my $attrValueSearchPattern = shift;   
+   my $dontAlignToNextText = shift;
+   
+   my $found = 0;
+   my $textIndex;
+   my $nextTextIndex;
+   my $textString;
+   my $listIndex;
+   my $getNextTextFlag = 0;
+      
+   my $offset = 1;
+   my $textElementIndex;
+      
+    # this global variable is set immediately after setting the start search 
+   # contraint to overcome the special circumstance that the lastFoundIndex
+   # is the position to start from
+   if ($this->{'startAtLastFoundIndex'})
+   {
+      $offset = 0;
+   }
+   
+   my $escapedAttrValueSearchPattern = $attrValueSearchPattern;
+   # need to escape this search pattern otherwise it could cause the regular expression to halt the process
+   $escapedAttrValueSearchPattern =~ s/(\(|\)|\?|\.|\*|\+|\^|\{|\}|\[|\]|\|)/\\$1/g;
+   
+   # loop through all of the elements in the page
+   # (note a forloop is used here instead of foreach because 
+   # we don't need $_ to match the element in the list)
+   for ($listIndex = 0; $listIndex < $this->{'elementListLength'}; $listIndex++)
+   {      
+      # only search within the bounds of the current LAST FOUND to the end constraint
+      if ($listIndex >= $this->{'lastFoundIndex'}+$offset) 
+      {
+         if ($listIndex <= $this->{'searchEndIndex'})         
+         { 
+            # the getNextTextFlag is used to control the search loop
+            # whether it's looking for a tag or the text following it            
+            if (!$getNextTextFlag)
+            {
+               # check if this tag element contains the search pattern...
+               $tagName = $this->{'elementListRef'}[$listIndex]{'tag'};
+               if ($tagName =~ /$tagSearchPattern/gi)
+               {                           
+                  # found a matching tag - check the class attribute
+                  
+                  # attempt to fetch the attribute value specified
+                  $classValue = $this->{'elementListRef'}[$listIndex]{'class'};
+                  if ($classValue)
+                  {   
+                     # determine if the attribute value matches the pattern
+                     if ($classValue =~ /$escapedAttrValueSearchPattern/gi)
+                     {                        
+                        # found a matching element
+                        $found = 1;
+                        
+                        # need to get the next TEXT element in 
+                        # the element list - this is found by continuing the iteration until 
+                        # the next text (as there's no index to the next element that's text)  
+                        # NOTE: This algorithm could be optimised by recording an index to the 
+                        # next text when constructing the syntaxTree
+                        $getNextTextFlag = 1;
+                        #26May2005 - if the don't align to next text flag is set, then set the start index
+                        # to this element ONLY (don't seek next text item)
+                        if ($dontAlignToNextText)
+                        {
+                           # found a match
+                           $found = 1;         
+                         
+                           $this->{'searchStartIndex'} = $listIndex+1;               
+                           $this->{'lastFoundIndex'} = $listIndex+1;
+                        
+                           $this->{'startAtLastFoundIndex'} = 1;
+                           last;  # break out of the foreach loop
+                        }
+                     }
+                  }
+               }
+            }
+            else
+            {        
+               # check if this element is the next text...         
+               if ($this->{'elementListRef'}[$listIndex]{'type'} == $TEXT)
+               {         
+                  # found a match
+                  $found = 1;         
+                
+                  $this->{'searchStartIndex'} = $listIndex;               
+                  $this->{'lastFoundIndex'} = $listIndex;
+               
+                  $this->{'startAtLastFoundIndex'} = 1;
+               
+                  last;  # break out of the foreach loop               
+               }
+            }                                
+         }
+         else
+         {
+            # gone further than the end of the search constraint - break out now
+            last;
+         }
+      }      
+   }
+
+   #print "STARTBYTAG: start = ", $this->{'searchStartIndex'}, " end = ", $this->{'searchEndIndex'}, "\n";
+
+   return $found;      
+}
+
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------

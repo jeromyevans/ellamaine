@@ -45,7 +45,7 @@ use PrettyPrint;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(tidyRecord repairSuburbName regexEscape isSuburbNameInRange extractOnlyParentName populatePropertyProfileHash);
+@EXPORT = qw(tidyRecord repairSuburbName regexEscape isSuburbNameInRange extractOnlyParentName populatePropertyProfileHash reportParserWarning);
 
 
 # -------------------------------------------------------------------------------------------------

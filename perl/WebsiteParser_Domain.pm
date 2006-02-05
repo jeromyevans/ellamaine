@@ -57,6 +57,9 @@
 #  clear existing invalid values.  This almost warrant reprocessing of all source records (urgh...)
 # 28 Aug 2005      - Domain property details page has been redesigned slightly changing the way suburbname
 #  has to be extracted.  Now performs an additional check to see if the page is the new variant
+# 5 Feb 2006       - Modified to use the new crawler architecture - the crawler has been separated from the parser 
+#   and a crawler warning system has been included.
+
 package WebsiteParser_Domain;
 
 use PrintLogger;
@@ -71,15 +74,21 @@ use Ellamaine::DocumentReader;
 use AdvertisedPropertyProfiles;
 use PropertyTypes;
 use WebsiteParserTools;
-use DomainRegions;
 use OriginatingHTML;
 use Ellamaine::StatusTable;
 use Ellamaine::SessionProgressTable;
 use StringTools;
 use PrettyPrint;
+use CrawlerWarning;
 
 require Exporter;
 @ISA = qw(Exporter);
+
+
+# -------------------------------------------------------------------------------------------------
+
+# global variable used for display purposes - indicates the current region being processed
+my $currentRegion = 'Nil';
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
@@ -827,6 +836,81 @@ sub parseDomainPropertyDetails
 
 
 # -------------------------------------------------------------------------------------------------
+# extractDomainPropertyAdvertisement
+# Parses the HTML syntax tree  to extract sufficient information for the cache
+# and submits the record to the cache and repository
+#
+# Purpose:
+#  construction of the repositories
+#
+# Parameters:
+#  DocumentReader
+#  HTMLSyntaxTree to use
+#  String URL
+#
+# Returns:
+#  a list of HTTP transactions or URL's.
+#    
+sub extractDomainPropertyAdvertisement
+
+{	
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $httpClient = shift;
+   my $instanceID = shift;
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   my $url = $httpClient->getURL();
+
+   my $sqlClient = $documentReader->getSQLClient();
+   my $tablesRef = $documentReader->getTableObjects();
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($sqlClient);
+   
+   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+   $statusTable = $documentReader->getStatusTable();
+
+   $printLogger->print("in extractDomainPropertyAdvertisement ($parentLabel)\n");
+
+   # IMPORTANT: extract the cacheID from the parent label   
+   @splitLabel = split /\./, $parentLabel;
+   $cacheID = $splitLabel[$#splitLabel];  # extract the cacheID from the parent label
+   
+   if ($htmlSyntaxTree->containsTextPattern("Property Details"))
+   {
+      if ($cacheID)
+      {
+         if ($sqlClient->connect())
+         {		 	          
+            $printLogger->print("   extractAdvertisement: storing record in repository for CacheID:$cacheID.\n");
+            $identifier = $advertisedPropertyProfiles->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
+            $statusTable->addToRecordsParsed($threadID, 1, 1, $url);                
+         }
+         else
+         {
+            $printLogger->print("   extractAdvertisement:", $sqlClient->lastErrorMessage(), "\n");
+         }
+      }
+      else
+      {
+         $printLogger->print("   extractAdvertisement: cannot proceed. CacheID not set (record not added to repository)\n");
+      }
+   }
+   else
+   {
+      $printLogger->print("   extractAdvertisement: page identifier not found\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "extractAdvertisement: page identifier not found");
+   }
+   
+   
+   # return an empty list
+   return @emptyList;
+}
+
+# -------------------------------------------------------------------------------------------------
 # parseSearchResults
 # parses the htmlsyntaxtree that contains the list of properties generated in response 
 # to to the search query
@@ -872,24 +956,27 @@ sub parseDomainSearchResults
    my $recordsSkipped = 0;
    my $sessionProgressTable = $documentReader->getSessionProgressTable();
 
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
+   
    my $ignoreNextButton = 0;
    my $sqlClient = $documentReader->getSQLClient();
    my $tablesRef = $documentReader->getTableObjects();
    my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
    my $saleOrRentalFlag = -1;
+   my $cachedID;
    
    # --- now extract the property information for this page ---
    $printLogger->print("inParseSearchResults ($parentLabel):\n");
    
    
-   # report that a suburb has started being processed...
-   $suburbName = extractOnlyParentName($parentLabel);
-   $sessionProgressTable->reportRegionOrSuburbChange($threadID, undef, $suburbName);   
- 
-   
    #$htmlSyntaxTree->printText();
    if ($htmlSyntaxTree->containsTextPattern("Search Results"))
    {         
+        
+      # report that a suburb has started being processed...
+      $suburbName = extractOnlyParentName($parentLabel);
+      $sessionProgressTable->reportRegionOrSuburbChange($threadID, undef, $suburbName);   
+    
       
       if ($sqlClient->connect())
       {
@@ -939,29 +1026,29 @@ sub parseDomainSearchResults
                
                # title string is the suburbname <space> priceString
                $titleString = $htmlSyntaxTree->getNextText();
-               $sourceURL = $htmlSyntaxTree->getNextAnchor();
-                              
+               $sourceURL = $htmlSyntaxTree->getNextAnchor();            
+                                             
                # not sure why this is needed - it shifts it onto the next property, otherwise it finds the same one twice. 
-               $htmlSyntaxTree->setSearchStartConstraintByTag('dl');
-               
+               $htmlSyntaxTree->setSearchStartConstraintByTag('dl');               
                
                # remove non-numeric characters from the string occuring after the question mark
                ($crud, $sourceID) = split(/\?/, $sourceURL, 2);
                $sourceID =~ s/[^0-9]//gi;
                $sourceURL = new URI::URL($sourceURL, $url)->abs()->as_string();      # convert to absolute
               
-                # check if the cache already contains a profile matching this source ID and title           
-               if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($saleOrRentalFlag, $sourceName, $sourceID, undef, $titleString, undef))
-               {
-                  $printLogger->print("   parseSearchList: updated LastEncountered for existing record.\n");
+               # check if the cache already contains a profile matching this source ID and title           
+               $cacheID = $advertisedPropertyProfiles->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+               if ($cacheID == 0)
+               {                                 
+                  $printLogger->print("   parserSearchResults: record already in advertisement cache.\n");
                   $recordsSkipped++;
                }
                else
                {
-                  $printLogger->print("   parseSearchList: adding anchor id ", $sourceID, "...\n");
-                  #$printLogger->print("   parseSearchList: url=", $sourceURL, "\n");          
-                  my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$sourceID);                  
-             
+                  $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, " (cacheID:$cacheID)...\n");                               
+                  # IMPORTANT: pass the CachedID through to the details page parser
+                  my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$cacheID);                                               
+                                          
                   push @urlList, $httpTransaction;
                }
                $recordsEncountered++;  # count records seen
@@ -1003,11 +1090,12 @@ sub parseDomainSearchResults
       
         
       $length = @anchorsList;         
-      $printLogger->print("   parseSearchResults: following $length properties for '$currentRegion'...\n");               
+      $printLogger->print("   parseSearchResults: following $length properties...\n");               
    }	  
    else
    {
       $printLogger->print("   parseSearchResults: pattern not found\n");   
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchResults: pattern not found");
    }
    
    # return the list or anchors or empty list   
@@ -1025,11 +1113,6 @@ sub parseDomainSearchResults
    }   
      
 }
-
-# -------------------------------------------------------------------------------------------------
-
-# global variable used for display purposes - indicates the current region being processed
-my $currentRegion = 'Nil';
 
 # -------------------------------------------------------------------------------------------------
 # parseDomainChooseSuburbs
@@ -1075,18 +1158,28 @@ sub parseDomainChooseSuburbs
    my $state = $documentReader->getGlobalParameter('state');
    my $sessionProgressTable = $documentReader->getSessionProgressTable();
       
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
+   my $acceptSuburb;
+   my $useThisSuburb;
+   
    $printLogger->print("in parseChooseSuburbs ($parentLabel)\n");
 
+   # extract the current region name
+   #@splitLabel = split /\./, $parentLabel;
+   # set global variable for tracking that this instance has been run before
+   # $currentRegion = $splitLabel[$#splitLabel];    
+   # $sessionProgressTable->reportRegionOrSuburbChange($threadID, $currentRegion, 'Nil');
+   
  #  parseDomainSalesDisplayResponse($documentReader, $htmlSyntaxTree, $url, $instanceID, $transactionNo);
  
    if ($htmlSyntaxTree->containsTextPattern("Advanced Search"))
-   {
-       
+   {                    
       # get the HTML Form instance
-      $htmlForm = $htmlSyntaxTree->getHTMLForm();
+      $htmlForm = $htmlSyntaxTree->getHTMLForm("__aspnetForm");
        
       if ($htmlForm)
-      {       
+      {               
          # for all of the suburbs defined in the form, create a transaction to get it
          if (($startLetter) || ($endLetter))
          {
@@ -1102,6 +1195,7 @@ sub parseDomainChooseSuburbs
             # loop through the list of suburbs in the form...
             foreach (@$optionsRef)
             {  
+               $acceptSuburb = 0;
                $value = $_->{'value'};   # this is the suburb name...           
                # check if the last suburb has been encountered - if it has, then start processing from this point
                $useThisSuburb = $sessionProgressTable->isSuburbAcceptable($value);
@@ -1110,59 +1204,61 @@ sub parseDomainChooseSuburbs
                {
                   if ($value =~ /All Suburbs/i)
                   {
-                     # ignore 'all suburbs' option
-                    
+                     # ignore 'all suburbs' option                    
                   }
                   else
                   {
                      # determine if the suburbname is in the specific letter constraint
                      $acceptSuburb = isSuburbNameInRange($_->{'text'}, $startLetter, $endLetter);
-                                           
-                     if ($acceptSuburb)
-                     {         
-                        # 23 Jan 05 - another check - see if the suburb has already been 'completed' in this thread
-                        # if it has been, then don't do it again (avoids special case where servers may return
-                        # the same suburb for multiple search variations)
-                        if (!$sessionProgressTable->hasSuburbBeenProcessed($threadID, $value))
-                        {  
-                        
-                           #$printLogger->print("  $currentRegion:", $_->{'text'}, "\n");
-   
-                           # set the suburb name in the form   
-                           $htmlForm->setInputValue('_ctl0:listboxSuburbs', $_->{'value'});            
-      
-                           my $newHTTPTransaction = HTTPTransaction::new($htmlForm, $url, $parentLabel.".".$_->{'text'});
-                
-                           #print $_->{'value'},"\n";
-                           # add this new transaction to the list to return for processing
-                           $transactionList[$noOfTransactions] = $newHTTPTransaction;
-                           $noOfTransactions++;
-      
-                           $htmlForm->clearInputValue('_ctl0:listboxSuburbs');
-                        }
-                        else
-                        {
-                           $printLogger->print("   ParseChooseSuburbs:suburb ", $_->{'text'}, " previously processed in this thread.  Skipping...\n");
-                        }
-                  
-                     }
                   }
+               }
+                                           
+               if ($acceptSuburb)
+               {         
+                  # 23 Jan 05 - another check - see if the suburb has already been 'completed' in this thread
+                  # if it has been, then don't do it again (avoids special case where servers may return
+                  # the same suburb for multiple search variations)
+                  if (!$sessionProgressTable->hasSuburbBeenProcessed($threadID, $value))
+                  {  
+                  
+                     #$printLogger->print("  $currentRegion:", $_->{'text'}, " '", $_->{'value'}, "'\n");
+
+                     # set the suburb name in the form   
+                     $htmlForm->setInputValue('_ctl0:listboxSuburbs', $_->{'value'});            
+
+                     #$htmlForm->printForm();
+                     
+                     my $newHTTPTransaction = HTTPTransaction::new($htmlForm, $url, $parentLabel.".".$_->{'text'});
+          
+                     #print $_->{'value'},"\n";
+                     #print($newHTTPTransaction->getEscapedParameters(), "\n");
+                     
+                     # add this new transaction to the list to return for processing
+                     $transactionList[$noOfTransactions] = $newHTTPTransaction;
+                     $noOfTransactions++;
+
+                     $htmlForm->clearInputValue('_ctl0:listboxSuburbs');
+                  }
+                  else
+                  {
+                     $printLogger->print("   ParseChooseSuburbs:suburb ", $_->{'text'}, " previously processed in this thread.  Skipping...\n");
+                  }                                                         
                }
             }
          }
-         $printLogger->print("   ParseChooseSuburbs:Created a transaction for $noOfTransactions suburbs in '$currentRegion'...\n");                             
+         $printLogger->print("   ParseChooseSuburbs:Created requests for $noOfTransactions suburbs in '$currentRegion'...\n");                             
       }	  
       else       
       {
          $printLogger->print("   parseChooseSuburbs:Search form not found.\n");
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_FORM_NOT_FOUND'}, "parseChooseSuburbs: Search form not found");         
       }
    }
    else
    {
-      # for some dodgy reason the action for the form above actually comes back to the same page, put returns
-      # a STATUS 302 object has been moved message, pointing to an alternative page.  Seems like a hack
-      # to overcome a problem with their server.  I don't know why they don't just post to a different address, but anyway,
-      # this code detects the object not found message and follows the alternative URL
+      # as this server uses ASP.NET the action for the form above actually comes back to the same page, but returns
+      # a STATUS 302 object has been moved message, pointing to an alternative page. 
+      # This code detects the object not found message and follows the alternative URL
       if ($htmlSyntaxTree->containsTextPattern("Object moved"))
       {
          $printLogger->print("   parseChooseSuburbs: following object moved redirection...\n");
@@ -1180,7 +1276,10 @@ sub parseDomainChooseSuburbs
       }
       else
       {
-         $printLogger->print("   parseChooseSuburbs: pattern not found\n");
+         $printLogger->print("   parseChooseSuburbs: 'object moved' pattern not found\n");         
+         {
+            $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseSuburbs: 'object moved' pattern not found");
+         }
       }
    }
    
@@ -1239,9 +1338,10 @@ sub parseDomainSalesChooseRegions
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sessionProgressTable = $documentReader->getSessionProgressTable();
    
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
    
-   $printLogger->print("in parseChooseRegions ($parentLabel)\n");
-    
+   $printLogger->print("in parseChooseRegions ($parentLabel)\n");    
     
    if ($htmlSyntaxTree->containsTextPattern("Select Region"))
    {
@@ -1319,6 +1419,7 @@ sub parseDomainSalesChooseRegions
       else 
       {
          $printLogger->print("   parseChooseRegions: regions form not found\n");
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_FORM_NOT_FOUND'}, "parseChooseRegions: regions form not found");
       }
    }
    else
@@ -1338,9 +1439,13 @@ sub parseDomainSalesChooseRegions
        
             $transactionList[$noOfTransactions] = $httpTransaction;
             $noOfTransactions++;
-         }
+         }         
          
          #$htmlSyntaxTree->printText();
+      }
+      else
+      {
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseRegions: 'object moved' pattern not found");
       }
    }
    
@@ -1399,6 +1504,8 @@ sub parseDomainRentalChooseRegions
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sessionProgressTable = $documentReader->getSessionProgressTable();
 
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
    
    $printLogger->print("in parseChooseRegions ($parentLabel)\n");
     
@@ -1483,6 +1590,7 @@ sub parseDomainRentalChooseRegions
       else 
       {
          $printLogger->print("   parseChooseRegions: regions form not found\n");
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_FORM_NOT_FOUND'}, "parseChooseRegions: regions form not found");
       }
    }
    else
@@ -1502,6 +1610,10 @@ sub parseDomainRentalChooseRegions
        
             $transactionList[$noOfTransactions] = $httpTransaction;
             $noOfTransactions++;
+         }
+         else
+         {
+            $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseRegions: 'object moved' pattern not found"); 
          }
          
          #$htmlSyntaxTree->printText();
@@ -1556,6 +1668,9 @@ sub parseDomainChooseState
    my $state = $documentReader->getGlobalParameter('state');
    my @transactionList;
    my $url = $httpClient->getURL();
+   
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
 
    # delete cookies to start a fresh session 
    $documentReader->deleteCookies();
@@ -1579,10 +1694,9 @@ sub parseDomainChooseState
       }
    }	  
    else 
-   {
-      $printLogger->print("parseChooseState: pattern not found\n");
+   {      
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseState: pattern not found");
    }
-
    
    # return a list with just the anchor in it
    if ($anchor)

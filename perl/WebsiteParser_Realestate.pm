@@ -46,6 +46,8 @@
 # a relative address of the value:  "cgi-bin/rsearch" instead of "/cgi-bin/rsearch".  
 # The new value does not comping properly with the base path to generate the URL for the form's GET
 # request.  Now override the value to "/cgi-bin/research".                   
+# 5 Feb 2006       - Modified to use the new crawler architecture - the crawler has been separated from the parser 
+#   and a crawler warning system has been included.
 
 # ---CVS---
 # Version: $Revision$
@@ -734,6 +736,80 @@ sub parseRealEstateSearchDetails
    return @emptyList;
 }
 
+# -------------------------------------------------------------------------------------------------
+# extractRealEstatePropertyAdvertisement
+# Parses the HTML syntax tree  to extract sufficient information for the cache
+# and submits the record to the cache and repository
+#
+# Purpose:
+#  construction of the repositories
+#
+# Parameters:
+#  DocumentReader
+#  HTMLSyntaxTree to use
+#  String URL
+#
+# Returns:
+#  a list of HTTP transactions or URL's.
+#    
+sub extractRealEstatePropertyAdvertisement
+
+{	
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $httpClient = shift;
+   my $instanceID = shift;
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   my $url = $httpClient->getURL();
+
+   my $sqlClient = $documentReader->getSQLClient();
+   my $tablesRef = $documentReader->getTableObjects();
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($sqlClient);
+   
+   my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+   $statusTable = $documentReader->getStatusTable();
+
+   $printLogger->print("in extractRealEstatePropertyAdvertisement ($parentLabel)\n");
+
+   # IMPORTANT: extract the cacheID from the parent label   
+   @splitLabel = split /\./, $parentLabel;
+   $cacheID = $splitLabel[$#splitLabel];  # extract the cacheID from the parent label
+   
+   if ($htmlSyntaxTree->containsTextPattern("Property No"))
+   {
+      if ($cacheID)
+      {
+         if ($sqlClient->connect())
+         {		 	          
+            $printLogger->print("   extractAdvertisement: storing record in repository for CacheID:$cacheID.\n");
+            $identifier = $advertisedPropertyProfiles->storeInAdvertisementRepository($cacheID, $url, $htmlSyntaxTree);
+            $statusTable->addToRecordsParsed($threadID, 1, 1, $url);                
+         }
+         else
+         {
+            $printLogger->print("   extractAdvertisement:", $sqlClient->lastErrorMessage(), "\n");
+         }
+      }
+      else
+      {
+         $printLogger->print("   extractAdvertisement: cannot proceed. CacheID not set (record not added to repository)\n");
+      }
+   }
+   else
+   {
+      $printLogger->print("   extractAdvertisement: page identifier not found\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "extractAdvertisement: page identifier not found");
+   }
+   
+   
+   # return an empty list
+   return @emptyList;
+}
 
 # -------------------------------------------------------------------------------------------------
 # parseRealEstateSearchResults
@@ -792,10 +868,10 @@ sub parseRealEstateSearchResults
    my $tablesRef = $documentReader->getTableObjects();
    my $advertisedPropertyProfiles = $$tablesRef{'advertisedPropertyProfiles'};
    my $saleOrRentalFlag = -1;
-   
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
+      
    # --- now extract the property information for this page ---
    $printLogger->print("inParseSearchResults ($parentLabel):\n");
-   print "$url\n";
    @splitLabel = split /\./, $parentLabel;
    $suburbName = $splitLabel[$#splitLabel];  # extract the suburb name from the parent label
 
@@ -823,6 +899,7 @@ sub parseRealEstateSearchResults
          else
          {
             $printLogger->print("WARNING: sale or rental pattern not found\n");
+            $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchResults: sale or rental pattern not found");
          }
          
          #20Jun2005 - page has been re-designed - try old and new patterns
@@ -912,16 +989,17 @@ sub parseRealEstateSearchResults
                if (($sourceID) && ($anchor))
                {
                   # check if the cache already contains a profile matching this source ID and title           
-                  if ($advertisedPropertyProfiles->updateLastEncounteredIfExists($saleOrRentalFlag, $sourceName, $sourceID, undef, $titleString, undef))
+                  $cacheID = $advertisedPropertyProfiles->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+                  if ($cacheID == 0)
                   {
-                     $printLogger->print("   parseSearchList: updated LastEncountered for existing record.\n");
+                     $printLogger->print("   parseSearchResults: record already in advertisement cache.\n");
                      $recordsSkipped++;
-                  }
+                  }                 
                   else
                   {
-                     $printLogger->print("   parseSearchList: adding anchor id ", $sourceID, "...\n");
+                     $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, " (cacheID:$cacheID)...\n");   
                      #$printLogger->print("   parseSearchList: url=", $sourceURL, "\n");          
-                     my $httpTransaction = HTTPTransaction::new($anchor, $url, $parentLabel.".".$sourceID);                  
+                     my $httpTransaction = HTTPTransaction::new($anchor, $url, $parentLabel.".".$cacheID);                  
                 
                      push @urlList, $httpTransaction;
                   }
@@ -989,6 +1067,7 @@ sub parseRealEstateSearchResults
    else 
    {
       $printLogger->print("   parseSearchResults: pattern not found\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchResults: pattern not found");
    }
    
    # return the list or anchors or empty list   
@@ -1051,7 +1130,9 @@ sub parseRealEstateSearchForm
    my $endLetter =  $documentReader->getGlobalParameter('endrange');
    my $printLogger = $documentReader->getGlobalParameter('printLogger');
    my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
-
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
+   
    my %subAreaHash;
       
    $printLogger->print("in parseSearchForm ($parentLabel)\n");
@@ -1134,6 +1215,7 @@ sub parseRealEstateSearchForm
    else 
    {
       $printLogger->print("   parseSearchForm:Search form not found.\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_FORM_NOT_FOUND'}, " parseSearchForm:Search form not found.");
    }
    
    if ($noOfTransactions > 0)
@@ -1146,223 +1228,6 @@ sub parseRealEstateSearchForm
       return @emptyList;
    }   
 }
-
-
-# -------------------------------------------------------------------------------------------------
-# parseRealEstateChooseState
-# parses the htmlsyntaxtree to extract the link to each of the specified state
-#
-# Purpose:
-#  construction of the repositories
-#
-# Parameters:
-#  DocumentReader
-#  HTMLSyntaxTree to use
-#  String URL
-#
-# Constraints:
-#  nil
-#
-# Updates:
-#  database
-#
-# Returns:
-#  a list of HTTP transactions or URL's.
-#    
-sub parseRealEstateChooseState
-
-{	
-   my $documentReader = shift;
-   my $htmlSyntaxTree = shift;
-   my $httpClient = shift;         
-   my $instanceID = shift;
-   my $transactionNo = shift;
-   my $threadID = shift;
-   my $parentLabel = shift;
-   my $dryRun = shift;
-   my $url = $httpClient->getURL();
-
-   my @anchors;
-   my $printLogger = $documentReader->getGlobalParameter('printLogger');
-   my $state = $documentReader->getGlobalParameter('state');
-   my @transactionList;
-   
-   # --- now extract the property information for this page ---
-   $printLogger->print("inParseChooseState ($parentLabel):\n");
-   if ($htmlSyntaxTree->containsTextPattern("Advanced Search"))
-   { 
-      $htmlSyntaxTree->setSearchStartConstraintByText("Browse by State");
-      $htmlSyntaxTree->setSearchEndConstraintByText("Searching for Real Estate");                                    
-      $anchor = $htmlSyntaxTree->getNextAnchorContainingPattern($state);
-      
-      if ($anchor)
-      {
-         $printLogger->print("   following anchor '$state'\n");
-      }
-      else
-      {
-         $printLogger->print("   anchor '$state' not found!\n");
-      }
-   }	  
-   else 
-   {
-      $printLogger->print("parseChooseState: pattern not found\n");
-   }
-
-   
-   # return a list with just the anchor in it
-   if ($anchor)
-   {
-      $httpTransaction = HTTPTransaction::new($anchor, $url, $parentLabel.".".$state);   # use the state in the label
-       
-      return ($httpTransaction);
-   }
-   else
-   {
-      return @emptyList;
-   }
-}
-
-
-# -------------------------------------------------------------------------------------------------
-# parseRealEstateSalesHomePage
-# parses the htmlsyntaxtree to extract the link to the Advertised Sale page
-#
-# Purpose:
-#  construction of the repositories
-#
-# Parameters:
-#  DocumentReader
-#  HTMLSyntaxTree to use
-#  String URL
-#
-# Constraints:
-#  nil
-#
-# Updates:
-#  database
-#
-# Returns:
-#  a list of HTTP transactions or URL's.
-#    
-sub parseRealEstateSalesHomePage
-
-{	
-   my $documentReader = shift;
-   my $htmlSyntaxTree = shift;
-   my $httpClient = shift;         
-   my $instanceID = shift;   
-   my $transactionNo = shift;
-   my $threadID = shift;
-   my $parentLabel = shift;
-   my $dryRun = shift;
-   my $url = $httpClient->getURL();
-
-   my $printLogger = $documentReader->getGlobalParameter('printLogger');
-   my @anchors;
-   
-   # --- now extract the property information for this page ---
-   $printLogger->print("inParseHomePage ($parentLabel):\n");
-   if ($htmlSyntaxTree->containsTextPattern("Real Estate Institute of Western Australia"))
-   {                                     
-      $anchor = $htmlSyntaxTree->getNextAnchorContainingPattern("Homes For Sale");
-      if ($anchor)
-      {
-         $printLogger->print("   following anchor 'Homes For Sale'...\n");
-      }
-      else
-      {
-         $printLogger->print("   anchor 'Homes For Sale' not found!\n");
-      }
-   }	  
-   else 
-   {
-      $printLogger->print("parseHomePage: pattern not found\n");
-   }
-   
-   # return a list with just the anchor in it
-   if ($anchor)
-   {
-      my $newHTTPTransaction = HTTPTransaction::new($anchor, $url, $parentLabel."sales");
-
-      return ($newHTTPTransaction);
-   }
-   else
-   {
-      return @emptyList;
-   }
-}
-
-
-# -------------------------------------------------------------------------------------------------
-# parseRealEstateRentalsHomePage
-# parses the htmlsyntaxtree to extract the link to the Advertised Sale page
-#
-# Purpose:
-#  construction of the repositories
-#
-# Parameters:
-#  DocumentReader
-#  HTMLSyntaxTree to use
-#  String URL
-#
-# Constraints:
-#  nil
-#
-# Updates:
-#  database
-#
-# Returns:
-#  a list of HTTP transactions or URL's.
-#    
-sub parseRealEstateRentalsHomePage
-
-{	
-   my $documentReader = shift;
-   my $htmlSyntaxTree = shift;
-   my $httpClient = shift;         
-   my $instanceID = shift;   
-   my $transactionNo = shift;
-   my $threadID = shift;
-   my $parentLabel = shift;
-   my $dryRun = shift;
-   my $url = $httpClient->getURL();
-
-   my $printLogger = $documentReader->getGlobalParameter('printLogger');
-   my @anchors;
-   
-   # --- now extract the property information for this page ---
-   $printLogger->print("inParseHomePage ($parentLabel):\n");
-   if ($htmlSyntaxTree->containsTextPattern("Real Estate Institute of Western Australia"))
-   {                                     
-      $anchor = $htmlSyntaxTree->getNextAnchorContainingPattern("Rental Profiles");
-      if ($anchor)
-      {
-         $printLogger->print("   following anchor 'Rental Profiles'...\n");
-      }
-      else
-      {
-         $printLogger->print("   anchor 'Rental Profiles' not found!\n");
-      }
-   }	  
-   else 
-   {
-      $printLogger->print("parseHomePage: pattern not found\n");
-   }
-   
-   # return a list with just the anchor in it
-   if ($anchor)
-   {
-      my $newHTTPTransaction = HTTPTransaction::new($anchor, $url, $parentLabel."sales");
-
-      return ($newHTTPTransaction);
-   }
-   else
-   {
-      return @emptyList;
-   }
-}
-
 
 # -------------------------------------------------------------------------------------------------
 

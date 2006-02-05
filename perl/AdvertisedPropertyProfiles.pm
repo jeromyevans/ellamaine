@@ -114,7 +114,9 @@
 #                   - added index to the WorkingVew on DateEntered so records in the WorkingView table
 #  can be selected that are NEWER than the MostRecent record in the MostRecent table.  This supports
 #  incremental batch transfer from the WorkingView to the MostRecent table
-#
+# 30 Jan 06 - added support for the AdvertisementCache.  This cache functions much like the old one, but its
+#  justification now is to separate crawling from parsing.  The crawler only uses the cache and generates 
+#  OriginatingHTML for parsing.
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -154,6 +156,7 @@ sub new
 {   
    my $sqlClient = shift;
 
+   $ADVERTISEMENT_CACHE_TABLE_NAME = "AdvertisementCache"; 
    $tableName = 'AdvertisedPropertyProfiles';
    $originatingHTML = OriginatingHTML::new($sqlClient);
    $agentProfiles = AgentProfiles::new($sqlClient);
@@ -167,7 +170,8 @@ sub new
       originatingHTML => $originatingHTML,
       regExPatterns => undef, 
       agentProfiles => $agentProfiles,
-      agentContactProfiles => $agentContactProfiles
+      agentContactProfiles => $agentContactProfiles,
+      ADVERTISEMENT_CACHE_TABLE_NAME => $ADVERTISEMENT_CACHE_TABLE_NAME
    }; 
       
    bless $advertisedPropertyProfiles;     
@@ -261,6 +265,9 @@ sub createTable
       $this->_createWorkingViewTable();
       #24Sep05: create the MostRecent view table
       $this->_createMostRecentTable();
+      
+      #30Jan06: create the Cache table
+      $this->_createAdvertisementCacheTable();
       
       # create the originatingHTML table
       $originatingHTML = $this->{'originatingHTML'};
@@ -732,6 +739,7 @@ sub updateLastEncounteredIfExists
       {
          # determine the current time
          $currentTime = time();
+         # (correct formatting performed below)
       }
       else
       {
@@ -3417,10 +3425,12 @@ sub existsInMostRecent
   #                                           " (Identifier = ".$$parametersRef{'Identifier'}.")".
   #                                           " OR (SaleOrRentalFlag = ".$sqlClient->quote($$parametersRef{'SaleOrRentalFlag'})." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'}).")".                                           
   #                                           " AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")");
-  
+ 
    my @identifierList = $sqlClient->doSQLSelect("SELECT Identifier FROM MostRecent_AdvertisedPropertyProfiles WHERE".                                             
-                                                " SaleOrRentalFlag = ".$$parametersRef{'SaleOrRentalFlag'}." AND SourceName = ".$sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".$sqlClient->quote($$parametersRef{'SourceID'})." AND (DateEntered < ".$sqlClient->quote($$parametersRef{'DateEntered'}).")";  
-            
+                                                " SaleOrRentalFlag = ".$$parametersRef{'SaleOrRentalFlag'}." AND SourceName = ".
+                                                $sqlClient->quote($$parametersRef{'SourceName'})." AND SourceID = ".
+                                                $sqlClient->quote($$parametersRef{'SourceID'})." AND (DateEntered < ".
+                                                $sqlClient->quote($$parametersRef{'DateEntered'}).")");
    $length = @identifierList;
    
    if ($length > 0)
@@ -3728,4 +3738,407 @@ sub updateMostRecent
    
    return $recordAdded;   
 }
+
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+
+my $SQL_CREATE_CACHE_TABLE_BODY = 
+   "ID INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ".
+   "DateEntered DATETIME NOT NULL, ".
+   "LastEncountered DATETIME, ".
+   "SaleOrRentalFlag INTEGER,".                   
+   "SourceName TEXT, ".
+   "SourceID VARCHAR(20), ".
+   "TitleString TEXT, ".
+   "OriginatingHTML INTEGER ZEROFILL";     # REFERENCES OriginatingHTML.Identifier,".           
+
+# -------------------------------------------------------------------------------------------------
+# _createCacheTable
+# attempts to create the CacheTable table in the database if it doesn't already exist
+# 
+# Purpose:
+#  Initialising a new database
+#
+#
+# Returns:
+#   TRUE (1) if successful, 0 otherwise
+#   
+
+sub _createAdvertisementCacheTable
+
+{
+   my $this = shift;
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'ADVERTISEMENT_CACHE_TABLE_NAME'};
+
+   my $SQL_CREATE_CACHE_TABLE_PREFIX = "CREATE TABLE IF NOT EXISTS $tableName (";
+   
+   my $SQL_CREATE_CACHE_TABLE_SUFFIX = ", INDEX (SaleOrRentalFlag, sourceName(5), sourceID(10)), INDEX(DateEntered), INDEX(OriginatingHTML))"; 
+   
+   if ($sqlClient)
+   {
+      # append change table prefix, original table body and change table suffix
+      $sqlStatement = $SQL_CREATE_CACHE_TABLE_PREFIX.$SQL_CREATE_CACHE_TABLE_BODY.$SQL_CREATE_CACHE_TABLE_SUFFIX;
+      
+      $statement = $sqlClient->prepareStatement($sqlStatement);
+      
+      if ($sqlClient->executeStatement($statement))
+      {
+         $success = 1;
+      }
+   }
+   
+   return $success;   
+}
+
+# -------------------------------------------------------------------------------------------------
+
+# addCacheRecord
+# adds a record of data to the Advertisement Cache table
+#
+# Parameters:
+#  reference to a hash containing the values to insert
+#
+# Returns:
+#   The ID of the record inserted
+#        
+sub addAdvertisementCacheRecord
+
+{
+   my $this = shift;
+   my $saleOrRentalFlag = shift;
+   my $sourceName = shift;
+   my $sourceID = shift;
+   my $titleString = shift;   
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $tableName = $this->{'ADVERTISEMENT_CACHE_TABLE_NAME'};
+   my $localTime;
+ 
+   my $identifier = -1;
+   
+   if ($sqlClient)
+   {
+      $statementText = "INSERT INTO $tableName (DateEntered, SaleOrRentalFlag, SourceName, SourceID, TitleString) VALUES (";
+      
+      # modify the statement to specify each column value to set 
+      @columnValues = values %$parametersRef;
+      $index = 0;
+      
+      if (!$this->{'useDifferentTime'})
+      {
+         # determine the current time
+         ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+         $this->{'dateEntered'} = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);
+         $localTime = $sqlClient->quote($this->{'dateEntered'});
+      }
+      else
+      {
+         # use the specified date instead of the current time
+         $localTime = $sqlClient->quote($this->{'dateEntered'});
+         $this->{'useDifferentTime'} = 0;  # reset the flag
+      }      
+      
+      $quotedSource = $sqlClient->quote($sourceName);
+      $quotedSourceID = $sqlClient->quote($sourceID);
+      $quotedTitleString = $sqlClient->quote($titleString);
+      
+      $appendString = "$localTime, $saleOrRentalFlag, $quotedSource, $quotedSourceID, $quotedTitleString";
+      
+      $statementText = $statementText.$appendString . ")";
+      
+      #print "statement = ", $statementText, "\n";
+      $statement = $sqlClient->prepareStatement($statementText);
+      
+      if ($sqlClient->executeStatement($statement))
+      {
+         $success = 1;
+         
+         # 2 April 2005 - use lastInsertID to get the primary key identifier of the record just inserted
+         $identifier = $sqlClient->lastInsertID();                           
+      }
+   }
+   
+   return $identifier;   
+}
+
+# -------------------------------------------------------------------------------------------------
+# replaceAdvertisementCacheRecord
+# updates the specified cache record of data using the changedProfile hash
+#
+#
+# Parameters:
+#  reference to a hash containing the CHANGED values to insert
+#  INTEGER ID
+#
+# Returns:
+#   TRUE (1) if successful, 0 otherwise
+#        
+sub replaceAdvertisementCacheRecord
+
+{
+   my $this = shift;
+   my $parametersRef = shift;   
+   my $sourceIdentifier = shift;
+   
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $localTime;
+   my $tableName = $this->{'ADVERTISEMENT_CACHE_TABLE_NAME'};
+   
+   if ($sqlClient)
+   {      
+      @changeList = keys %$parametersRef;
+      $noOfChanges = @changeList;
+      if ($noOfChanges > 0)
+      {
+         $appendString = "UPDATE $tableName SET ";
+         # modify the statement to specify each column value to set 
+         $index = 0;
+         while(($field, $value) = each(%$parametersRef)) 
+         {
+            if ($index > 0)
+            {
+               $appendString = $appendString . ", ";
+            }
+            
+            $quotedValue = $sqlClient->quote($value);
+            
+            $appendString = $appendString . "$field = $quotedValue ";
+            $index++;
+         }      
+         
+         $statementText = $appendString." WHERE ID=$sourceIdentifier";
+         # print "$statementText\n";
+         $statement = $sqlClient->prepareStatement($statementText);
+         
+         if ($sqlClient->executeStatement($statement))
+         {
+            $success = 1;                       
+         }
+      }
+   }
+   
+   return $success; 
+}
+
+# -------------------------------------------------------------------------------------------------
+# updateAdvertisementCache
+# determine if the property exists in the cache or not - if it does, updates the LastEncountered 
+# field only, but if it doesn't creates a new cache entry
+#
+# Parameters:
+#  saleOrRentalFlag
+#  string sourceName
+#  string sourceID
+#  string titleString
+#
+# Returns:
+#   The identifier of the new CacheRecord, or Zero if a CacheHit occured (already exists)
+#
+sub updateAdvertisementCache
+{   
+   my $this = shift;
+   my $saleOrRentalFlag = shift;
+   my $sourceName = shift;      
+   my $sourceID = shift;
+   my $titleString = shift; 
+   my $statement;
+   my $found = 0;
+   my $statementText;
+   my $identifier;
+   
+   my $sqlClient = $this->{'sqlClient'};
+   my $tableName = $this->{'ADVERTISEMENT_CACHE_TABLE_NAME'};
+   my @identifierList;
+   my $matches;
+   
+   if ($sqlClient)
+   {  
+      $quotedSource = $sqlClient->quote($sourceName);
+      $quotedSourceID = $sqlClient->quote($sourceID);
+      $quotedTitleString = $sqlClient->quote($titleString);
+
+      $constraint = "SaleOrRentalFlag = $saleOrRentalFlag AND sourceName = $quotedSource and sourceID = $quotedSourceID";     
+      if ($titleString)
+      {
+         $constraint .= " AND TitleString = $quotedTitleString";
+      }
+      
+      # this additional constraint allows records that never completely processed (didn't get details loaded
+      # into the repository) to be run again
+      $constraint .= " and OriginatingHTML > 0";
+                        
+      $statementText = "SELECT * FROM $tableName WHERE $constraint";         
+      
+      @selectResults = $sqlClient->doSQLSelect($statementText);
+      
+      if (!$this->{'useDifferentTime'})
+      {
+         # determine the current time
+         $currentTime = time();
+         # (correct formatting performed below)
+      }
+      else
+      {
+         # use the specified date instead of the current time
+         $currentTime = $this->getDateEnteredEpoch();
+      }   
+      
+      foreach (@selectResults)
+      {         
+         # there are 1 or more matches...update them
+         
+         # make sure the lastEncountered/dateEntered for the existing record is OLDER than the record being added       
+         $dateEntered = $sqlClient->unix_timestamp($$_{'DateEntered'});
+         
+         # if last encountered is set
+         if ($$_{'LastEncountered'})
+         {
+            $lastEncountered = $sqlClient->unix_timestamp($$_{'LastEncountered'});
+            if ($currentTime > $lastEncountered)
+            {
+               # this record needs to be updated
+               push @identifierList, $$_{'ID'};
+            }            
+         }
+         else
+         {
+            if ($currentTime > $dateEntered)
+            {
+               # this record needs to be updated
+               push @identifierList, $$_{'ID'};
+            }            
+         }
+      }
+       
+      $matches = @identifierList;
+      if ($matches > 0)
+      {
+         # finally, iterate through the list of identifiers that need to be modified and apply the changes
+         my %changedCacheRecord;
+         
+         ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($currentTime);
+         $sqlTime = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);
+         
+         foreach (@identifierList)
+         {
+            $identifier = $_;
+            $changedCacheRecord{'LastEncountered'} = $sqlTime;
+                       
+            # apply the change - note this also propagates changes into the working view
+            $this->replaceAdvertisementCacheRecord(\%changedCacheRecord, $identifier);
+            $found = 1;
+         }
+      }
+      else
+      {
+         # the record does not exist in the cache - create a new record
+         my %cacheRecord;
+         
+         $identifier = $this->addAdvertisementCacheRecord($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+      }
+   }   
+   
+   if ($found)
+   {
+      return 0;  # zero means a cache hit occured
+   }
+   else
+   {
+      return $identifier;  # the identifier of the new cache record
+   }   
+}  
+
+
+# -------------------------------------------------------------------------------------------------
+# storeInAdvertisementRepository
+# Enters the OriginatingHTML into the repository for the specified CacheID item
+# Triggers an update of the Cache to reference to OriginatingHTML ID too.
+#
+# Parameters:
+#  cacheID
+#  string url
+#  htmlsyntaxtree
+#
+# Returns:
+#   Nil
+#
+sub storeInAdvertisementRepository
+{   
+   my $this = shift;
+   my $cacheID = shift;
+   my $url = shift;
+   my $htmlSyntaxTree = shift;   
+     
+   my $tableName = $this->{'ADVERTISEMENT_CACHE_TABLE_NAME'};
+   my $currentTime;
+                       
+   if (!$this->{'useDifferentTime'})
+   {
+      # determine the current time      
+      ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time());
+      $sqlTime = sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);         
+   }
+   else
+   {
+      # use the specified date instead of the current time
+      $currentTime = $this->getDateEnteredEpoch();
+   }   
+             
+   # --- store the originatingHTML record - in turn this will update the ID reference in the Cache ---
+   if ($cacheID)
+   {         
+      $originatingHTML->addRecordToRepository($sqlTime, $cacheID, $url, $htmlSyntaxTree, $tableName);     
+   }                  
+}  
+
+# -------------------------------------------------------------------------------------------------
+# addReferenceToAdvertisementRepository
+# Updates the specified cache entry to reference the OriginatingHTML specified
+# This is used when one OriginatingHTML generates several cache entries.
+#
+# Parameters:
+#  cacheID
+#  string url
+#  htmlsyntaxtree
+#
+# Returns:
+#   Nil
+#
+sub addReferenceToAdvertisementRepository
+{   
+   my $this = shift;
+   my $cacheID = shift;
+   my $originatingHTMLId = shift;    
+     
+   my $tableName = $this->{'ADVERTISEMENT_CACHE_TABLE_NAME'};                          
+   my $success = 0;
+   my $sqlClient = $this->{'sqlClient'};
+   my $statementText;
+   my $identifier = -1;
+   
+   if (($sqlClient) && ($cacheID) && ($originatingHTMLId))
+   {                                 
+      #print "altering foreign key in $foreignTableName identifier=$foreignIdentifier createdBy=$identifier\n";
+      # alter the foreign record - add this primary key as the CreatedBy foreign key - completing the relationship
+      # between the two tables (in both directions)
+      $sqlClient->alterForeignKey($tableName, 'ID', $cacheID, 'originatingHTML', $originatingHTMLId);
+   }
+}  
+
 
