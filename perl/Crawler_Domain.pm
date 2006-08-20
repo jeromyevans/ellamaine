@@ -62,6 +62,9 @@
 #                  - Renamed to Crawler*
 #                  - Moved Parsing code out to Parser*
 #                  - Modified to use the AdvertisementCache instead of AdvertisedPropertyProfiles
+# 20 Aug 2006      - Modified crawler for changes to the Domain website.  Most changes were superficial (same urls)
+#   except for some restructuring in the results page
+#
 package Crawler_Domain;
 
 use PrintLogger;
@@ -225,7 +228,8 @@ sub parseDomainSearchResults
    
    
    #$htmlSyntaxTree->printText();
-   if ($htmlSyntaxTree->containsTextPattern("Search Results"))
+   # Domain redesigned August 2006 - mostly superficial changes
+   if (($htmlSyntaxTree->containsTextPattern("Search Results")) || ($htmlSyntaxTree->containsTextPattern("Refine Your Search")))
    {         
         
       # report that a suburb has started being processed...
@@ -265,32 +269,61 @@ sub parseDomainSearchResults
             }
             
             
-            $htmlSyntaxTree->setSearchStartConstraintByText("Your search for properties");
-            $htmlSyntaxTree->setSearchEndConstraintByText("email me similar properties");
+            $htmlSyntaxTree->setSearchStartConstraintByText("results in");  # 20Aug06
+            $htmlSyntaxTree->setSearchEndConstraintByText("Listing price or ad type");     # 20Aug06
          
             # get the suburbname from the page - used tfor tracking progress...
-            $suburbName = $htmlSyntaxTree->getNextTextAfterPattern("suburbs:");
+            $regionName = $htmlSyntaxTree->getNextText();  # 20Aug06
+            $crud = $htmlSyntaxTree->getNextText();  # 20Aug06
+            $suburbName = $htmlSyntaxTree->getNextText();  # 20Aug06
             
             $htmlSyntaxTree->resetSearchConstraints();
             
-            # each entry is in it's own table.
+            # 20Aug06
+            # each entry is in it's own div of class "zeussearchResult" 
             # the suburb name and price are in an H4 tag
             # the next non-image anchor href attribute contains the unique ID
-            while ($htmlSyntaxTree->setSearchStartConstraintByTag('dl'))
-            {
-               
-               # title string is the suburbname <space> priceString
+            while ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', 'zeussearchResultHeader'))
+            {               
+               #$htmlSyntaxTree->setSearchStartConstraintByTag('h4');               
+
+               # title string is in a span after the suburbname
+               # but sometimes its proceeded by link text (eg. to virtual tour)
+               # loop until the suburb name (zero or one iteration normally)
+               $nextText = $htmlSyntaxTree->getNextText();
+               $count = 0;
+               while (($count < 2) && (!($nextText =~ /$suburbName/gi))) 
+               {
+                  $nextText = $htmlSyntaxTree->getNextText(); 
+                  $count++;
+               }               
                $titleString = $htmlSyntaxTree->getNextText();
+               if ($titleString =~ /Property Type/) 
+               {
+                  $titleString = "";  # blank title
+               }
+
+               $printLogger->print("   crud= $crud\n");
+               $printLogger->print("   titleString= $titleString\n");
+               
+               $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', 'zeussearchResultMainImage');               
+                              
                $sourceURL = $htmlSyntaxTree->getNextAnchor();            
                                              
                # not sure why this is needed - it shifts it onto the next property, otherwise it finds the same one twice. 
-               $htmlSyntaxTree->setSearchStartConstraintByTag('dl');               
+               #$htmlSyntaxTree->setSearchStartConstraintByTag('dl');               
                
                # remove non-numeric characters from the string occuring after the question mark
                ($crud, $sourceID) = split(/\?/, $sourceURL, 2);
                $sourceID =~ s/[^0-9]//gi;
                $sourceURL = new URI::URL($sourceURL, $url)->abs()->as_string();      # convert to absolute
-              
+
+               $printLogger->print("   saleOrRentalFlag= $saleOrRentalFlag\n");
+               $printLogger->print("   suburbName      = $suburbName\n");
+               $printLogger->print("   title           = $titleString\n");
+               $printLogger->print("   sourceURL       = $sourceURL\n");
+               $printLogger->print("   sourceId        = $sourceID\n");                              
+               
                # check if the cache already contains a profile matching this source ID and title           
                $cacheID = $advertisementCache->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
                if ($cacheID == 0)
@@ -428,7 +461,8 @@ sub parseDomainChooseSuburbs
    
  #  parseDomainSalesDisplayResponse($documentReader, $htmlSyntaxTree, $url, $instanceID, $transactionNo);
  
-   if ($htmlSyntaxTree->containsTextPattern("Advanced Search"))
+   # 20Aug2006 - Domain site has  been redesigned - must changes are superficial 
+   if (($htmlSyntaxTree->containsTextPattern("Advanced Search")) || (($htmlSyntaxTree->containsTextPattern("Search by state"))))
    {                    
       # get the HTML Form instance
       $htmlForm = $htmlSyntaxTree->getHTMLForm("__aspnetForm");
