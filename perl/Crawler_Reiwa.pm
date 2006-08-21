@@ -44,6 +44,9 @@
 #                  - Renamed to Crawler*
 #                  - Moved Parsing code out to Parser*
 #                  - Modified to use the AdvertisementCache instead of AdvertisedPropertyProfiles
+# 21 Aug 2006      - Updated for a significant redesign of the REIWA website.  Had to add code to download
+#   javascript and parse it to get the current list of active suburbs (used to populate their search form)
+#   All methods had to be updated.  Legacy methods have been renamed
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -125,7 +128,7 @@ sub extractREIWAPropertyAdvertisement
    }
    
    # two possible entry patterns - NEW and LEGACY
-   if (($htmlSyntaxTree->containsTextPattern("View Property Details")) || ($useLegacyExtraction))     
+   if (($htmlSyntaxTree->containsTextPattern("View Property")) || ($useLegacyExtraction))     # 20Aug06 (was View Property Details)
    {
       if ($cacheID)
       {
@@ -171,7 +174,7 @@ sub extractREIWAPropertyAdvertisement
 # Returns:
 #  a list of HTTP transactions or URL's.
 #    
-sub parseREIWASearchList
+sub parseREIWASearchListPRE_AUG_06
 
 {	
    my $documentReader = shift;
@@ -436,6 +439,190 @@ sub parseREIWASearchList
 }
 
 # -------------------------------------------------------------------------------------------------
+# parseREIWASearchList
+# parses the htmlsyntaxtree that contains the list of homes generated in response 
+# to a query
+#
+# Purpose:
+#  construction of the repositories
+#
+# Parameters:
+#  DocumentReader
+#  HTMLSyntaxTree to use
+#  String URL
+#
+# Returns:
+#  a list of HTTP transactions or URL's.
+#    
+sub parseREIWASearchList
+
+{	
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $httpClient = shift;    
+   my $instanceID = shift;
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   my $url = $httpClient->getURL();
+
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   
+   my @urlList;   # DO NOT SET TO UNDEF - it'll break the union later
+   my @anchorList;
+   my $firstRun = 1;
+   my $statusTable = $documentReader->getStatusTable();
+   my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
+   my $recordsEncountered = 0;
+   my $recordsSkipped = 0;
+   
+   my $sqlClient = $documentReader->getSQLClient();
+   my $tablesRef = $documentReader->getTableObjects();
+   my $advertisementCache = $$tablesRef{'advertisementCache'};
+   my $saleOrRentalFlag = -1;
+   my $length = 0;
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
+   
+   # --- now extract the property information for this page ---
+   $printLogger->print("inParseSearchList ($parentLabel):\n");
+   #$htmlSyntaxTree->printText();
+   
+   # note it's not necessary to report that the suburb is being processed in this function - it
+   # was already called in the parseQuery function
+   
+   if ($htmlSyntaxTree->containsTextPattern("Results"))
+   {         
+      if ($htmlSyntaxTree->containsTextPattern("Residential Properties For Sale"))
+      {
+         $saleOrRentalFlag = 0;
+      }
+      elsif ($htmlSyntaxTree->containsTextPattern("Residential Properties For Rent"))
+      {
+         $saleOrRentalFlag = 1;
+      }
+      else
+      {
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchList: sale or rental pattern not found");
+      }      
+   
+      if ($htmlSyntaxTree->containsTextPattern("Sorry your search returned no results")) 
+      {
+         $printLogger->print("   no results for this regionId/suburbId\n");
+      }   
+      else 
+      {
+         $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', 'searchResults');
+         
+         # loop through table data specifying the suburbname until no more properties can be found....
+         while ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', 'header'))
+         {
+            $suburbName = $htmlSyntaxTree->getNextText(); 
+            $nextString = $htmlSyntaxTree->getNextText();
+            # if the substring includes the price, append it to the title string 
+            if (($nextString =~ /\$/) || ($nextString =~ /Auction/))
+            {
+               $titleString = trimWhitespace($nextString);
+            }
+            
+            $sourceID = $htmlSyntaxTree->getNextTextAfterPattern("Listing No");
+            $sourceID =~ s/\D//gi;    # remove non-digits;
+            
+            print "saleOrRentalFlag=$saleOrRentalFlag\n";
+            print "suburbName=$suburbName\n";
+            print "titleString=$titleString\n";
+            print "sourceId=$sourceID\n";         
+            
+            if ($sourceID)
+            {
+               $sourceURL = $htmlSyntaxTree->getNextAnchor();
+               print "sourceURL=$sourceURL\n";                       
+               
+               # check if the cache already contains a profile matching this source ID and title           
+               $cacheID = $advertisementCache->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+               if ($cacheID == 0)
+               {
+                  $printLogger->print("   parseSearchResults: record already in advertisement cache.\n");
+                  $recordsSkipped++;
+               }                                   
+               else
+               {
+                  $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, " (cacheID:$cacheID)...\n");
+                  #$printLogger->print("   parseSearchList: url=", $sourceURL, "\n");          
+                  my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$cacheID);                  
+             
+                  push @urlList, $httpTransaction;
+               }
+               
+               $recordsEncountered++;  # count records seen
+               # save that this suburb has had some progress against it
+               $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
+            }
+         }
+      }
+      
+      $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $recordsSkipped, $url);
+            
+      # now get the anchor for the NEXT button if it's defined 
+      $htmlSyntaxTree->resetSearchConstraints();
+      $anchorList = $htmlSyntaxTree->getAnchorsContainingPattern("Next");
+               
+      if ($anchorList)
+      {            
+         # the page contains the Next button
+         $printLogger->print("   parseSearchList: list includes a 'next' button anchor...\n");
+                  
+         $anchor = $$anchorList[0];
+                            
+         $httpTransaction = HTTPTransaction::new($anchor, $url, $parentLabel);                  
+         #$httpTransaction->printTransaction();
+         
+         @anchorsList = (@urlList, $httpTransaction);
+      }
+      else
+      {            
+         $printLogger->print("   parseSearchList: list has no 'next' button anchor...\n");
+         @anchorsList = @urlList;
+         # 23Jan05:save that this suburb has (almost) completed - just need to process the details
+         $sessionProgressTable->reportSuburbCompletion($threadID);
+      }                      
+     
+      $length = @anchorsList;
+      if ($length > 0)
+      {
+         $printLogger->print("   parseSearchList: following $length anchors...\n");         
+      }
+      else
+      {
+         $printLogger->print("   parseSearchList: no anchors found in list.\n");   
+      }
+   }	  
+   else 
+   {
+      $printLogger->print("   parseSearchList: pattern not found\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchList: pattern not found");
+   }
+   
+   
+   # return the list or anchors or empty list   
+   if ($length > 0)
+   {      
+      return @anchorsList;
+   }
+   else
+   {      
+      # 23Jan05:save that this suburb has (almost) completed - just need to process the details
+      $sessionProgressTable->reportSuburbCompletion($threadID);
+         
+      $printLogger->print("   parseSearchList: returning empty anchor list.\n");
+      return @emptyList;
+   }   
+     
+}
+
+
+# -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
 # parseSearchForm
@@ -459,7 +646,7 @@ sub parseREIWASearchList
 #  a list of HTTP transactions or URL's.
 #    
 # http://public.reiwa.com.au/misc/menutypeOK.cfm?menutype=residential
-sub parseREIWASearchForm
+sub parseREIWASearchFormPRE_AUG06
 
 {	
    my $documentReader = shift;
@@ -632,6 +819,408 @@ sub parseREIWASearchForm
 }
 
 # -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# parseREIWASearchQueryResponse
+# After submitting the search form, the received response is a temporarily moved...
+sub parseREIWASearchQueryResponse 
+{
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $httpClient = shift;
+   my $instanceID = shift;
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   my $url = $httpClient->getURL();
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+   my @urlList;
+   
+   my $url = $httpClient->getURL();
+
+      
+   $printLogger->print("in parseSearchQueryResponse ($parentLabel)\n");
+   
+   if ($httpClient->responseCode == 302) 
+   {
+      $location = $httpClient->getResponseHeader('location');
+      if ($location) {
+         $printLogger->print("   redirected to $location\n");         
+         my $httpTransaction = HTTPTransaction::new($location, $url, $parentLabel);                            
+         push @urlList, $httpTransaction;                        
+      }
+   }
+      
+   return @urlList;
+}
+
+# -------------------------------------------------------------------------------------------------
+
+# -------------------------------------------------------------------------------------------------
+# loadFile
+# loads a text file that contains suburb information for the website
+#
+# Parameters:
+#  string properties file name
+#
+# Returns:
+#  reference to a list of the lines in the file
+#
+sub loadFile 
+{ 
+   my $filename = shift;  
+   my @lines;
+   my $lineNo = 0;
+      
+   if (-e $filename)
+   {          
+      open(FILE, "<$filename");
+      
+      @lines = <FILE>;
+      
+      close(FILE);
+   }   
+   
+   $lineCount = @lines;
+   #print "lineCount=$lineCount\n";
+   
+   return \@lines;
+}
+
+# -------------------------------------------------------------------------------------------------
+# parseSuburbList
+# Parse the REIWA javascript that contains all of the suburbs available to the search page
+#
+# ------------------------------------------------------------------------------------------------
+sub parseSuburbList 
+{
+   my $linesRef = shift;
+   my %regionNameHash;
+   my %regionIdHash;
+   my $lastRegionId = 0;
+   
+   # loop through all the lines
+   foreach (@$linesRef) 
+   {      
+      if ($_ =~ /stcRegions\[\"main\"\]\[\"(\d+)\"\]/) 
+      {
+         $line = $_;
+         $regionId = $1;
+         # this line defines a new main region         
+         $line  =~ /\[\"(\d+)\"\]/g;         
+         $line =~ /\s\"(\D+)\"/g;   # non-digits (allow spaces & punct)
+         $regionName = $1;
+                  
+         #print $line;
+         #print "regionId=$regionId\n";
+         #print "regionName=$regionName\n";
+         
+         my @newList1;
+         my @newList2;
+         $regionNameHash{$regionId} = \@newList1;
+         $regionIdHash{$regionId} = \@newList2;
+         
+         $lastRegionId = $regionId;
+      } 
+      else
+      {
+         # if this is a suburb in the current region (or subregion), add it to the hash
+         if ($_ =~ /stcRegions\[\"$lastRegionId\,allsub\"\]\[\"(\d+)\"\]/)
+         {
+            $line = $_;
+            $suburbId = $1;
+            $line =~ /\s\"(\D+)\"/g;      # non-digits (allow spaces & punct)            
+            $suburbName = $1;
+            #print "$line\n";
+            #print "lastRegionId = $lastRegionId\n";
+            #print "suburbId = $suburbId\n";
+            #print "suburbName = $suburbName\n";
+            
+            $nameList = $regionNameHash{$lastRegionId};            
+            $idList = $regionIdHash{$lastRegionId};
+            
+            #printList("nameList($lastRegionId)", $nameList);
+            # store the name and id in the hash
+            $len = @$nameList; 
+            $$nameList[$len] = $suburbName;
+            $$idList[$len] = $suburbId;            
+         }                        
+      }      
+   }
+   #printHashOfLists("regionNameHash", \%regionNameHash);
+   #printHashOfLists("regionIdHash", \%regionIdHash);
+   
+   return (\%regionNameHash, \%regionIdHash);
+}
+
+# -------------------------------------------------------------------------------------------------
+
+# before processing, we need to download the list of active suburbs - this is stored in a javascript file
+# generated by the reiwa server (how frequently isn't known)
+sub initialiseActiveSuburbs 
+{  
+   my $documentReader = shift;
+   my $printLogger = shift;
+   my $url = shift;
+   
+   my $jsClient  = HTTPClient::new("reiwa_active-suburbs_$instanceId");
+   my $jsUrl = "/js/active-suburbs-ressale.js";
+   my $jsContent;
+   
+   $jsClient->setUserAgent($DEFAULT_USER_AGENT);
+   $jsClient->setPrintLogger($printLogger);
+   $jsTransaction = HTTPTransaction::new($jsUrl, undef, $documentReader->getGlobalParameter('source'));  # no referer - this is first request
+      
+   if ($jsClient->fetchDocument($jsTransaction, $url)) 
+   {
+      print "here1\n";
+
+      $jsContent = $jsClient->getResponseContent();
+      print "content=$jsContent\n";
+      @lines = split /^./, $jsContent;    # split on end of line character
+      DebugTools::printList("lines", \@lines);
+   }
+   print "end\n";
+}
+
+# this flag is used to track whether the suburb list has been downloaded 
+my $loadedActiveSuburbs = 0;
+my $regionNameHash;
+my $regionIdHash;
+   
+# -------------------------------------------------------------------------------------------------
+
+# parses a javascript file generated by the REIWA server that lists the suburbs currently
+# available.  It contains a structure used to populate their search form
+#
+# 21 Aug o6 - unfortunately LWP can't seem to process this javascript reponse - i think 
+sub parseREIWAActiveSuburbs 
+{
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $httpClient = shift;
+   my $instanceID = shift;
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   my $url = $httpClient->getURL();
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+
+   $printLogger->print("in parseREIWAActiveSuburbs ($parentLabel)\n");
+   
+   my $jsContent = $htmlSyntaxTree->getContent();
+   #print "$jsContent\n";
+    
+   @lines = split /\n/, $jsContent;    # split on end of line character
+   
+   ($regionNameHash, $regionIdHash) = parseSuburbList(\@lines);
+   
+   if ($regionNameHash)
+   {
+      # set the flag that the suburb list has been retrieved
+      $loadedActiveSuburbs = 1;
+      $printLogger->print("   active suburbs downloaded\n");
+   }
+   
+   return @emptyList;
+}
+
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------
+# parseSearchForm
+# parses the htmlsyntaxtree to post form information
+#
+# Purpose:
+#  construction of the repositories
+#
+# Parameters:
+#  DocumentReader
+#  HTMLSyntaxTree to use
+#  String URL
+#
+# Constraints:
+#  nil
+#
+# Updates:
+#  nil
+#
+# Returns:
+#  a list of HTTP transactions or URL's.
+#    
+# http://public.reiwa.com.au/misc/menutypeOK.cfm?menutype=residential
+sub parseREIWASearchForm
+
+{	
+   my $documentReader = shift;
+   my $htmlSyntaxTree = shift;
+   my $httpClient = shift;
+   my $instanceID = shift;
+   my $transactionNo = shift;
+   my $threadID = shift;
+   my $parentLabel = shift;
+   my $dryRun = shift;
+   my $url = $httpClient->getURL();      
+   my $htmlForm;
+   my $actionURL;
+   my $httpTransaction;
+   my @transactionList;
+   my $noOfTransactions = 0;
+   my $startLetter = $documentReader->getGlobalParameter('startrange');
+   my $endLetter =  $documentReader->getGlobalParameter('endrange');
+   my $printLogger = $documentReader->getGlobalParameter('printLogger');
+   my $sessionProgressTable = $documentReader->getSessionProgressTable();   # 23Jan05
+   my $sourceName =  $documentReader->getGlobalParameter('source');
+   my $crawlerWarning = CrawlerWarning::new($documentReader->getSQLClient());
+   
+   my $instanceId = $documentReader->getInstanceId();
+   
+   $printLogger->print("in parseSearchForm ($parentLabel)\n");
+      
+
+   if ($htmlSyntaxTree->containsTextPattern("Residential Properties For Sale"))
+   {
+      $saleOrRentalFlag = 0;
+   }
+   elsif ($htmlSyntaxTree->containsTextPattern("Residential Properties For Rent"))
+   {
+      $saleOrRentalFlag = 1;
+   }
+   else
+   {
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseSearchForm: sale or rental pattern not found");
+   }      
+
+   if ($saleOrRentalFlag == 0)
+   {
+      # get the SALES Form instance
+      $htmlForm = $htmlSyntaxTree->getHTMLForm("formRESSALE");  
+   }
+   else
+   {
+      # get the RENTAL Form instance
+      $htmlForm = $htmlSyntaxTree->getHTMLForm("formRESRENT"); 
+   }    
+   
+   if ($htmlForm)
+   {   
+      if ($loadedActiveSuburbs == 0) 
+      {
+          $printLogger->print("   active suburbs have not been retrieved yet...downloading javascript...\n");
+
+          # as we haven't yet downloaded the active suburbs for the website, we need to fetch that
+          # javascript before processing this form
+          my $newHTTPTransaction1;
+          if ($saleOrRentalFlag == 0) 
+          {
+             $newHTTPTransaction1 = HTTPTransaction::new("/js/active-suburbs-ressale.js", undef, $parentLabel);
+          }
+          else 
+          {
+             $newHTTPTransaction1 = HTTPTransaction::new("/js/active-suburbs-resrent.js", undef, $parentLabel);
+          }
+          
+          # add this new transaction to the list to return for processing
+          $transactionList[$noOfTransactions] = $newHTTPTransaction1;
+          $noOfTransactions++;
+                  
+          # and also add this page back to the list
+          my $newHTTPTransaction2 = HTTPTransaction::new($url, undef, $parentLabel);
+          # add this new transaction to the list to return for processing
+          $transactionList[$noOfTransactions] = $newHTTPTransaction2;
+          $noOfTransactions++;
+      }            
+      else 
+      {         
+         my @regionIdList = keys %$regionIdHash;  # list of region IDs
+            
+         # need to force an input called suburb in the form - it is defined by javascript on the actual page
+         $htmlForm->addSimpleInput('suburb', '', 0);
+         
+         # override the action for the from (it uses javascript to modidy the URL)
+         #$htmlForm->overrideAction($htmlForm->getAction()."&Action=SEARCH");   # disabled 20Aug06
+   
+         $htmlForm->setInputValue('subregion', 'allsub');   #20 aug 06
+         # clear the flag to exclude sold (under offer and sold information is useful)
+         $htmlForm->clearInputValue('exclude_sold');      #20 aug 06  (also used for already leased)         
+         $htmlForm->clearInputValue('exclude_noprice');      #20 aug 06
+   
+         # loop through all the region Ids
+         foreach (@regionIdList)
+         {
+            $mainArea = $_;
+            $htmlForm->setInputValue('region', $mainArea);   #20 aug 06
+                  
+            # loop through all the suburbs found for this region
+            $valueList = $$regionIdHash{$mainArea};         
+            $suburbList = $$regionNameHash{$mainArea};
+            
+            $noOfSuburbs = @$valueList;
+            
+            for ($index = 0; $index < $noOfSuburbs; $index++)
+            {
+               $acceptSuburb = 0;
+               $useThisSuburb = 0;
+               $suburbValue = $$valueList[$index];
+               $suburbName = $$suburbList[$index];
+               
+               $useThisSuburb = $sessionProgressTable->isSuburbAcceptable($suburbName);  # 23Jan05
+                  
+               if ($useThisSuburb)
+               {
+                  $htmlForm->setInputValue('suburb', $suburbValue);  #20 aug 06
+                  
+                  # determine if the suburbname is in the specific letter constraint
+                  $acceptSuburb = isSuburbNameInRange($suburbName, $startLetter, $endLetter);  # 23Jan05
+               }
+     
+               if ($acceptSuburb)
+               {         
+                  
+                  # 23 Jan 05 - another check - see if the suburb has already been 'completed' in this thread
+                  # if it has been, then don't do it again (avoids special case where servers may return
+                  # the same suburb for multiple search variations)
+                  if (!$sessionProgressTable->hasSuburbBeenProcessed($threadID, $suburbName))
+                  { 
+                     
+                     #print "accepted\n";               
+                     my $newHTTPTransaction = HTTPTransaction::new($htmlForm, $url, $parentLabel.".".$suburbName);
+                  
+                     # add this new transaction to the list to return for processing
+                     $transactionList[$noOfTransactions] = $newHTTPTransaction;
+                     $noOfTransactions++;
+                  }
+                  else
+                  {
+                     $printLogger->print("   parseSearchForm:suburb ", $suburbName, " previously processed in this thread.  Skipping...\n");
+                  }
+               }
+            }
+         }  
+            
+         $printLogger->print("   ParseSearchForm:Creating a transaction for $noOfTransactions total areas...\n");
+      }
+   }	  
+   else 
+   {
+      $printLogger->print("   parseSearchForm:Search form not found.\n");
+      $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_FORM_NOT_FOUND'}, " parseSearchForm:Search form not found.");
+   }
+   
+   if ($noOfTransactions > 0)
+   {      
+      return @transactionList;
+   }
+   else
+   {      
+      $printLogger->print("   parseSearchForm:returning zero transactions.\n");
+      return @emptyList;
+   }   
+}
+
+
+# -------------------------------------------------------------------------------------------------
 # parseREIWADisplayResponse
 # parser that just displays the content of a response 
 #
@@ -678,3 +1267,4 @@ sub parseREIWADisplayResponse
 
 # -------------------------------------------------------------------------------------------------
 
+1;

@@ -76,7 +76,8 @@
 #   to them (not just the URL).  This allows access to cookies and form data.  Arrgh. I really need a javascript
 #   processor to handle all this properly.  Instead of passing the URL to a parser (callback), the HTTPClient
 #   is now provided (it contains the URL as well as request and response details).
-
+#              21 Aug 06 - added method to get the current instance id
+#
 # ---CVS---
 # Version: $Revision$
 # Date: $Date$
@@ -1032,6 +1033,13 @@ sub getThreadID
    return $this->{'threadID'};
 }
 
+
+sub getInstanceId
+
+{
+   my $this = shift;
+   return $this->{'instanceID'};
+}
 
 # -------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------
