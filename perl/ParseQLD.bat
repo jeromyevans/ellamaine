@@ -50,18 +50,18 @@ start "domainsalesqld:U-Z" perl Ellamaine.pl "command=start&config=domainsalesql
 
 
 REM Domain Rentals
-REM perl sleeprand.pl 30
-REM start "domainrentalsqld:A-C" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=A&endrange=D";
-REM perl sleeprand.pl 20
-REM start "DomainRentalssqld:D-F" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=D&endrange=G";
-REM perl sleeprand.pl 20
-REM start "domainrentalsqld:G-I" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=G&endrange=J";
-REM perl sleeprand.pl 20
-REM start "domainrentalsqld:J-M" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=J&endrange=N";
-REM perl sleeprand.pl 20
-REM start "domainrentalsqld:N-P" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=N&endrange=Q";
-REM perl sleeprand.pl 20
-REM start "domainrentalsqld:Q-T" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=Q&endrange=U";
-REM perl sleeprand.pl 20
-REM start "domainrentalsqld:U-Z" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=U&endrange=ZZ";
+perl sleeprand.pl 30
+start "domainrentalsqld:A-C" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=A&endrange=D";
+perl sleeprand.pl 20
+start "DomainRentalssqld:D-F" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=D&endrange=G";
+perl sleeprand.pl 20
+start "domainrentalsqld:G-I" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=G&endrange=J";
+perl sleeprand.pl 20
+start "domainrentalsqld:J-M" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=J&endrange=N";
+perl sleeprand.pl 20
+start "domainrentalsqld:N-P" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=N&endrange=Q";
+perl sleeprand.pl 20
+start "domainrentalsqld:Q-T" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=Q&endrange=U";
+perl sleeprand.pl 20
+start "domainrentalsqld:U-Z" perl Ellamaine.pl "command=start&config=domainrentalsqld&startrange=U&endrange=ZZ";
 

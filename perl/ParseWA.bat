@@ -48,12 +48,12 @@ perl sleeprand.pl 20
 start "DomanSalesWA:T-Zz" perl Ellamaine.pl "command=start&config=domainsaleswa&startrange=T&endrange=ZZ";
 
 REM DOMAIN RENTALS
-REM perl sleeprand.pl 30
-REM start "DomanRentalsWA:A-Ga" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=A&endrange=Ga";
-REM perl sleeprand.pl 20
-REM start "DomanRentalsWA:G-Na" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=G&endrange=Na";
-REM perl sleeprand.pl 20
-REM start "DomanRentalsWA:N-Ta" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=N&endrange=Ta";
-REM perl sleeprand.pl 20
-REM start "DomanRentalsWA:T-Zz" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=T&endrange=ZZ";
+perl sleeprand.pl 30
+start "DomanRentalsWA:A-Ga" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=A&endrange=Ga";
+perl sleeprand.pl 20
+start "DomanRentalsWA:G-Na" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=G&endrange=Na";
+perl sleeprand.pl 20
+start "DomanRentalsWA:N-Ta" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=N&endrange=Ta";
+perl sleeprand.pl 20
+start "DomanRentalsWA:T-Zz" perl Ellamaine.pl "command=start&config=domainrentalswa&startrange=T&endrange=ZZ";
 

@@ -50,18 +50,18 @@ start "domainsalessa:U-Z" perl Ellamaine.pl "command=start&config=domainsalessa&
 
 
 REM Domain Rentals
-REM perl sleeprand.pl 30
-REM start "domainrentalssa:A-C" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=A&endrange=D";
-REM perl sleeprand.pl 20
-REM start "DomainRentalsssa:D-F" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=D&endrange=G";
-REM perl sleeprand.pl 20
-REM start "domainrentalssa:G-I" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=G&endrange=J";
-REM perl sleeprand.pl 20
-REM start "domainrentalssa:J-M" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=J&endrange=N";
-REM perl sleeprand.pl 20
-REM start "domainrentalssa:N-P" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=N&endrange=Q";
-REM perl sleeprand.pl 20
-REM start "domainrentalssa:Q-T" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=Q&endrange=U";
-REM perl sleeprand.pl 20
-REM start "domainrentalssa:U-Z" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=U&endrange=ZZ";
+perl sleeprand.pl 30
+start "domainrentalssa:A-C" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=A&endrange=D";
+perl sleeprand.pl 20
+start "DomainRentalsssa:D-F" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=D&endrange=G";
+perl sleeprand.pl 20
+start "domainrentalssa:G-I" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=G&endrange=J";
+perl sleeprand.pl 20
+start "domainrentalssa:J-M" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=J&endrange=N";
+perl sleeprand.pl 20
+start "domainrentalssa:N-P" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=N&endrange=Q";
+perl sleeprand.pl 20
+start "domainrentalssa:Q-T" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=Q&endrange=U";
+perl sleeprand.pl 20
+start "domainrentalssa:U-Z" perl Ellamaine.pl "command=start&config=domainrentalssa&startrange=U&endrange=ZZ";
 
