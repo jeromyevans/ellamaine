@@ -46,12 +46,20 @@ public class TestHtmlParser extends BaseTestCase {
     // ------------------------------------------------------------------------------------------------------
 
     public void testHtmlParser2() throws Exception {
-        URL fileUrl = Configuration.locateResource("16670.html");
-        InputStream inputStream = fileUrl.openStream();
         HtmlParser parser = new HtmlParser();
         parser.registerExtractor(new ReiwaExtractor());
-        PropertyAdvertisementBean advertisement = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
 
-        assertNotNull(advertisement);
+        InputStream inputStream = Configuration.locateResource("16670.html").openStream();        
+        PropertyAdvertisementBean advertisement1 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
+        inputStream = Configuration.locateResource("16671.html").openStream();
+        PropertyAdvertisementBean advertisement2 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
+        inputStream = Configuration.locateResource("16672.html").openStream();
+        PropertyAdvertisementBean advertisement3 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
+        inputStream = Configuration.locateResource("16673.html").openStream();
+        PropertyAdvertisementBean advertisement4 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
+        inputStream = Configuration.locateResource("16674.html").openStream();
+        PropertyAdvertisementBean advertisement5 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
+
+        assertNotNull(advertisement1);
     }
 }

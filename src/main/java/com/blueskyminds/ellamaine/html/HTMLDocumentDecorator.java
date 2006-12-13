@@ -3,6 +3,7 @@ package com.blueskyminds.ellamaine.html;
 import org.w3c.dom.html.HTMLDocument;
 import org.w3c.dom.html.HTMLElement;
 import org.w3c.dom.html.HTMLCollection;
+import org.w3c.dom.html.HTMLTableElement;
 import org.w3c.dom.*;
 
 /**
@@ -57,7 +58,7 @@ public class HTMLDocumentDecorator implements HTMLDocument {
      * @param patterns
      * @return true if the document's body contains all of the given text patterns (exact match)
      */
-    protected boolean containsAllText(String... patterns) {
+    public boolean containsAllText(String... patterns) {
         String bodyText = document.getBody().getTextContent();
         boolean okay = true;
 
@@ -68,6 +69,24 @@ public class HTMLDocumentDecorator implements HTMLDocument {
             }
         }
         return okay;
+    }
+
+    // ------------------------------------------------------------------------------------------------------
+
+    public static final String TABLE = "table";
+
+    /**
+     * Get the index'th table in the document
+     *
+     * @return
+     */
+    public HTMLTableElement getTable(int index) {
+        HTMLTableElement table = null;
+        NodeList tableNodes = document.getElementsByTagName(TABLE);
+        if (index < tableNodes.getLength()) {
+            table = (HTMLTableElement) tableNodes.item(index);
+        }
+        return table;            
     }
 
     // ------------------------------------------------------------------------------------------------------

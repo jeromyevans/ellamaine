@@ -2,7 +2,14 @@ package com.blueskyminds.landmine.reiwa;
 
 import com.blueskyminds.ellamaine.html.Extractor;
 import com.blueskyminds.ellamaine.html.HTMLDocumentDecorator;
+import com.blueskyminds.ellamaine.html.HtmlTools;
 import com.blueskyminds.property.PropertyAdvertisementTypes;
+import org.w3c.dom.html.HTMLTableElement;
+import org.w3c.dom.html.HTMLElement;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+
+import java.util.List;
 
 /**
  * Extracts the content from a REIWA advertisement
@@ -64,7 +71,13 @@ public class ReiwaExtractor implements Extractor<PropertyAdvertisementBean> {
         return advertisement;
     }
 
+
+
     // ------------------------------------------------------------------------------------------------------
+
+    public static final String TD = "td";
+    public static final String TR = "tr";
+    public static final String BLOCKQUOTE = "blockquote";
 
     private PropertyAdvertisementBean extractLegacyAdvertisement(String source, HTMLDocumentDecorator document) {
         PropertyAdvertisementBean advertisement = new PropertyAdvertisementBean();
@@ -73,6 +86,36 @@ public class ReiwaExtractor implements Extractor<PropertyAdvertisementBean> {
         } else {
             advertisement.setType(PropertyAdvertisementTypes.PrivateTreaty);
         }
+
+        HTMLTableElement table3 = document.getTable(2);
+        String idSuburbPrice = HtmlTools.getTextContent(HtmlTools.getTableData(table3, 0, 0));
+        String description = HtmlTools.getTextContent(HtmlTools.getTableData(table3, 1, 0));
+
+        HTMLTableElement table4 = document.getTable(3);
+        String type = HtmlTools.getNextText(table4);
+        String bedrooms = HtmlTools.getNextTextContaining(table4, "Bedrooms");
+        String bathrooms = HtmlTools.getNextTextContaining(table4, "Bath");
+        String landArea = HtmlTools.getNextTextContaining(table4, "sqm");
+        String yearBuilt = HtmlTools.getNextTextContaining(table4, "Age:");
+
+        String address = null;
+        HTMLTableElement table6 = document.getTable(5);
+        if (HtmlTools.containsText(table6, "Address:")) {
+            address = HtmlTools.getTextContent(HtmlTools.getTableData(table6, 0, 1));
+        }
+
+        NodeList blockQuotes = document.getElementsByTagName(BLOCKQUOTE);
+        HTMLElement featuresBlock;
+        List<String> features = null;
+        if (blockQuotes.getLength() > 0) {
+            featuresBlock = (HTMLElement) blockQuotes.item(0);
+            features = HtmlTools.getText(featuresBlock);
+        }
+
+        // todo: extract details about the agent
+        // cleanse the strings
+        // add to advertisement bean
+        // submit for processing
 
         return advertisement;
     }
