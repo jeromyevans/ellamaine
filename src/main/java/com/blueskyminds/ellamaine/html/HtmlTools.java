@@ -14,6 +14,8 @@ import org.apache.commons.lang.WordUtils;
 import java.util.List;
 import java.util.LinkedList;
 
+import com.blueskyminds.tools.text.StringTools;
+
 /**
  * Date Started: 10/12/2006
  * <p/>
@@ -43,6 +45,7 @@ public class HtmlTools {
 
     public static final String TD = "td";
     public static final String TR = "tr";
+    public static final String TABLE = "table";
 
     /** Get a table row from a table */
     public static HTMLTableRowElement getTableRow(HTMLTableElement table, int rowNo) {
@@ -77,7 +80,8 @@ public class HtmlTools {
             String[] words = StringUtils.split(text, null);
             List<String> nonBlankWords = new LinkedList<String>();
             for (String word : words) {
-                word = StringUtils.deleteWhitespace(word);
+                //word = StringUtils.deleteWhitespace(word);
+                word = StringTools.strip(word);    // remove non-breaking spaces too
                 if (!StringUtils.isBlank(word)) {
                     nonBlankWords.add(word);
                 }
@@ -287,5 +291,41 @@ public class HtmlTools {
      */
     public static boolean containsText(Node node, String pattern) {
         return node.getTextContent().contains(pattern);
+    }
+
+    /**
+     *
+     * @param element
+     * @param tableIndex stating from 0
+     * @return
+     */
+    public static HTMLTableElement getTable(HTMLElement element, int tableIndex) {
+        NodeList tables = element.getElementsByTagName(TABLE);
+        HTMLTableElement match = null;
+        if (element instanceof HTMLTableElement) {
+            // exclude self
+            if (tables.getLength() > tableIndex+1) {
+                match = (HTMLTableElement) tables.item(tableIndex+1);
+            }
+        } else {
+            if (tables.getLength() > tableIndex) {
+                match = (HTMLTableElement) tables.item(tableIndex);
+            }
+        }
+        return match;
+    }
+
+    /** Locate the first HTML table element containing the text pattern */
+    public static HTMLTableElement getTableContainingText(HTMLElement element, String pattern) {
+        NodeList tables = element.getElementsByTagName(TABLE);
+        HTMLTableElement match = null;
+        int index = 0;
+        while ((match == null) && (index < tables.getLength())) {
+            if (tables.item(index).getTextContent().contains(pattern)) {
+                match = (HTMLTableElement) tables.item(index);
+            }
+            index++;
+        }
+        return match;
     }
 }

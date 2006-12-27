@@ -1,6 +1,7 @@
-package com.blueskyminds.landmine.reiwa;
+package com.blueskyminds.landmine.advertisement;
 
 import com.blueskyminds.property.PropertyAdvertisementTypes;
+import com.blueskyminds.landmine.agent.RealEstateAgentBean;
 
 import java.util.List;
 import java.util.LinkedList;
@@ -32,6 +33,9 @@ public class PropertyAdvertisementBean {
     private String price;
     private String description;
     private List<String> features;
+    private RealEstateAgentBean agent;
+
+    private String constructionDate;
 
     public PropertyAdvertisementBean() {
         init();
@@ -163,5 +167,21 @@ public class PropertyAdvertisementBean {
 
     public void setPropertyType(String propertyType) {
         this.propertyType = propertyType;
+    }
+
+    public RealEstateAgentBean getAgent() {
+        return agent;
+    }
+
+    public void setAgent(RealEstateAgentBean agent) {
+        this.agent = agent;
+    }
+
+    public String getConstructionDate() {
+        return constructionDate;
+    }
+
+    public void setConstructionDate(String constructionDate) {
+        this.constructionDate = constructionDate;
     }
 }

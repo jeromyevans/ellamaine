@@ -5,7 +5,7 @@ import com.blueskyminds.tools.Configuration;
 import com.blueskyminds.ellamaine.html.HtmlParser;
 import com.blueskyminds.ellamaine.html.TextExtractor;
 import com.blueskyminds.landmine.reiwa.ReiwaExtractor;
-import com.blueskyminds.landmine.reiwa.PropertyAdvertisementBean;
+import com.blueskyminds.landmine.advertisement.PropertyAdvertisementBean;
 
 import java.net.URL;
 import java.io.InputStream;
