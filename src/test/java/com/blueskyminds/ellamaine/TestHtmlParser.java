@@ -5,7 +5,7 @@ import com.blueskyminds.tools.Configuration;
 import com.blueskyminds.ellamaine.html.HtmlParser;
 import com.blueskyminds.ellamaine.html.TextExtractor;
 import com.blueskyminds.landmine.reiwa.ReiwaExtractor;
-import com.blueskyminds.landmine.advertisement.PropertyAdvertisementBean;
+import com.blueskyminds.property.advertisement.PropertyAdvertisementBean;
 
 import java.net.URL;
 import java.io.InputStream;
@@ -61,5 +61,7 @@ public class TestHtmlParser extends BaseTestCase {
         PropertyAdvertisementBean advertisement5 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
 
         assertNotNull(advertisement1);
+
+        // submit the advertisement for processing
     }
 }
