@@ -51,6 +51,7 @@ public class TestHtmlParser extends BaseTestCase {
 
         InputStream inputStream = Configuration.locateResource("16670.html").openStream();        
         PropertyAdvertisementBean advertisement1 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
+        // advertisement1.setDateEntered(); // todo: for OriginatingHTML, need to extract the orginal date either from the comment or database
         inputStream = Configuration.locateResource("16671.html").openStream();
         PropertyAdvertisementBean advertisement2 = (PropertyAdvertisementBean) parser.parseDocument("http://public.reiwa.com.au/res/searchdetails.cfm?CurrentRow=2&SD=", inputStream);
         inputStream = Configuration.locateResource("16672.html").openStream();

@@ -122,8 +122,8 @@ public class ReiwaExtractor implements Extractor<PropertyAdvertisementBean> {
         advertisement.setPropertyType(type);
         advertisement.setBathrooms(bathrooms);
         advertisement.setBedrooms(bedrooms);
-        advertisement.setLandArea(landArea);
-        advertisement.setFloorArea(Float.NaN);
+        advertisement.setLandArea(!Float.isNaN(landArea) ? landArea : null);
+        advertisement.setFloorArea(null);
         advertisement.setConstructionDate(yearBuilt);
 
         String address = null;
