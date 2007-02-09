@@ -4,7 +4,7 @@ import com.blueskyminds.ellamaine.html.Extractor;
 import com.blueskyminds.ellamaine.html.HTMLDocumentDecorator;
 import com.blueskyminds.ellamaine.html.HtmlTools;
 import com.blueskyminds.property.PropertyAdvertisementTypes;
-import com.blueskyminds.property.agent.RealEstateAgentBean;
+import com.blueskyminds.property.advertisement.PropertyAdvertisementAgencyBean;
 import com.blueskyminds.property.advertisement.PropertyAdvertisementBean;
 import com.blueskyminds.tools.text.StringTools;
 import org.w3c.dom.html.HTMLTableElement;
@@ -145,7 +145,7 @@ public class ReiwaExtractor implements Extractor<PropertyAdvertisementBean> {
         }
         advertisement.setFeatures(features);
 
-        RealEstateAgentBean agent = new RealEstateAgentBean();
+        PropertyAdvertisementAgencyBean agent = new PropertyAdvertisementAgencyBean();
 
         HTMLTableElement contactInfoTable = HtmlTools.getTableContainingText(document.getBody(), "For More Information Contact:");
         HTMLTableElement contactTable = HtmlTools.getTable(contactInfoTable, 0);
@@ -158,10 +158,10 @@ public class ReiwaExtractor implements Extractor<PropertyAdvertisementBean> {
             agent.setAgencyName(HtmlTools.getNextText(contactLines.item(1)));
         }
 
-        agent.setPhone(StringUtils.removeStart(HtmlTools.getNextTextContaining(contactTable, "Office:"), "Office:"));
-        agent.setFax(StringUtils.removeStart(HtmlTools.getNextTextContaining(contactTable, "Fax:"), "Fax:"));
+        agent.setAgencyPhone(StringUtils.removeStart(HtmlTools.getNextTextContaining(contactTable, "Office:"), "Office:"));
+        agent.setAgencyFax(StringUtils.removeStart(HtmlTools.getNextTextContaining(contactTable, "Fax:"), "Fax:"));
         agent.setMobile(StringUtils.removeStart(HtmlTools.getNextTextContaining(contactTable, "Mobile:"), "Mobile:"));
-        agent.setEmail(HtmlTools.getNextTextContaining(contactTable, "@"));
+        agent.setAgencyEmail(HtmlTools.getNextTextContaining(contactTable, "@"));
         agent.setWebsite(HtmlTools.getNextTextContaining(contactTable, "www"));
 
         advertisement.setAgent(agent);
