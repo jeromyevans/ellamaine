@@ -19,7 +19,11 @@
     <orderEntry type="library" name="junit-4.0" level="application" />
     <orderEntry type="library" name="nekohtml-0.9.5" level="application" />
     <orderEntry type="library" name="commons-lang-2.1" level="application" />
-    <orderEntry type="module" module-name="wdis" />
+    <orderEntry type="library" name="log4j-1.2.13" level="application" />
+    <orderEntry type="library" name="commons-logging" level="application" />
+    <orderEntry type="library" name="commons-beanutils" level="application" />
+    <orderEntry type="library" name="commons-collections-3.1" level="application" />
+    <orderEntry type="library" name="htmlparser-1.6" level="application" />
     <orderEntryProperties />
   </component>
 </module>
