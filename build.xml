@@ -1,0 +1,12 @@
+<project name="Ellamaine" default="maven-package" basedir=".">
+    <description>
+        An ant build file that provides access to Maven2 tasks
+    </description>
+
+    <property name="super.dir" value="../super"/>
+
+    <target name="maven-package">
+        <ant antfile="${super.dir}/build.xml" target="maven-package"/>
+    </target>
+
+</project>

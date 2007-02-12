@@ -1,15 +1,12 @@
 package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
-import com.blueskyminds.tools.Configuration;
+import com.blueskyminds.tools.ResourceLocator;
 import org.w3c.tidy.Tidy;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.FactoryConfigurationError;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.DocumentBuilder;
 import java.io.*;
 import java.net.URL;
@@ -42,7 +39,7 @@ public class TestJTidy extends BaseTestCase {
     public void testJTidySetup() throws Exception {
         Tidy tidy = new Tidy();
 
-        URL fileUrl = Configuration.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
 
         tidy.parse(fileUrl.openStream(), System.out);
     }
@@ -53,7 +50,7 @@ public class TestJTidy extends BaseTestCase {
         Tidy tidy = new Tidy();
         tidy.setShowWarnings(false);
         tidy.setQuiet(true);        
-        URL fileUrl = Configuration.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
 
         Document document = tidy.parseDOM(fileUrl.openStream(), System.out);
         assertNotNull(document);
@@ -66,7 +63,7 @@ public class TestJTidy extends BaseTestCase {
         final Tidy tidy = new Tidy();
 
         tidy.setShowWarnings(false);
-        final URL fileUrl = Configuration.locateResource("rsearch1.htm");
+        final URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
 
         final PipedInputStream intoXerces = new PipedInputStream();
         final PipedOutputStream out = new PipedOutputStream(intoXerces);

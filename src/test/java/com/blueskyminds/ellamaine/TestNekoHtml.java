@@ -1,7 +1,7 @@
 package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
-import com.blueskyminds.tools.Configuration;
+import com.blueskyminds.tools.ResourceLocator;
 import org.cyberneko.html.parsers.DOMParser;
 import org.cyberneko.html.parsers.DOMFragmentParser;
 import org.w3c.dom.*;
@@ -11,7 +11,6 @@ import org.xml.sax.InputSource;
 import org.apache.html.dom.HTMLDocumentImpl;
 
 import java.net.URL;
-import java.util.List;
 
 /**
  * NekoHTML is a Xerces Native Interface plugin for Xerces2 (an html parser)
@@ -42,7 +41,7 @@ public class TestNekoHtml extends BaseTestCase {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml
 
-        URL fileUrl = Configuration.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
         parser.parse(new InputSource(fileUrl.openStream()));
         HTMLDocument document = (HTMLDocument) parser.getDocument();
         assertNotNull(document);
@@ -72,7 +71,7 @@ public class TestNekoHtml extends BaseTestCase {
         HTMLDocument document = new HTMLDocumentImpl();
          
         DocumentFragment fragment = document.createDocumentFragment();
-        URL fileUrl = Configuration.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
         parser.parse(new InputSource(fileUrl.openStream()), fragment);
 
         assertNotNull(fragment);
@@ -87,7 +86,7 @@ public class TestNekoHtml extends BaseTestCase {
         HTMLDocument document = new HTMLDocumentImpl();
 
         DocumentFragment fragment = document.createDocumentFragment();
-        URL fileUrl = Configuration.locateResource("rsearch1.htm");               
+        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
         parser.parse(new InputSource(fileUrl.openStream()), fragment);
         print(fragment, "");
     }
