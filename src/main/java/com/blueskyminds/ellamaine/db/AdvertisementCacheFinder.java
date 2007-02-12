@@ -23,9 +23,14 @@ public class AdvertisementCacheFinder {
     private static final String TABLE_NAME = "AdvertisementCache";
 
     private static final String COLUMNS = "id, dateEntered, saleOrRentalFlag, sourceName, sourceId, titleString, repositoryId";
+    private static final String JOIN_COLUMNS = "repository.dateEntered, repository.sourceUrl";
 
     private static final String SELECT_BY_ID =
            "select "+COLUMNS+" from "+TABLE_NAME+
+           " where id=?";
+
+    private static final String SELECT_BY_ID_WITH_JOIN =
+           "select "+COLUMNS+","+JOIN_COLUMNS+" from "+TABLE_NAME+" left outer join AdvertisementRepository repository on repositoryId=repository.id"+
            " where id=?";
 
     public static final String INSERT_STATEMENT = 
@@ -61,6 +66,7 @@ public class AdvertisementCacheFinder {
 
     /**
      * Finds an entry in the AdvertisementCache by Id
+     * Also performs an outer join to eagerly load te RepositoryEntry
      *
      * There is no identity map.
      *
@@ -73,10 +79,10 @@ public class AdvertisementCacheFinder {
         AdvertisementCacheEntry entry = null;
         PreparedStatement statement = null;
         try {
-            statement = connection.prepareStatement(SELECT_BY_ID);
+            statement = connection.prepareStatement(SELECT_BY_ID_WITH_JOIN);
             statement.setInt(1, id);
 
-            LOG.info(SELECT_BY_ID);
+            LOG.info(SELECT_BY_ID_WITH_JOIN);
             ResultSet resultSet = statement.executeQuery();
 
             if (resultSet.next()) {

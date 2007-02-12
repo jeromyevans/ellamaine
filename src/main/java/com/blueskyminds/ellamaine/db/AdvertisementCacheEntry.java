@@ -34,26 +34,17 @@ public class AdvertisementCacheEntry {
     private String sourceName;
     private String sourceId;
     private String titleString;
-    private Integer repositoryId;
+    private AdvertisementRepositoryEntry repositoryEntry;
 
     /** Create a new entry */
-    public AdvertisementCacheEntry(Date dateEntered, int saleOrRentalFlag, String sourceName, String sourceId, String titleString, Integer repositoryId) {
-        this.dateEntered = dateEntered;
-        this.saleOrRentalFlag = saleOrRentalFlag;
-        this.sourceName = sourceName;
-        this.sourceId = sourceId;
-        this.titleString = titleString;
-        this.repositoryId = repositoryId;
-    }
-
-    public AdvertisementCacheEntry(Integer id, Date dateEntered, int saleOrRentalFlag, String sourceName, String sourceId, String titleString, Integer repositoryId) {
+    public AdvertisementCacheEntry(Integer id, Date dateEntered, int saleOrRentalFlag, String sourceName, String sourceId, String titleString, AdvertisementRepositoryEntry repositoryEntry) {
         this.id = id;
         this.dateEntered = dateEntered;
         this.saleOrRentalFlag = saleOrRentalFlag;
         this.sourceName = sourceName;
         this.sourceId = sourceId;
         this.titleString = titleString;
-        this.repositoryId = repositoryId;
+        this.repositoryEntry = repositoryEntry;
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -112,12 +103,12 @@ public class AdvertisementCacheEntry {
         this.titleString = titleString;
     }
 
-    public Integer getRepositoryId() {
-        return repositoryId;
+    public AdvertisementRepositoryEntry getRepositoryEntry() {
+        return repositoryEntry;
     }
 
-    public void setRepositoryId(Integer repositoryId) {
-        this.repositoryId = repositoryId;
+    public void setRepositoryEntry(AdvertisementRepositoryEntry repositoryEntry) {
+        this.repositoryEntry = repositoryEntry;
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -130,6 +121,7 @@ public class AdvertisementCacheEntry {
      */
     protected static AdvertisementCacheEntry load(ResultSet resultSet) throws SQLException {
         AdvertisementCacheEntry entry = null;
+        AdvertisementRepositoryEntry repositoryEntry = null;
 
         Integer id = resultSet.getInt(1);
         if ((id != null) && (id > 0)) {
@@ -139,11 +131,18 @@ public class AdvertisementCacheEntry {
             String sourceId = resultSet.getString(5);
             String titleString = resultSet.getString(6);
             Integer repositoryId = resultSet.getInt(7);
-            if (repositoryId == 0) {
-                repositoryId = null;
+
+            if (repositoryId > 0) {
+                Date repositoryDateEntered;
+                String sourceUrl;
+
+                repositoryDateEntered = resultSet.getDate(8);
+                sourceUrl = resultSet.getString(9);
+
+                repositoryEntry = new AdvertisementRepositoryEntry(repositoryId, repositoryDateEntered, sourceUrl);
             }
 
-            entry = new AdvertisementCacheEntry(id, dateEntered, saleOrRental, sourceName, sourceId, titleString, repositoryId);
+            entry = new AdvertisementCacheEntry(id, dateEntered, saleOrRental, sourceName, sourceId, titleString, repositoryEntry);
         }
 
         return entry;
@@ -171,7 +170,11 @@ public class AdvertisementCacheEntry {
         insertStatement.setString(4, getSourceName());
         insertStatement.setString(5, getSourceId());
         insertStatement.setString(6, getTitleString());
-        insertStatement.setObject(7, getRepositoryId());
+        if (getRepositoryEntry() != null) {
+            insertStatement.setObject(7, getRepositoryEntry().getId());
+        } else {
+            insertStatement.setObject(7, null);
+        }
 
         LOG.info(AdvertisementCacheFinder.INSERT_STATEMENT);
 

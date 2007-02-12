@@ -14,6 +14,7 @@
 <table name="AdvertisementCache" description="Contains reference data about every advertisement downloaded by the Crawler">
     <column name="ID" required="true" primaryKey="true" type="INTEGER" autoIncrement="true"/>
     <column name="DateEntered" required="true" type="TIMESTAMP"/>
+    <column name="LastEncountered" required="false" type="TIMESTAMP"/>
     <column name="SaleOrRentalFlag" type="INTEGER"/>
     <column name="SourceName" type="LONGVARCHAR"/>
     <column name="SourceID" type="VARCHAR" size="20"/>
