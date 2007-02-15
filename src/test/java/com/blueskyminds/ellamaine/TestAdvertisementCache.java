@@ -94,17 +94,17 @@ public class TestAdvertisementCache extends HypersonicTestCase {
     }
 
     public void testAdvertisementCacheFinderWithRepositiory() throws Exception {
-           Connection connection = getConnection();
-           loadSampleDataWithRepository(connection);
-           AdvertisementCacheFinder finder = new AdvertisementCacheFinder(connection);
+       Connection connection = getConnection();
+       loadSampleDataWithRepository(connection);
+       AdvertisementCacheFinder finder = new AdvertisementCacheFinder(connection);
 
-           AdvertisementCacheEntry entry = finder.findById(2);
+       AdvertisementCacheEntry entry = finder.findById(2);
 
-           assertNotNull(entry);
-           assertEquals(2, (int) entry.getId());
-           assertNotNull(entry.getRepositoryEntry());
-           assertEquals(2, (int) entry.getRepositoryEntry().getId());
-           connection.close();
-       }
+       assertNotNull(entry);
+       assertEquals(2, (int) entry.getId());
+       assertNotNull(entry.getRepositoryEntry());
+       assertEquals(2, (int) entry.getRepositoryEntry().getId());
+       connection.close();
+   }
 
 }

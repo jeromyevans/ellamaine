@@ -10,6 +10,8 @@ import com.blueskyminds.ellamaine.db.AdvertisementRepositoryEntry;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.List;
+import java.util.LinkedList;
 
 /**
  * Date Started: 12/02/2007
@@ -36,6 +38,11 @@ public class TestAdvertisementRepository extends HypersonicTestCase {
         assertNotNull(entry);
         assertEquals(2, (int) entry.getId());
 
+        Integer[] ids = { 1, 3 };
+
+        List<AdvertisementRepositoryEntry> entryList = finder.findManyById(ids);
+        assertNotNull(entryList);
+        assertEquals(2, entryList.size());
         connection.close();
     }
 
