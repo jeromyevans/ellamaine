@@ -2,6 +2,7 @@ package com.blueskyminds.ellamaine.db;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.commons.lang.StringUtils;
 
 import java.sql.*;
 import java.util.List;
@@ -28,7 +29,13 @@ public class AdvertisementRepositoryFinder {
 
     private static final String TABLE_NAME = "AdvertisementRepository";
 
-    private static final String COLUMNS = "id, dateEntered, sourceUrl";
+    public static final String[] COLUMN_LIST = {"ID", "DateEntered", "SourceURL"};
+    private static final String[] COLUMN_TYPE = {"integer primary key", "datetime", "longvarchar"};
+
+    private static final String COLUMNS = StringUtils.join(COLUMN_LIST, ", ");
+
+    public static final String INSERT_STATEMENT =
+        "insert into "+TABLE_NAME+" ("+COLUMNS+") values ("+ StringTools.fill("?,", (StringUtils.countMatches(COLUMNS, ","))*2)+"?);";
 
     private static final String SELECT_BY_ID =
            "select "+COLUMNS+" from "+TABLE_NAME+
@@ -44,14 +51,6 @@ public class AdvertisementRepositoryFinder {
     private static final String SELECT_MANY_BY_ID_SUFFIX =
            ")";
 
-    public static final String INSERT_STATEMENT =
-        "insert into "+TABLE_NAME+" ("+COLUMNS+") values (?, ?, ?);";
-
-    public static final String CREATE_STATEMENT =
-        "create table "+TABLE_NAME+" ("+
-        "ID INTEGER PRIMARY KEY , "+
-        "DateEntered DATETIME NOT NULL, "+
-        "sourceURL LONGVARCHAR)";
 
 
     private Connection connection;
@@ -69,6 +68,22 @@ public class AdvertisementRepositoryFinder {
     }
 
     // ------------------------------------------------------------------------------------------------------
+
+    public static String createStatement() {
+        StringBuilder statement = new StringBuilder("create table "+TABLE_NAME+" (");
+        boolean first = true;
+        for (int index = 0; index < COLUMN_LIST.length; index++) {
+            if (!first) {
+                statement.append(", ");
+            } else {
+                first = false;
+            }
+
+            statement.append(COLUMN_LIST[index]+" "+COLUMN_TYPE[index]);
+        }
+        statement.append(")");
+        return statement.toString();
+    }
 
     // ------------------------------------------------------------------------------------------------------
 

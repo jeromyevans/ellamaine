@@ -1,11 +1,13 @@
 package com.blueskyminds.ellamaine.db;
 
 import com.blueskyminds.ellamaine.EllamaineException;
+import com.blueskyminds.tools.text.StringTools;
 
 import java.sql.*;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * Used to find Entries in the AdvertisementCache
@@ -22,8 +24,17 @@ public class AdvertisementCacheFinder {
     
     private static final String TABLE_NAME = "AdvertisementCache";
 
-    private static final String COLUMNS = "id, dateEntered, saleOrRentalFlag, sourceName, sourceId, titleString, repositoryId";
+
     private static final String JOIN_COLUMNS = "repository.dateEntered, repository.sourceUrl";
+
+    public static final String[] COLUMN_LIST = {"ID", "DateEntered", "LastEncountered", "SaleOrRentalFlag", "SourceName", "SourceID", "TitleString", "RepositoryID"};
+    private static final String[] COLUMN_TYPE = {"integer primary key", "datetime", "datetime", "integer", "longvarchar", "varchar(20)", "longvarchar", "integer"};
+
+    private static final String COLUMNS = StringUtils.join(COLUMN_LIST, ", ");
+
+    public static final String INSERT_STATEMENT =
+        "insert into "+TABLE_NAME+" ("+COLUMNS+") values ("+ StringTools.fill("?,", (StringUtils.countMatches(COLUMNS, ","))*2)+"?);";
+
 
     private static final String SELECT_BY_ID =
            "select "+COLUMNS+" from "+TABLE_NAME+
@@ -32,20 +43,6 @@ public class AdvertisementCacheFinder {
     private static final String SELECT_BY_ID_WITH_JOIN =
            "select "+COLUMNS+","+JOIN_COLUMNS+" from "+TABLE_NAME+" left outer join AdvertisementRepository repository on repositoryId=repository.id"+
            " where id=?";
-
-    public static final String INSERT_STATEMENT = 
-        "insert into "+TABLE_NAME+" ("+COLUMNS+") values (?, ?, ?, ?, ?, ?, ?);";
-
-    public static final String CREATE_STATEMENT = 
-        "create table "+TABLE_NAME+" ("+
-        "ID INTEGER PRIMARY KEY , "+
-        "DateEntered DATETIME NOT NULL, "+
-        "LastEncountered DATETIME, "+
-        "SaleOrRentalFlag INTEGER,"+
-        "SourceName LONGVARCHAR, "+
-        "SourceID VARCHAR(20), "+
-        "TitleString LONGVARCHAR, "+
-        "RepositoryID INTEGER)";
 
 
     private Connection connection;
@@ -62,6 +59,22 @@ public class AdvertisementCacheFinder {
     private void init() {
     }
 
+    public static String createStatement() {
+        StringBuilder statement = new StringBuilder("create table "+TABLE_NAME+" (");
+        boolean first = true;
+        for (int index = 0; index < COLUMN_LIST.length; index++) {
+            if (!first) {
+                statement.append(", ");
+            } else {
+                first = false;
+            }
+
+            statement.append(COLUMN_LIST[index]+" "+COLUMN_TYPE[index]);
+        }
+        statement.append(")");
+        return statement.toString();
+    }
+    
     // ------------------------------------------------------------------------------------------------------
 
     /**

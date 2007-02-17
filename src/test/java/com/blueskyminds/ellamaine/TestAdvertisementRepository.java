@@ -48,7 +48,7 @@ public class TestAdvertisementRepository extends HypersonicTestCase {
 
     private void loadSampleData(Connection connection) throws SQLException {
 
-        PersistenceTools.executeUpdate(connection, AdvertisementRepositoryFinder.CREATE_STATEMENT);
+        PersistenceTools.executeUpdate(connection, AdvertisementRepositoryFinder.createStatement());
 
         AdvertisementRepositoryEntry entry1 = new AdvertisementRepositoryEntry(1, new Date(), "http://localhost/1.html");
         entry1.insert(connection);

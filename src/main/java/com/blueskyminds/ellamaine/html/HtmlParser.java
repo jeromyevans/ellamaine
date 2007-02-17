@@ -47,7 +47,9 @@ public class HtmlParser {
 
     // ------------------------------------------------------------------------------------------------------
 
-    /** Reads the input stream and creates a HTMLDocument.  Fires the extractor for the document */
+    /** Reads a HTML document from the input stream and uses an extractor to create a representive object.
+     *
+     * Reads the input stream and creates a HTMLDocument.  Fires the extractor for the document */
     public Object parseDocument(String source, InputStream inputStream) throws IOException, SAXException, AmbiguousExtractorException {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml       
@@ -59,12 +61,18 @@ public class HtmlParser {
 
     // ------------------------------------------------------------------------------------------------------
 
-    /** Extract the content from the document using the appropriate converter
+    /**
+     * Extract the content from the document using the appropriate extractor
+     *
+     * If no extractor can read the document then null will be returned
+     *
+     * If more than one extractor can read the document an AmbiguousExtractorException is thrown
      *
      * @param source
      * @param document
-     * @return the extracted object graph
-     * @throws AmbiguousExtractorException */
+     * @return the extracted object graph, or null if no extractors can parse the document
+     * @throws AmbiguousExtractorException if more than one extractor wants to process this document
+     * */
     public Object extractContent(String source, HTMLDocumentDecorator document) throws AmbiguousExtractorException {
 
         Extractor candidateExtractor = null;

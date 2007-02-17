@@ -44,27 +44,27 @@ public class TestAdvertisementCache extends HypersonicTestCase {
 
     private void loadSampleData(Connection connection) throws SQLException {
 
-        PersistenceTools.executeUpdate(connection, AdvertisementCacheFinder.CREATE_STATEMENT);
-        PersistenceTools.executeUpdate(connection, AdvertisementRepositoryFinder.CREATE_STATEMENT);
+        PersistenceTools.executeUpdate(connection, AdvertisementCacheFinder.createStatement());
+        PersistenceTools.executeUpdate(connection, AdvertisementRepositoryFinder.createStatement());
 
-        AdvertisementCacheEntry entry1 = new AdvertisementCacheEntry(1, new Date(), 0, "Test", "AAA", "Test 1", null);
+        AdvertisementCacheEntry entry1 = new AdvertisementCacheEntry(1, new Date(), new Date(), 0, "Test", "AAA", "Test 1", null);
         entry1.insert(connection);
         assertNotNull(entry1.getId());
-        AdvertisementCacheEntry entry2 = new AdvertisementCacheEntry(2, new Date(), 1, "Test1", "AAB", "Test 2", null);
+        AdvertisementCacheEntry entry2 = new AdvertisementCacheEntry(2, new Date(), new Date(), 1, "Test1", "AAB", "Test 2", null);
         entry2.insert(connection);
         assertNotNull(entry2.getId());
-        AdvertisementCacheEntry entry3 = new AdvertisementCacheEntry(3, new Date(), 1, "Test2", "AAC", "Test 3", null);
+        AdvertisementCacheEntry entry3 = new AdvertisementCacheEntry(3, new Date(), new Date(), 1, "Test2", "AAC", "Test 3", null);
         entry3.insert(connection);
         assertNotNull(entry3.getId());
-        AdvertisementCacheEntry entry4 = new AdvertisementCacheEntry(4, new Date(), 0, "Test3", "AAD", "Test 4", null);
+        AdvertisementCacheEntry entry4 = new AdvertisementCacheEntry(4, new Date(), new Date(), 0, "Test3", "AAD", "Test 4", null);
         entry4.insert(connection);
         assertNotNull(entry4.getId());
     }
 
     private void loadSampleDataWithRepository(Connection connection) throws SQLException {
 
-        PersistenceTools.executeUpdate(connection, AdvertisementCacheFinder.CREATE_STATEMENT);
-        PersistenceTools.executeUpdate(connection, AdvertisementRepositoryFinder.CREATE_STATEMENT);
+        PersistenceTools.executeUpdate(connection, AdvertisementCacheFinder.createStatement());
+        PersistenceTools.executeUpdate(connection, AdvertisementRepositoryFinder.createStatement());
 
         AdvertisementRepositoryEntry repoEntry1 = new AdvertisementRepositoryEntry(1, new Date(), "http://localhost/1.html");
         repoEntry1.insert(connection);
@@ -79,16 +79,16 @@ public class TestAdvertisementCache extends HypersonicTestCase {
         repoEntry4.insert(connection);
         assertNotNull(repoEntry4.getId());
 
-        AdvertisementCacheEntry entry1 = new AdvertisementCacheEntry(1, new Date(), 0, "Test", "AAA", "Test 1", repoEntry1);
+        AdvertisementCacheEntry entry1 = new AdvertisementCacheEntry(1, new Date(), new Date(), 0, "Test", "AAA", "Test 1", repoEntry1);
         entry1.insert(connection);
         assertNotNull(entry1.getId());
-        AdvertisementCacheEntry entry2 = new AdvertisementCacheEntry(2, new Date(), 1, "Test1", "AAB", "Test 2", repoEntry2);
+        AdvertisementCacheEntry entry2 = new AdvertisementCacheEntry(2, new Date(), new Date(), 1, "Test1", "AAB", "Test 2", repoEntry2);
         entry2.insert(connection);
         assertNotNull(entry2.getId());
-        AdvertisementCacheEntry entry3 = new AdvertisementCacheEntry(3, new Date(), 1, "Test2", "AAC", "Test 3", repoEntry3);
+        AdvertisementCacheEntry entry3 = new AdvertisementCacheEntry(3, new Date(), new Date(), 1, "Test2", "AAC", "Test 3", repoEntry3);
         entry3.insert(connection);
         assertNotNull(entry3.getId());
-        AdvertisementCacheEntry entry4 = new AdvertisementCacheEntry(4, new Date(), 0, "Test3", "AAD", "Test 4", repoEntry4);
+        AdvertisementCacheEntry entry4 = new AdvertisementCacheEntry(4, new Date(), new Date(), 0, "Test3", "AAD", "Test 4", repoEntry4);
         entry4.insert(connection);
         assertNotNull(entry4.getId());
     }

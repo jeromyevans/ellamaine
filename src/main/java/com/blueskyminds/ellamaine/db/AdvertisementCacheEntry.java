@@ -30,6 +30,7 @@ public class AdvertisementCacheEntry {
 
     private Integer id;
     private Date dateEntered;
+    private Date lastEncountered;
     private int saleOrRentalFlag;
     private String sourceName;
     private String sourceId;
@@ -37,9 +38,10 @@ public class AdvertisementCacheEntry {
     private AdvertisementRepositoryEntry repositoryEntry;
 
     /** Create a new entry */
-    public AdvertisementCacheEntry(Integer id, Date dateEntered, int saleOrRentalFlag, String sourceName, String sourceId, String titleString, AdvertisementRepositoryEntry repositoryEntry) {
+    public AdvertisementCacheEntry(Integer id, Date dateEntered, Date lastEncountered, int saleOrRentalFlag, String sourceName, String sourceId, String titleString, AdvertisementRepositoryEntry repositoryEntry) {
         this.id = id;
         this.dateEntered = dateEntered;
+        this.lastEncountered = lastEncountered;
         this.saleOrRentalFlag = saleOrRentalFlag;
         this.sourceName = sourceName;
         this.sourceId = sourceId;
@@ -69,6 +71,14 @@ public class AdvertisementCacheEntry {
 
     public void setDateEntered(Date dateEntered) {
         this.dateEntered = dateEntered;
+    }
+
+    public Date getLastEncountered() {
+        return lastEncountered;
+    }
+
+    public void setLastEncountered(Date lastEncountered) {
+        this.lastEncountered = lastEncountered;
     }
 
     public int getSaleOrRentalFlag() {
@@ -126,11 +136,12 @@ public class AdvertisementCacheEntry {
         Integer id = resultSet.getInt(1);
         if ((id != null) && (id > 0)) {
             Date dateEntered = resultSet.getDate(2);
-            int saleOrRental = resultSet.getInt(3);
-            String sourceName = resultSet.getString(4);
-            String sourceId = resultSet.getString(5);
-            String titleString = resultSet.getString(6);
-            Integer repositoryId = resultSet.getInt(7);
+            Date lastEncountered = resultSet.getDate(3);
+            int saleOrRental = resultSet.getInt(4);
+            String sourceName = resultSet.getString(5);
+            String sourceId = resultSet.getString(6);
+            String titleString = resultSet.getString(7);
+            Integer repositoryId = resultSet.getInt(8);
 
             if (repositoryId > 0) {
                 Date repositoryDateEntered;
@@ -142,7 +153,7 @@ public class AdvertisementCacheEntry {
                 repositoryEntry = new AdvertisementRepositoryEntry(repositoryId, repositoryDateEntered, sourceUrl);
             }
 
-            entry = new AdvertisementCacheEntry(id, dateEntered, saleOrRental, sourceName, sourceId, titleString, repositoryEntry);
+            entry = new AdvertisementCacheEntry(id, dateEntered, lastEncountered, saleOrRental, sourceName, sourceId, titleString, repositoryEntry);
         }
 
         return entry;
@@ -166,14 +177,20 @@ public class AdvertisementCacheEntry {
             insertStatement.setDate(2, null);
         }
 
-        insertStatement.setInt(3, getSaleOrRentalFlag());
-        insertStatement.setString(4, getSourceName());
-        insertStatement.setString(5, getSourceId());
-        insertStatement.setString(6, getTitleString());
-        if (getRepositoryEntry() != null) {
-            insertStatement.setObject(7, getRepositoryEntry().getId());
+        if (getDateEntered() != null) {
+            insertStatement.setDate(3, new java.sql.Date(getLastEncountered().getTime()));
         } else {
-            insertStatement.setObject(7, null);
+            insertStatement.setDate(3, null);
+        }
+
+        insertStatement.setInt(4, getSaleOrRentalFlag());
+        insertStatement.setString(5, getSourceName());
+        insertStatement.setString(6, getSourceId());
+        insertStatement.setString(7, getTitleString());
+        if (getRepositoryEntry() != null) {
+            insertStatement.setObject(8, getRepositoryEntry().getId());
+        } else {
+            insertStatement.setObject(8, null);
         }
 
         LOG.info(AdvertisementCacheFinder.INSERT_STATEMENT);

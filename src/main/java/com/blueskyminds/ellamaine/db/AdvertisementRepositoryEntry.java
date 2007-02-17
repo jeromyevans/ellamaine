@@ -67,7 +67,7 @@ public class AdvertisementRepositoryEntry {
         this.sourceUrl = sourceUrl;
     }
 
-     // ------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------------------
 
     /**
      * Creates a new AdvertisementCacheEntry populated with the values from a ResultSet
@@ -109,7 +109,7 @@ public class AdvertisementRepositoryEntry {
 
         insertStatement.setString(3, getSourceUrl());
 
-        LOG.info(AdvertisementRepositoryFinder.INSERT_STATEMENT);
+        //LOG.info(AdvertisementRepositoryFinder.INSERT_STATEMENT);
 
         return insertStatement.executeUpdate();
     }
