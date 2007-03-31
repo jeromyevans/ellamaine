@@ -27,7 +27,7 @@
         <priority value="info"/>
     </category>
 
-    <category name="com.blueskyminds.tools.patternmatching.PatternMatcher">
+    <category name="com.blueskyminds.framework.tools.patternmatching.PatternMatcher">
         <priority value="info"/>
     </category>
 

@@ -3,18 +3,16 @@ package com.blueskyminds.ellamaine.html;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
-import org.w3c.dom.Element;
 import org.w3c.dom.html.HTMLTableElement;
 import org.w3c.dom.html.HTMLTableRowElement;
 import org.w3c.dom.html.HTMLElement;
 import org.w3c.dom.html.HTMLTableCellElement;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.WordUtils;
 
 import java.util.List;
 import java.util.LinkedList;
 
-import com.blueskyminds.tools.text.StringTools;
+import com.blueskyminds.framework.tools.text.StringTools;
 
 /**
  * Date Started: 10/12/2006

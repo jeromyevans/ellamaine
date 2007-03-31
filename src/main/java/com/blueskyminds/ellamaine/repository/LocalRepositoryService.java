@@ -1,8 +1,8 @@
 package com.blueskyminds.ellamaine.repository;
 
 import com.blueskyminds.framework.persistence.PersistenceService;
-import com.blueskyminds.tools.FileTools;
-import com.blueskyminds.tools.PropertiesContext;
+import com.blueskyminds.framework.tools.FileTools;
+import com.blueskyminds.framework.tools.PropertiesContext;
 
 import java.io.*;
 

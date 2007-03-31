@@ -1,7 +1,7 @@
 package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
-import com.blueskyminds.tools.ResourceLocator;
+import com.blueskyminds.framework.tools.ResourceLocator;
 import com.blueskyminds.ellamaine.html.HtmlParser;
 import com.blueskyminds.ellamaine.html.TextExtractor;
 import java.net.URL;

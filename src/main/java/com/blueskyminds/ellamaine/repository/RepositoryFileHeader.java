@@ -1,6 +1,6 @@
 package com.blueskyminds.ellamaine.repository;
 
-import com.blueskyminds.tools.text.StringTools;
+import com.blueskyminds.framework.tools.text.StringTools;
 
 import java.util.Date;
 import java.io.*;

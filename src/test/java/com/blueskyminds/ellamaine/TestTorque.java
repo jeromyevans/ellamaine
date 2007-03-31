@@ -1,10 +1,9 @@
 package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
-import com.blueskyminds.tools.ResourceLocator;
+import com.blueskyminds.framework.tools.ResourceLocator;
 import org.apache.torque.Torque;
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
 /**

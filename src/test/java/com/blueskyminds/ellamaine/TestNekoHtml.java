@@ -1,7 +1,7 @@
 package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
-import com.blueskyminds.tools.ResourceLocator;
+import com.blueskyminds.framework.tools.ResourceLocator;
 import org.cyberneko.html.parsers.DOMParser;
 import org.cyberneko.html.parsers.DOMFragmentParser;
 import org.w3c.dom.*;
