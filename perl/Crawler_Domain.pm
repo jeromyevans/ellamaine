@@ -278,71 +278,96 @@ sub parseDomainSearchResults
             $suburbName = $htmlSyntaxTree->getNextText();  # 20Aug06
             
             $htmlSyntaxTree->resetSearchConstraints();
-            
-            # 20Aug06
-            # each entry is in it's own div of class "zeussearchResult" 
-            # the suburb name and price are in an H4 tag
-            # the next non-image anchor href attribute contains the unique ID
-            while ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', 'zeussearchResultHeader'))
-            {               
-               #$htmlSyntaxTree->setSearchStartConstraintByTag('h4');               
-
-               # title string is in a span after the suburbname
-               # but sometimes its proceeded by link text (eg. to virtual tour)
-               # loop until the suburb name (zero or one iteration normally)
-               $nextText = $htmlSyntaxTree->getNextText();
-               $count = 0;
-               while (($count < 2) && (!($nextText =~ /$suburbName/gi))) 
-               {
-                  $nextText = $htmlSyntaxTree->getNextText(); 
-                  $count++;
-               }               
-               $titleString = $htmlSyntaxTree->getNextText();
-               if ($titleString =~ /Property Type/) 
-               {
-                  $titleString = "";  # blank title
-               }
-
-               $printLogger->print("   crud= $crud\n");
-               $printLogger->print("   titleString= $titleString\n");
-               
-               $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', 'zeussearchResultMainImage');               
-                              
-               $sourceURL = $htmlSyntaxTree->getNextAnchor();            
+                        
+            # 12May07 the classnames have changed (the 'zeus' prefix has been removed).  We support both now
+            $prefix = '';            
+            $continue = 1;            
+            while ($continue) 
+            {
+               # 20Aug06
+               # each entry is in it's own div of class "zeussearchResult" 
+               # the suburb name and price are in an H4 tag
+               # the next non-image anchor href attribute contains the unique ID
+               while ($htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', $prefix.'searchResultHeader'))
+               {               
+                  #$htmlSyntaxTree->setSearchStartConstraintByTag('h4');               
+   
+                  # title string is in a span after the suburbname
+                  # but sometimes its proceeded by link text (eg. to virtual tour)
+                  # loop until the suburb name (zero or one iteration normally)
+                  $nextText = $htmlSyntaxTree->getNextText();
+                  $count = 0;
+                  while (($count < 2) && (!($nextText =~ /$suburbName/gi))) 
+                  {
+                     $nextText = $htmlSyntaxTree->getNextText(); 
+                     $count++;
+                  }               
+                  $titleString = $htmlSyntaxTree->getNextText();
+                  if ($titleString =~ /Property Type/) 
+                  {
+                     $titleString = "";  # blank title
+                  }
+   
+                  $printLogger->print("   crud= $crud\n");
+                  $printLogger->print("   titleString= $titleString\n");
+                  
+                  $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', $prefix.'searchResultMainImage');               
+                                 
+                  $sourceURL = $htmlSyntaxTree->getNextAnchor();            
+                                                
+                  # not sure why this is needed - it shifts it onto the next property, otherwise it finds the same one twice. 
+                  #$htmlSyntaxTree->setSearchStartConstraintByTag('dl');               
+                  
+                  # remove non-numeric characters from the string occuring after the question mark
+                  ($crud, $sourceID) = split(/\?/, $sourceURL, 2);
+                  $sourceID =~ s/[^0-9]//gi;
+                  $sourceURL = new URI::URL($sourceURL, $url)->abs()->as_string();      # convert to absolute
+   
+                  $printLogger->print("   saleOrRentalFlag= $saleOrRentalFlag\n");
+                  $printLogger->print("   suburbName      = $suburbName\n");
+                  $printLogger->print("   title           = $titleString\n");
+                  $printLogger->print("   sourceURL       = $sourceURL\n");
+                  $printLogger->print("   sourceId        = $sourceID\n");                              
+                  
+                  # check if the cache already contains a profile matching this source ID and title           
+                  $cacheID = $advertisementCache->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
+                  if ($cacheID == 0)
+                  {                                 
+                     $printLogger->print("   parserSearchResults: record already in advertisement cache.\n");
+                     $recordsSkipped++;
+                  }
+                  else
+                  {
+                     $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, " (cacheID:$cacheID)...\n");                               
+                     # IMPORTANT: pass the CachedID through to the details page parser
+                     my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$cacheID);                                               
                                              
-               # not sure why this is needed - it shifts it onto the next property, otherwise it finds the same one twice. 
-               #$htmlSyntaxTree->setSearchStartConstraintByTag('dl');               
-               
-               # remove non-numeric characters from the string occuring after the question mark
-               ($crud, $sourceID) = split(/\?/, $sourceURL, 2);
-               $sourceID =~ s/[^0-9]//gi;
-               $sourceURL = new URI::URL($sourceURL, $url)->abs()->as_string();      # convert to absolute
-
-               $printLogger->print("   saleOrRentalFlag= $saleOrRentalFlag\n");
-               $printLogger->print("   suburbName      = $suburbName\n");
-               $printLogger->print("   title           = $titleString\n");
-               $printLogger->print("   sourceURL       = $sourceURL\n");
-               $printLogger->print("   sourceId        = $sourceID\n");                              
-               
-               # check if the cache already contains a profile matching this source ID and title           
-               $cacheID = $advertisementCache->updateAdvertisementCache($saleOrRentalFlag, $sourceName, $sourceID, $titleString);
-               if ($cacheID == 0)
-               {                                 
-                  $printLogger->print("   parserSearchResults: record already in advertisement cache.\n");
-                  $recordsSkipped++;
+                     push @urlList, $httpTransaction;
+                  }
+                  $recordsEncountered++;  # count records seen
+                  
+                  # 23Jan05:save that this suburb has had some progress against it
+                  $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
                }
-               else
+               
+               if ($recordsEncountered == 0) 
                {
-                  $printLogger->print("   parseSearchResults: adding anchor id ", $sourceID, " (cacheID:$cacheID)...\n");                               
-                  # IMPORTANT: pass the CachedID through to the details page parser
-                  my $httpTransaction = HTTPTransaction::new($sourceURL, $url, $parentLabel.".".$cacheID);                                               
-                                          
-                  push @urlList, $httpTransaction;
+                  if ($prefix == "")
+                  {
+                     # try parsing again using the zeus prefix
+                     $continue = 1;
+                     $prefix = 'zeus';
+                  }
+                  else 
+                  {
+                     $continue = 0;
+                  }
+               } 
+               else 
+               {
+                  $continue = 0;
                }
-               $recordsEncountered++;  # count records seen
-               
-               # 23Jan05:save that this suburb has had some progress against it
-               $sessionProgressTable->reportProgressAgainstSuburb($threadID, 1);
+                 
             }
             $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $recordsSkipped, $url);
          }
@@ -632,7 +657,7 @@ sub parseDomainSalesChooseRegions
    
    $printLogger->print("in parseChooseRegions ($parentLabel)\n");    
     
-   if ($htmlSyntaxTree->containsTextPattern("Select Region"))
+   if (($htmlSyntaxTree->containsTextPattern("Select Region")) || ($htmlSyntaxTree->containsTextPattern("select areas below")))
    {
       
       # if this page contains a form to select whether to proceed or not...
@@ -729,12 +754,16 @@ sub parseDomainSalesChooseRegions
             $transactionList[$noOfTransactions] = $httpTransaction;
             $noOfTransactions++;
          }         
-         
+         else
+         {
+            $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseRegions: 'object moved' pattern not found"); 
+         }
          #$htmlSyntaxTree->printText();
       }
       else
       {
-         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseRegions: 'object moved' pattern not found");
+         $printLogger->print("Page not recognised (expecting regions or redirection)\n");
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseRegions: regions page or redirection expected but not found");
       }
    }
    
@@ -798,16 +827,18 @@ sub parseDomainRentalChooseRegions
    
    $printLogger->print("in parseChooseRegions ($parentLabel)\n");
     
-    
-   if ($htmlSyntaxTree->containsTextPattern("Select Region"))
+          $printLogger->print("here0\n");
+
+   if (($htmlSyntaxTree->containsTextPattern("Select Region")) || ($htmlSyntaxTree->containsTextPattern("select areas below")))
    {
-      
+      $printLogger->print("here1");
       # if this page contains a form to select whether to proceed or not...
       $htmlForm = $htmlSyntaxTree->getHTMLForm();
            
       #$htmlSyntaxTree->printText();     
       if ($htmlForm)
-      {       
+      {
+         $printLogger->print("here2");
          $actualAction = $htmlForm->getAction();
          $actionURL = new URI::URL($htmlForm->getAction(), $parameters{'url'})->abs()->as_string();
           
@@ -824,8 +855,8 @@ sub parseDomainRentalChooseRegions
          $useNextRegion = 0;
          $useThisRegion = 0;
          foreach (@$checkboxListRef)
-         {   
-            
+         {               
+            $printLogger->print("here3");
             $useThisRegion = $sessionProgressTable->isRegionAcceptable($_->getValue(), $currentRegion);
 
             
@@ -906,6 +937,11 @@ sub parseDomainRentalChooseRegions
          }
          
          #$htmlSyntaxTree->printText();
+      } 
+      else 
+      {
+         $printLogger->print("Page not recognised (expecting regions or redirection)\n");
+         $crawlerWarning->reportWarning($sourceName, $instanceID, $url, $crawlerWarning->{'CRAWLER_EXPECTED_PATTERN_NOT_FOUND'}, "parseChooseRegions: regions page or redirection expected but not found");
       }
    }
    
