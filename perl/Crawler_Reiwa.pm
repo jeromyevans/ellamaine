@@ -840,8 +840,9 @@ sub parseREIWASearchQueryResponse
 
       
    $printLogger->print("in parseSearchQueryResponse ($parentLabel)\n");
-   
-   if ($httpClient->responseCode == 302) 
+
+   # 12May2007 - now returns a 301   
+   if (($httpClient->responseCode == 302) || ($httpClient->responseCode == 301)) 
    {
       $location = $httpClient->getResponseHeader('location');
       if ($location) {
@@ -849,7 +850,7 @@ sub parseREIWASearchQueryResponse
          my $httpTransaction = HTTPTransaction::new($location, $url, $parentLabel);                            
          push @urlList, $httpTransaction;                        
       }
-   }
+   }        
       
    return @urlList;
 }
@@ -1138,10 +1139,11 @@ sub parseREIWASearchForm
          # need to force an input called suburb in the form - it is defined by javascript on the actual page
          $htmlForm->addSimpleInput('suburb', '', 0);
          
-         # override the action for the from (it uses javascript to modidy the URL)
+         # override the action for the from (it uses javascript to modify the URL)
          #$htmlForm->overrideAction($htmlForm->getAction()."&Action=SEARCH");   # disabled 20Aug06
-   
+                
          $htmlForm->setInputValue('subregion', 'allsub');   #20 aug 06
+         
          # clear the flag to exclude sold (under offer and sold information is useful)
          $htmlForm->clearInputValue('exclude_sold');      #20 aug 06  (also used for already leased)         
          $htmlForm->clearInputValue('exclude_noprice');      #20 aug 06
@@ -1150,8 +1152,8 @@ sub parseREIWASearchForm
          foreach (@regionIdList)
          {
             $mainArea = $_;
-            $htmlForm->setInputValue('region', $mainArea);   #20 aug 06
-                  
+            $htmlForm->setInputValue('region', $mainArea);   #20 aug 06                    
+            
             # loop through all the suburbs found for this region
             $valueList = $$regionIdHash{$mainArea};         
             $suburbList = $$regionNameHash{$mainArea};

@@ -279,11 +279,18 @@ sub parseDomainSearchResults
             
             $htmlSyntaxTree->resetSearchConstraints();
                         
-            # 12May07 the classnames have changed (the 'zeus' prefix has been removed).  We support both now
-            $prefix = '';            
-            $continue = 1;            
+            # 12May07 the classnames have changed (the 'zeus' prefix has been removed).  We support both now                        
+            $continue = 1;                        
+            $usePrefix = 0;
             while ($continue) 
             {
+               if ($usePrefix) {
+                  $prefix = 'zeus';
+                  $printLogger->print("   parserSearchResults: trying classname prefix 'zeus'.\n");
+               } else {
+                  $prefix = '';
+               }
+               
                # 20Aug06
                # each entry is in it's own div of class "zeussearchResult" 
                # the suburb name and price are in an H4 tag
@@ -352,11 +359,11 @@ sub parseDomainSearchResults
                
                if ($recordsEncountered == 0) 
                {
-                  if ($prefix == "")
+                  if (!$usePrefix)
                   {
                      # try parsing again using the zeus prefix
                      $continue = 1;
-                     $prefix = 'zeus';
+                     $usePrefix = 1;
                   }
                   else 
                   {
@@ -366,8 +373,7 @@ sub parseDomainSearchResults
                else 
                {
                   $continue = 0;
-               }
-                 
+               }                 
             }
             $statusTable->addToRecordsEncountered($threadID, $recordsEncountered, $recordsSkipped, $url);
          }
