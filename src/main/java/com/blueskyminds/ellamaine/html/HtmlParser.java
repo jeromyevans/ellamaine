@@ -4,6 +4,9 @@ import org.w3c.dom.html.HTMLDocument;
 import org.cyberneko.html.parsers.DOMParser;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import org.apache.commons.collections.OrderedMap;
+import org.apache.commons.collections.MapIterator;
+import org.apache.commons.collections.map.LinkedMap;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,45 +14,65 @@ import java.util.List;
 import java.util.LinkedList;
 
 /**
+ * Extracts content from an HTML Document.
+ *
+ * Extraction is performed by one of the registered Extrators.
+ * The Extractor to use is determined by the registered Selectors.
+ *
  * Uses Xerces2 with the Neko HTML parser to create an HTMLDocument.  Provides helper methods to access
- *  nodes of the document
+ *  nodes of the document. The HTMLDocument is passed to the extractor for processing of the result.
+ *
  * <p/>
  * Date Started: 9/12/2006
  * <p/>
  * History:
  * <p/>
- * Copyright (c) 2006 Blue Sky Minds Pty Ltd<br/>
+ * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
 public class HtmlParser {
 
-    private List<Extractor> extractors;
+    /** Map of selectors and corresponding extractors */
+    private OrderedMap selectorExtractorMap;
 
     public HtmlParser() throws IOException, SAXException {
         init();
     }
 
-    // ------------------------------------------------------------------------------------------------------
-
     /**
      * Initialise the HtmlParser with default attributes
      */
     private void init() {
-        extractors = new LinkedList<Extractor>();
+        selectorExtractorMap = new LinkedMap();
     }
 
-    // ------------------------------------------------------------------------------------------------------
+    /**
+     * Register an extractor with this parser.  The extractor will be executed if a document is parsed
+     * for which the selector matches true
+     **/
+    public void registerExtractor(Selector selector, Extractor extractor) {
+        selectorExtractorMap.put(selector, extractor);
+    }
 
-    /** Register an extractor with this parser.  The extractor will be executed if a document is parsed
-     * for which the extractor returns isSupported true */
+    /**
+     * Register a a composite selector/extractor with this parser.  The extractor will be executed if a
+     * document is parsed for which the selector matches true
+     **/
+    public void registerExtractor(SelectorExtractor extractor) {
+        selectorExtractorMap.put(extractor, extractor);
+    }
+
+    /**
+     * Register a single extractor with this parser.  The extractor will be always be executed
+     **/
     public void registerExtractor(Extractor extractor) {
-        extractors.add(extractor);
+        selectorExtractorMap.put(new DefaultSelector(true), extractor);
     }
 
-    // ------------------------------------------------------------------------------------------------------
-
-    /** Reads a HTML document from the input stream and uses an extractor to create a representive object.
+    /**
+     * Reads a HTML document from the input stream and uses an extractor to create a representive object.
      *
-     * Reads the input stream and creates a HTMLDocument.  Fires the extractor for the document */
+     * Reads the input stream and creates a HTMLDocument.  Fires the extractor for the document
+     **/
     public Object parseDocument(String source, InputStream inputStream) throws IOException, SAXException, AmbiguousExtractorException {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml       
@@ -58,8 +81,6 @@ public class HtmlParser {
         HTMLDocumentDecorator document = new HTMLDocumentDecorator((HTMLDocument) parser.getDocument());
         return extractContent(source, document);
     }
-
-    // ------------------------------------------------------------------------------------------------------
 
     /**
      * Extract the content from the document using the appropriate extractor
@@ -73,30 +94,56 @@ public class HtmlParser {
      * @return the extracted object graph, or null if no extractors can parse the document
      * @throws AmbiguousExtractorException if more than one extractor wants to process this document
      * */
-    public Object extractContent(String source, HTMLDocumentDecorator document) throws AmbiguousExtractorException {
+    private Object extractContent(String source, HTMLDocumentDecorator document) throws AmbiguousExtractorException {
 
-        Extractor candidateExtractor = null;
         Object result = null;
-        Enum candidateVersion = null;
-        Enum version;
+        Selector selector = evaluateSelector(source, document);
 
-        for (Extractor extractor : extractors) {
-            version = extractor.isSupported(source, document);
-            if (version != null) {
-                if (candidateExtractor == null) {
-                    candidateExtractor = extractor;
-                    candidateVersion = version;
-                } else {
-                    // more than one extractor supports this document - throw an exception
-                    throw new AmbiguousExtractorException(candidateExtractor, candidateVersion, extractor, version);
-                }
+        if (selector != null) {
+            result = extractContent(selector, source, document);
+        }
+        return result;
+    }
+
+    /**
+     * Evaluate which selector matches the given document
+     * @throws AmbiguousExtractorException if more than one selector matches the document 
+     **/
+    protected Selector evaluateSelector(String source, HTMLDocumentDecorator document) throws AmbiguousExtractorException {
+        List<Selector> matches = new LinkedList<Selector>();
+        Selector selector;
+        Object result = null;
+        MapIterator iterator = selectorExtractorMap.mapIterator();
+
+        // evaluate which selectors match the document
+        while (iterator.hasNext()) {
+            selector = (Selector) iterator.next();
+            if (selector.matches(source, document)) {
+                matches.add(selector);
             }
         }
 
-        if (candidateExtractor != null) {
-            result = candidateExtractor.extractContent(candidateVersion, source, document);
+        if (matches.size() > 1) {
+            // more than one selector matches this document - throw an exception
+            throw new AmbiguousExtractorException(matches);
+        } else {
+            if (matches.size() == 1) {
+                selector = matches.get(0);
+            } else {
+                selector = null;
+            }
         }
+        return selector;
+    }
 
+    /** Extract the content using the extractor for the specified selector */
+    private Object extractContent(Selector selector, String source, HTMLDocumentDecorator document) {
+        Object result = null;
+
+        Extractor extractor = (Extractor) selectorExtractorMap.get(selector);
+        if (extractor != null) {
+            result = extractor.extractContent(source, document);
+        }
         return result;
     }
 

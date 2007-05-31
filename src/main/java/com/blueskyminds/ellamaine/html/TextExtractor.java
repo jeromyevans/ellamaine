@@ -18,18 +18,14 @@ import java.net.URL;
  */
 public class TextExtractor implements Extractor<String> {
 
-    private enum Versions {
-        Original
-    }
-    
-    // ------------------------------------------------------------------------------------------------------
-
-    public Enum isSupported(String source, HTMLDocumentDecorator document) {
-        return Versions.Original;
-    }
-
-    public String extractContent(Enum version, String source, HTMLDocumentDecorator document) {
-        //return document.getBody().getTextContent();
+    /**
+     * Extracts the text content from the document.
+     *
+     * @param source
+     * @param document
+     * @return
+     */
+    public String extractContent(String source, HTMLDocumentDecorator document) {
         StringBuilder sb = new StringBuilder();
         Node body = document.getBody();
         extractText(sb, body);

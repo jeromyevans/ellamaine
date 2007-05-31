@@ -3,16 +3,15 @@ package com.blueskyminds.ellamaine.html;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
-import org.w3c.dom.html.HTMLTableElement;
-import org.w3c.dom.html.HTMLTableRowElement;
-import org.w3c.dom.html.HTMLElement;
-import org.w3c.dom.html.HTMLTableCellElement;
+import org.w3c.dom.html.*;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 import java.util.LinkedList;
 
 import com.blueskyminds.framework.tools.text.StringTools;
+import com.blueskyminds.framework.tools.filters.Filter;
+import com.blueskyminds.ellamaine.html.filters.AttrValueFilter;
 
 /**
  * Date Started: 10/12/2006
@@ -22,6 +21,17 @@ import com.blueskyminds.framework.tools.text.StringTools;
  * Copyright (c) 2006 Blue Sky Minds Pty Ltd<br/>
  */
 public class HtmlTools {
+
+    public static final String HREF = "href";
+    public static final String DIV = "div";
+    public static final String CLASS = "class";
+    public static final String H1 = "h1";
+    public static final String H2 = "h2";
+    public static final String UL = "ul";
+    public static final String ANCHOR = "a";
+    public static final String ID = "id";
+    public static final String SPAN = "span";
+
 
     private enum SearchStartPoint {
         Exact,
@@ -103,12 +113,12 @@ public class HtmlTools {
     }
 
     /** Gets the next text node that's a child of the given node */
-    public static String getNextText(Node node) {
+    public static String getNextTextChild(Node node) {
         return extractTextPattern(null, node);
     }
-
+     
     /** Gets all the text that's a child of the given node */
-    public static List<String> getText(Node node) {
+    public static List<String> getTextList(Node node) {
         List<Node> textNodes = searchForNodes(Node.TEXT_NODE, node, SearchStartPoint.Child);
         String text;
         List<String> textValues = new LinkedList<String>();
@@ -126,6 +136,58 @@ public class HtmlTools {
     public static String getNextTextContaining(Node node, String pattern) {
         return extractTextPattern(pattern, node);
     }
+
+    /** Returns the text content of the next text element after a text element containing the specified pattern
+     * Starts searching from the first child of the node
+     *
+     * This is a slow implementation
+     * */
+    public static String getNextTextAfterPattern(Node node, String pattern) {
+        List<String> allText = getTextList(node);
+        boolean found = false;
+        String nextText = null;
+
+        for (String current : allText) {
+            if (found) {
+                nextText = current;
+                break;
+            } else {
+                if (current.contains(pattern)) {
+                    found = true;
+                }
+            }
+        }
+        return nextText;
+    }
+
+    /** Extracts ALL the text content (only) from a node */
+    public static String getText(Node node) {
+        StringBuilder sb = new StringBuilder();
+        extractText(sb, node);
+        return cleanseText(sb.toString());
+    }
+
+    /** Extracts the text content from a node */
+    private static void extractText(StringBuilder sb, Node node) {
+        String text;
+
+        Node child = node.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.TEXT_NODE) {
+                text = child.getNodeValue();
+                text = StringUtils.trimToEmpty(text);
+                text = StringUtils.chomp(text);
+                if (!StringUtils.isBlank(text)) {
+                    sb.append(text+" ");
+                }
+            } else {
+                // recurse
+                extractText(sb, child);
+            }
+            child = child.getNextSibling();
+        }
+    }
+
 
     // todo: this is disabled because TextSiblingOrNextParent doesn't work and is a bit dodgy - try to find
     // a better way to address the element you're arfter
@@ -155,7 +217,7 @@ public class HtmlTools {
         return text;
     }
 
-    /** Recursive method that looks for the text matching the given pattern that'sa child of node
+    /** Recursive method that looks for the text matching the given pattern that's a child of node
      * A null pattern will match any text (the next text)
      * @param startNode the starting point
      * @param childOrSibling whether to start at the starting node exactly, the first child of the startingNode, or the
@@ -325,5 +387,238 @@ public class HtmlTools {
             index++;
         }
         return match;
+    }
+
+    /**
+     * Prune all nodes from the element before the specified node.
+     *
+     * @return true if the target element was found, otherwise the result is false and the
+     *  element will now be empty */
+    public static boolean pruneBefore(HTMLElement parent, Node target) {
+        boolean found = false;
+        Node node = calculateStartNode(parent, SearchStartPoint.Child);
+        while ((node != null) && (!found)) {
+            if (node == target) {
+                found = true;
+            } else {
+                if (!hasDescendant(node, target)) {
+                    Node child = node;
+                    // go to sibling
+                    node = node.getNextSibling();
+                    // now remove the child
+                    parent.removeChild(child);
+                } else {
+                    // the target node is a descendant of this node - now search deeper
+                    found = pruneBefore((HTMLElement) node, target);
+                }
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Prune all nodes within the element after the specified node.
+     *
+     * @param inclusive if true, the target will also be removed
+     *
+     * @return true if the target element was found, otherwise the result is false and the
+     *  element will now be empty */
+    public static boolean pruneAfter(HTMLElement parent, Node target, boolean inclusive) {
+        boolean found = false;
+        Node node = calculateStartNode(parent, SearchStartPoint.Child);
+        while (node != null) {
+            if (node == target) {
+                found = true;
+                // go to sibling and start pruning
+                node = node.getNextSibling();
+
+                if (inclusive) {
+                    parent.removeChild(target);
+                }
+            } else {
+                if (!found) {
+                    if (hasDescendant(node, target)) {
+                        // the target node is a descendant of this one - now search deeper
+                        found = pruneAfter((HTMLElement) node, target, inclusive);
+                    } else {
+                        // go to sibling and keep searching
+                        node = node.getNextSibling();
+                    }
+                } else {
+                    // we're after the node now so we can prune
+                    if (!hasDescendant(node, target)) {
+                         Node child = node;
+                        // go to sibling
+                        node = node.getNextSibling();
+                        // now remove the child
+                        parent.removeChild(child);
+                    } else {
+                        // go to sibling
+                        node = node.getNextSibling();
+                    }
+                }
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Determines whether the specified node is a descendant of the ancestor (ie. a child or child's child)
+     *
+     * @return */
+    public static boolean hasDescendant(Node ancestor, Node descendant) {
+        boolean found = false;
+        Node node = calculateStartNode(ancestor, SearchStartPoint.Child);
+
+        while ((node != null) && (!found)) {
+            if (node == descendant) {
+                found = true;
+            } else {
+                if (node.hasChildNodes()) {
+                    // recurse into children
+                    found = hasDescendant(node, descendant);
+                }
+            }
+
+            // check siblings
+            node = node.getNextSibling();
+        }
+
+        return found;
+    }
+
+    public static NodeList getElementsByTagName(HTMLDocument document, String tagName) {
+        return document.getElementsByTagName(tagName);
+    }
+
+    public static NodeList getElementsByTagName(HTMLElement element, String tagName) {
+        return element.getElementsByTagName(tagName);
+    }
+
+    public static NodeList getElementsByTagName(Node node, String tagName) {
+        if (node instanceof HTMLElement) {
+            return getElementsByTagName((HTMLElement) node, tagName);
+        } else {
+            if (node instanceof HTMLDocument) {
+                return getElementsByTagName((HTMLDocument) node, tagName);
+            } else {
+                return null;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------
+
+    /** Return the first element of the specified tag with an attribute with the given name and value */
+    public static HTMLElement getFirstElementByTagAndAttribute(Node elementOrDocument, String tagName, String attrName, String attrValue) {
+
+        NodeList elements = getElementsByTagName(elementOrDocument, tagName);
+        if (elements != null) {
+            return filterFirst(elements, new AttrValueFilter(attrName, attrValue));
+        } else {
+            return null;
+        }
+    }
+
+    /** Return the first element of the specified tag with an attribute with the given name and value */
+    public static HTMLElement getFirstElementByTagName(Node elementOrDocument, String tagName) {
+        NodeList elements = getElementsByTagName(elementOrDocument, tagName);
+        if (elements != null) {
+            if (elements.getLength() > 0) {
+                return (HTMLElement) elements.item(0);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Filters HTMLElements from a node list
+     * @return the list of accepted HTMLElements
+     **/
+    public static List<HTMLElement> filter(NodeList nodeList, Filter<HTMLElement> filter) {
+        int index = 0;
+        List<HTMLElement> accepted = new LinkedList<HTMLElement>();
+        String attr;
+        HTMLElement node;
+
+        while (index < nodeList.getLength()) {
+            node = (HTMLElement) nodeList.item(index);
+            if (filter.accept(node)) {
+                accepted.add(node);
+            }
+            index++;
+        }
+        return accepted;
+    }
+
+    /**
+     * Filters HTMLElements from a node list and returns the first match
+     * @return the first accepted HTMLElement, or null if not found
+     **/
+    public static HTMLElement filterFirst(NodeList nodeList, Filter<HTMLElement> filter) {
+        int index = 0;
+        List<HTMLElement> accepted = new LinkedList<HTMLElement>();
+        HTMLElement node = null;
+        boolean found = false;
+
+        while ((index < nodeList.getLength()) && (!found)) {
+            node = (HTMLElement) nodeList.item(index);
+            if (filter.accept(node)) {
+                found = true;
+            }
+            index++;
+        }
+
+        if (found) {
+            return node;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Prints the entire element
+     *
+     * @param startNode the starting point
+     * @return */
+    public static void printOutline(Node startNode) {
+
+        printOutline(startNode, 0);
+    }
+
+    /**
+     * Prints the entire element showing tags and text but not attributes
+     *
+     * @param startNode the starting point
+     * @return */
+    private static void printOutline(Node startNode, int level) {
+        boolean found = false;
+        Node node = calculateStartNode(startNode, SearchStartPoint.Exact);
+
+        while ((node != null) && (!found)) {
+            if (node.getNodeType() == Node.TEXT_NODE) {
+
+                String textValue = cleanseText(node.getNodeValue());
+                if (StringUtils.isNotBlank(textValue)) {
+                    System.out.println(StringTools.fill(" ", level)+textValue);
+                }
+            } else {
+
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    String nodeName = StringUtils.lowerCase(node.getNodeName());
+                    if (node.hasChildNodes()) {
+                        System.out.println(StringTools.fill(" ", level)+"<"+nodeName+">");
+                        // recurse into children
+                        printOutline(node.getFirstChild(), level+1);
+                        System.out.println(StringTools.fill(" ", level)+"</"+nodeName+">");
+                    } else {
+                        System.out.println(StringTools.fill(" ", level)+"<"+nodeName+"/>");
+                    }
+                }
+
+            }
+            // check siblings
+            node = node.getNextSibling();
+        }
     }
 }

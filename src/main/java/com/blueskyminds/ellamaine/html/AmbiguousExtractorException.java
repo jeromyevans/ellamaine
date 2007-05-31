@@ -1,5 +1,9 @@
 package com.blueskyminds.ellamaine.html;
 
+import org.apache.commons.lang.StringUtils;
+
+import java.util.List;
+
 /**
  * Date Started: 9/12/2006
  * <p/>
@@ -9,14 +13,14 @@ package com.blueskyminds.ellamaine.html;
  */
 public class AmbiguousExtractorException extends Exception {
 
-    private static final String DEFAULT_MESSAGE = "Unable to resolve which Extractor to use.  Multiple extractors support the document";
+    private static final String DEFAULT_MESSAGE = "Unable to resolve which Extractor to use.  Multiple selectors match the document";
 
-    public AmbiguousExtractorException(Extractor extractor1, Enum version1, Extractor extractor2, Enum version2) {
-        this(DEFAULT_MESSAGE, extractor1, version1, extractor2, version2);
+    public AmbiguousExtractorException(List<Selector> selectorsThatMatch) {
+        this(DEFAULT_MESSAGE, selectorsThatMatch);
     }
 
-    public AmbiguousExtractorException(String message, Extractor extractor1, Enum version1, Extractor extractor2, Enum version2) {
-        super(message+" ("+extractor1.getClass().getSimpleName()+" Version "+version1+","+extractor2.getClass().getSimpleName()+" Version "+version2+")");
+    public AmbiguousExtractorException(String message, List<Selector> selectorsThatMatch) {
+        super(message+" ("+ StringUtils.join(selectorsThatMatch.iterator(), ", "));
     }
 
     public AmbiguousExtractorException(String message, Throwable cause) {

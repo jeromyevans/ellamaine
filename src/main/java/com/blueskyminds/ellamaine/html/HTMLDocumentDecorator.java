@@ -5,6 +5,13 @@ import org.w3c.dom.html.HTMLElement;
 import org.w3c.dom.html.HTMLCollection;
 import org.w3c.dom.html.HTMLTableElement;
 import org.w3c.dom.*;
+import org.apache.commons.lang.StringUtils;
+
+import java.util.List;
+import java.util.LinkedList;
+
+import com.blueskyminds.framework.tools.filters.Filter;
+import com.blueskyminds.ellamaine.html.filters.AttrValueFilter;
 
 /**
  * Wraps an HTML document with helper methods
@@ -16,6 +23,9 @@ import org.w3c.dom.*;
  * Copyright (c) 2006 Blue Sky Minds Pty Ltd<br/>
  */
 public class HTMLDocumentDecorator implements HTMLDocument {
+
+    public static final String TABLE = "table";
+    public static final String ANCHOR = "a";
 
     private HTMLDocument document;
 
@@ -73,8 +83,6 @@ public class HTMLDocumentDecorator implements HTMLDocument {
 
     // ------------------------------------------------------------------------------------------------------
 
-    public static final String TABLE = "table";
-
     /**
      * Get the index'th table in the document
      *
@@ -89,7 +97,55 @@ public class HTMLDocumentDecorator implements HTMLDocument {
         return table;            
     }
 
-    // ------------------------------------------------------------------------------------------------------
+    /** Returns all anchors containg the specified pattern in the anchor body */
+    public List<HTMLElement> getAnchorsContainingPattern(String pattern) {
+        NodeList anchorList = document.getElementsByTagName(ANCHOR);
+        List<HTMLElement> anchors = new LinkedList<HTMLElement>();
+
+        int index = 0;
+        while (index < anchorList.getLength()) {
+            HTMLElement anchor = (HTMLElement) anchorList.item(index);
+
+            String bodyText = extractText(anchor);
+            if (bodyText.contains(pattern)) {
+                anchors.add(anchor);
+            }
+            index++;
+        }
+
+        return anchors;
+    }
+
+    /** Extracts the text content (only) from a node */
+    public String extractText(Node node) {
+        StringBuilder sb = new StringBuilder();
+        extractText(sb, node);
+        return sb.toString();
+    }
+
+    /** Extracts the text content from a node */
+    private void extractText(StringBuilder sb, Node node) {
+        String text;
+
+        Node child = node.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.TEXT_NODE) {
+                text = child.getNodeValue();
+                text = StringUtils.trimToEmpty(text);
+                text = StringUtils.chomp(text);
+                if (!StringUtils.isBlank(text)) {
+                    sb.append(text+"\n");
+                }
+            } else {
+                // recurse
+                extractText(sb, child);
+            }
+            child = child.getNextSibling();
+        }
+    }
+
+
+
     // ------------------------------------------------------------------------------------------------------
 
 
