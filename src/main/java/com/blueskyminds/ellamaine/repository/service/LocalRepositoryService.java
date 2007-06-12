@@ -29,7 +29,7 @@ public class LocalRepositoryService implements RepositoryService {
     private boolean useFlatPath;
 
     public LocalRepositoryService() {
-        init();
+        prepare();
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -37,7 +37,7 @@ public class LocalRepositoryService implements RepositoryService {
     /**
      * Initialise the LocalRepositoryService with default attributes
      */
-    private void init() {
+    private void prepare() {
         ellamaineProperties = new PropertiesContext(ELLAMAINE_PROPERTIES);
         useFlatPath = false;
         basePath = ellamaineProperties.getProperty(ORIGINATINGHTML_LOG_PATH_PROPERTY);
