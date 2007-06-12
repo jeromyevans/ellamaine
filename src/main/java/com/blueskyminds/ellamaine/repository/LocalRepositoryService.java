@@ -9,7 +9,7 @@ import java.io.*;
 /**
  * Accesses the file repository on the local filesystem
  *
- * This implementation needs to be compatible with the functionality of Ellamaines AdvertisementRepository.pm
+ * This implementation needs to be compatible with the functionality of Ellamain's AdvertisementRepository.pm
  *
  * Date Started: 15/02/2007
  * <p/>
@@ -17,7 +17,9 @@ import java.io.*;
  * <p/>
  * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
-public class LocalRepositoryService implements RepositoryService {
+public class LocalRepositoryService implements RepositoryService, Serializable {
+
+    private static final long serialVersionUID = 2084458806959065559L;
 
     private static final String DEFAULT_LOG_PATH = "./originatinghtml";
     private static final String ELLAMAINE_PROPERTIES = "ellamaine.properties";
@@ -31,6 +33,10 @@ public class LocalRepositoryService implements RepositoryService {
 
     public LocalRepositoryService(PersistenceService persistenceService) {
         this.persistenceService = persistenceService;
+        init();
+    }
+
+    public LocalRepositoryService() {
         init();
     }
 
@@ -52,14 +58,14 @@ public class LocalRepositoryService implements RepositoryService {
     * returns the base path used for the AdvertisementRepository files
     */
 
-    public String getBasePath() {
+    protected String getBasePath() {
         return basePath;
     }
 
     /**
      * returns the path to be used for the AdvertisementRepository with the specified identifier
      */
-    public String getTargetPath(int identifier) {
+    protected String getTargetPath(int identifier) {
 
         String targetPath;
         String basePath = getBasePath();
@@ -75,12 +81,12 @@ public class LocalRepositoryService implements RepositoryService {
         return targetPath;
     }
 
-    public void overrideBasePath(String newBasePath) {
+    protected void overrideBasePath(String newBasePath) {
         this.basePath = newBasePath;
     }
 
 
-    public void useFlatPath() {
+    protected void useFlatPath() {
         this.useFlatPath = true;
     }
 

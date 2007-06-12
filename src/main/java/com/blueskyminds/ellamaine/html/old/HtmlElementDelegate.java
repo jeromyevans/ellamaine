@@ -1,4 +1,4 @@
-package com.blueskyminds.html.old;
+package com.blueskyminds.ellamaine.html.old;
 
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Node;
@@ -6,8 +6,6 @@ import org.w3c.dom.Element;
 
 import java.util.List;
 import java.util.LinkedList;
-
-import com.blueskyminds.html.old.Anchor;
 
 /**
  * Date Started: 8/12/2006

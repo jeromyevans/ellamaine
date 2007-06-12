@@ -1,4 +1,4 @@
-package com.blueskyminds.html.old;
+package com.blueskyminds.ellamaine.html.old;
 
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;

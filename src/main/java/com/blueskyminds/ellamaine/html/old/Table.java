@@ -1,4 +1,4 @@
-package com.blueskyminds.html.old;
+package com.blueskyminds.ellamaine.html.old;
 
 /**
  * Contains all the elements in a table

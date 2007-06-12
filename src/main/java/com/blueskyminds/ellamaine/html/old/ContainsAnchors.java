@@ -1,6 +1,4 @@
-package com.blueskyminds.html.old;
-
-import com.blueskyminds.html.old.Anchor;
+package com.blueskyminds.ellamaine.html.old;
 
 import java.util.List;
 

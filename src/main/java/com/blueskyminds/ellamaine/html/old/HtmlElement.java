@@ -1,11 +1,10 @@
-package com.blueskyminds.html.old;
+package com.blueskyminds.ellamaine.html.old;
 
 
 import org.w3c.dom.Element;
 
 import java.util.List;
 
-import com.blueskyminds.html.old.Anchor;
 
 /**
  * Wraps a DOM Element and provides methods to access common HTML attributes/properties
