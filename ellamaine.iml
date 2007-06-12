@@ -23,6 +23,7 @@
     <orderEntry type="library" name="nekohtml-0.9.5" level="project" />
     <orderEntry type="library" name="htmlparser1.6" level="project" />
     <orderEntry type="library" name="jTidy-04aug2007r7" level="project" />
+    <orderEntry type="library" name="ejb3-persistence" level="project" />
     <orderEntryProperties />
   </component>
 </module>

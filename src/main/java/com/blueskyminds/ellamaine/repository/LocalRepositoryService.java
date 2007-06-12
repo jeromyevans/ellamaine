@@ -4,6 +4,7 @@ import com.blueskyminds.framework.persistence.PersistenceService;
 import com.blueskyminds.framework.tools.FileTools;
 import com.blueskyminds.framework.tools.PropertiesContext;
 
+import javax.persistence.EntityManager;
 import java.io.*;
 
 /**
@@ -17,9 +18,7 @@ import java.io.*;
  * <p/>
  * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
-public class LocalRepositoryService implements RepositoryService, Serializable {
-
-    private static final long serialVersionUID = 2084458806959065559L;
+public class LocalRepositoryService implements RepositoryService{
 
     private static final String DEFAULT_LOG_PATH = "./originatinghtml";
     private static final String ELLAMAINE_PROPERTIES = "ellamaine.properties";
@@ -31,8 +30,15 @@ public class LocalRepositoryService implements RepositoryService, Serializable {
     private String basePath;
     private boolean useFlatPath;
 
+    protected EntityManager em;
+
     public LocalRepositoryService(PersistenceService persistenceService) {
         this.persistenceService = persistenceService;
+        init();
+    }
+
+    public LocalRepositoryService(EntityManager entityManager) {
+        this.em = entityManager;
         init();
     }
 
