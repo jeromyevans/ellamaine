@@ -1,10 +1,9 @@
-package com.blueskyminds.ellamaine.repository;
+package com.blueskyminds.ellamaine.repository.service;
 
-import com.blueskyminds.framework.persistence.PersistenceService;
 import com.blueskyminds.framework.tools.FileTools;
 import com.blueskyminds.framework.tools.PropertiesContext;
+import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 
-import javax.persistence.EntityManager;
 import java.io.*;
 
 /**
@@ -18,29 +17,16 @@ import java.io.*;
  * <p/>
  * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
-public class LocalRepositoryService implements RepositoryService{
+public class LocalRepositoryService implements RepositoryService {
 
     private static final String DEFAULT_LOG_PATH = "./originatinghtml";
     private static final String ELLAMAINE_PROPERTIES = "ellamaine.properties";
     private static final String ORIGINATINGHTML_LOG_PATH_PROPERTY = "originatinghtml.log.path";
 
     private PropertiesContext ellamaineProperties;
-    private PersistenceService persistenceService;
 
     private String basePath;
     private boolean useFlatPath;
-
-    protected EntityManager em;
-
-    public LocalRepositoryService(PersistenceService persistenceService) {
-        this.persistenceService = persistenceService;
-        init();
-    }
-
-    public LocalRepositoryService(EntityManager entityManager) {
-        this.em = entityManager;
-        init();
-    }
 
     public LocalRepositoryService() {
         init();
@@ -102,9 +88,9 @@ public class LocalRepositoryService implements RepositoryService{
      * Get the PersistenceService used to access the AdvertisementRepository
      * @return PersistenceService
      */
-    public PersistenceService getPersistenceService() {
-        return persistenceService;
-    }
+//    public PersistenceService getPersistenceService() {
+//        return persistenceService;
+//    }
 
     // ------------------------------------------------------------------------------------------------------
 
