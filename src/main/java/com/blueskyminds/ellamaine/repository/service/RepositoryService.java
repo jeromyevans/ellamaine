@@ -34,7 +34,7 @@ public interface RepositoryService extends Pager {
      * @param spoolerTask
      * @return
      */
-    AdvertisementRepositorySpooler createRepositorySpooler(SpoolerTask<AdvertisementRepository> spoolerTask);
+    //AdvertisementRepositorySpooler createRepositorySpooler(SpoolerTask<AdvertisementRepository> spoolerTask);
     
     /**
      * Lookup a page of AdvertisementRepository entries

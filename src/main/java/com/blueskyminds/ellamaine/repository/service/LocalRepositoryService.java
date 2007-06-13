@@ -135,9 +135,9 @@ public class LocalRepositoryService implements RepositoryService {
      * @param spoolerTask
      * @return
      */
-    public AdvertisementRepositorySpooler createRepositorySpooler(SpoolerTask<AdvertisementRepository> spoolerTask) {
-        return new AdvertisementRepositorySpooler(em, new RepositoryDAO(em), spoolerTask);
-    }
+//    public AdvertisementRepositorySpooler createRepositorySpooler(SpoolerTask<AdvertisementRepository> spoolerTask) {
+//        return new AdvertisementRepositorySpooler(em, new RepositoryDAO(em), spoolerTask);
+//    }
 
     /** Load a page of AdvertisementRepository entries */
     public Page findPage(int pageNo, int pageSize) {
