@@ -2,8 +2,16 @@ package com.blueskyminds.ellamaine.repository.service;
 
 import com.blueskyminds.framework.tools.FileTools;
 import com.blueskyminds.framework.tools.PropertiesContext;
+import com.blueskyminds.framework.persistence.spooler.SpoolerTask;
+import com.blueskyminds.framework.persistence.paging.Page;
+import com.blueskyminds.framework.persistence.paging.Pager;
+import com.blueskyminds.framework.persistence.paging.QueryPager;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
+import com.blueskyminds.ellamaine.repository.dao.RepositoryDAO;
+import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
+import com.blueskyminds.ellamaine.extractor.spooler.AdvertisementRepositorySpooler;
 
+import javax.persistence.EntityManager;
 import java.io.*;
 
 /**
@@ -23,13 +31,18 @@ public class LocalRepositoryService implements RepositoryService {
     private static final String ELLAMAINE_PROPERTIES = "ellamaine.properties";
     private static final String ORIGINATINGHTML_LOG_PATH_PROPERTY = "originatinghtml.log.path";
 
+    private EntityManager em;
     private PropertiesContext ellamaineProperties;
 
     private String basePath;
     private boolean useFlatPath;
 
-    public LocalRepositoryService() {
+    public LocalRepositoryService(EntityManager em) {
+        this.em = em;
         prepare();
+    }
+
+    public LocalRepositoryService() {
     }
 
     // ------------------------------------------------------------------------------------------------------
@@ -37,7 +50,7 @@ public class LocalRepositoryService implements RepositoryService {
     /**
      * Initialise the LocalRepositoryService with default attributes
      */
-    private void prepare() {
+    protected void prepare() {
         ellamaineProperties = new PropertiesContext(ELLAMAINE_PROPERTIES);
         useFlatPath = false;
         basePath = ellamaineProperties.getProperty(ORIGINATINGHTML_LOG_PATH_PROPERTY);
@@ -114,5 +127,21 @@ public class LocalRepositoryService implements RepositoryService {
         }
 
         return is;
+    }
+
+    /**
+     * Create a spooler for paging entries from the AdvertisementRepository
+     *
+     * @param spoolerTask
+     * @return
+     */
+    public AdvertisementRepositorySpooler createRepositorySpooler(SpoolerTask<AdvertisementRepository> spoolerTask) {
+        return new AdvertisementRepositorySpooler(em, new RepositoryDAO(em), spoolerTask);
+    }
+
+    /** Load a page of AdvertisementRepository entries */
+    public Page findPage(int pageNo, int pageSize) {
+        QueryPager pager = new RepositoryDAO(em);
+        return pager.findPage(pageNo, pageSize);
     }
 }

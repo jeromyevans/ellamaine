@@ -1,6 +1,7 @@
 package com.blueskyminds.ellamaine.repository.dao;
 
 import com.blueskyminds.framework.persistence.jpa.dao.AbstractDAO;
+import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
 
 import javax.persistence.EntityManager;
 
@@ -14,10 +15,10 @@ import javax.persistence.EntityManager;
  * <p/>
  * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
-public class RepositoryDAO extends AbstractDAO {
+public class RepositoryDAO extends AbstractDAO<AdvertisementRepository> {
 
     public RepositoryDAO(EntityManager em) {
-        super(em);
+        super(em, AdvertisementRepository.class);
     }
     
 }
