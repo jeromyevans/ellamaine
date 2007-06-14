@@ -6,6 +6,7 @@ import com.blueskyminds.framework.persistence.spooler.SpoolerTask;
 import com.blueskyminds.framework.persistence.paging.Page;
 import com.blueskyminds.framework.persistence.paging.Pager;
 import com.blueskyminds.framework.persistence.paging.QueryPager;
+import com.blueskyminds.framework.persistence.paging.PageResult;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.dao.RepositoryDAO;
 import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
@@ -13,6 +14,9 @@ import com.blueskyminds.ellamaine.extractor.spooler.AdvertisementRepositorySpool
 
 import javax.persistence.EntityManager;
 import java.io.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Date;
 
 /**
  * Accesses the file repository on the local filesystem
@@ -31,7 +35,7 @@ public class LocalRepositoryService implements RepositoryService {
     private static final String ELLAMAINE_PROPERTIES = "ellamaine.properties";
     private static final String ORIGINATINGHTML_LOG_PATH_PROPERTY = "originatinghtml.log.path";
 
-    private EntityManager em;
+    protected EntityManager em;
     private PropertiesContext ellamaineProperties;
 
     private String basePath;
@@ -141,7 +145,22 @@ public class LocalRepositoryService implements RepositoryService {
 
     /** Load a page of AdvertisementRepository entries */
     public Page findPage(int pageNo, int pageSize) {
-        QueryPager pager = new RepositoryDAO(em);
-        return pager.findPage(pageNo, pageSize);
+//        QueryPager pager = new RepositoryDAO(em);
+//        Page page = pager.findPage(pageNo, pageSize);
+//        if (page != null) {
+//            // we return a copy that's a simple serializable PageResult
+//            return page.asCopy();
+//        } else {
+//            return null;
+//        }
+        List<AdvertisementRepository> results = new LinkedList<AdvertisementRepository>();
+        for (int i = 0; i < 10; i++) {
+            results.add(new AdvertisementRepository(i, new Date(), "test"));
+        }
+        return new PageResult(0, 10, results);
+    }
+
+    public void setEntityManager(EntityManager em) {
+        this.em = em;
     }
 }
