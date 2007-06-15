@@ -277,7 +277,7 @@ public class HtmlTools {
         while ((node != null) && (!found)) {
             if (node.getNodeType() == nodeType) {
                 foundNodes.add(node);
-            }
+            }                        
 
             if (node.getFirstChild() != null) {
                 // recurse into children
@@ -294,52 +294,54 @@ public class HtmlTools {
     private static Node calculateStartNode(Node startNode, SearchStartPoint childOrSibling) {
         Node node = null;
 
-        switch (childOrSibling) {
-            case Child:
-                node = startNode.getFirstChild();
-                break;
-            case Exact:
-                node = startNode;
-                break;
-            case Sibling:
-                node = startNode.getNextSibling();
-                break;
-            case SiblingOrNextParent:
-                node = startNode.getNextSibling();
-                if (node == null) {
-                    // if there's no sibling, go to the parent and use their sibling
-                    if (startNode.getParentNode() != null) {
-                        node = startNode.getParentNode().getNextSibling();
-                    }
-                }
-                break;
-            case TextSiblingOrNextParent:
-                // uses the next non-blank TextNode sibling, otherwise the parent's sibling
-                boolean found = false;
-                String value;
-                node = startNode;
-                
-                while (!found) {
-                    // todo: this should be recurisve, searching the parent's siblings and above until the first non-null
-                    node = node.getNextSibling();
-                    if (node != null) {
-                        if (node.getNodeType() == Node.TEXT_NODE) {
-                            value = cleanseText(node.getTextContent());
-                            if (StringUtils.isNotBlank(value)) {
-                                found = true;
-                            }
-                        }
-                    } else {
-                        // if there's text no sibling, go to the parent and use their sibling
+        if (startNode != null) {
+            switch (childOrSibling) {
+                case Child:
+                    node = startNode.getFirstChild();
+                    break;
+                case Exact:
+                    node = startNode;
+                    break;
+                case Sibling:
+                    node = startNode.getNextSibling();
+                    break;
+                case SiblingOrNextParent:
+                    node = startNode.getNextSibling();
+                    if (node == null) {
+                        // if there's no sibling, go to the parent and use their sibling
                         if (startNode.getParentNode() != null) {
                             node = startNode.getParentNode().getNextSibling();
-                        } else {
-                            node = null;
                         }
-                        found = true;
                     }
-                }
-                break;
+                    break;
+                case TextSiblingOrNextParent:
+                    // uses the next non-blank TextNode sibling, otherwise the parent's sibling
+                    boolean found = false;
+                    String value;
+                    node = startNode;
+
+                    while (!found) {
+                        // todo: this should be recurisve, searching the parent's siblings and above until the first non-null
+                        node = node.getNextSibling();
+                        if (node != null) {
+                            if (node.getNodeType() == Node.TEXT_NODE) {
+                                value = cleanseText(node.getTextContent());
+                                if (StringUtils.isNotBlank(value)) {
+                                    found = true;
+                                }
+                            }
+                        } else {
+                            // if there's text no sibling, go to the parent and use their sibling
+                            if (startNode.getParentNode() != null) {
+                                node = startNode.getParentNode().getNextSibling();
+                            } else {
+                                node = null;
+                            }
+                            found = true;
+                        }
+                    }
+                    break;
+            }
         }
 
         return node;

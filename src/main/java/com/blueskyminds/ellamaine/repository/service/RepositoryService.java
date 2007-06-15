@@ -1,6 +1,7 @@
 package com.blueskyminds.ellamaine.repository.service;
 
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
+import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.extractor.spooler.AdvertisementRepositorySpooler;
 import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
 import com.blueskyminds.framework.persistence.spooler.SpoolerTask;
@@ -29,12 +30,12 @@ public interface RepositoryService extends Pager {
     InputStream getInputStream(Integer repositoryEntryId) throws RepositoryServiceException;
 
     /**
-     * Create a spooler for paging entries from the AdvertisementRepository.  Provide 
+     * Returns the content of the specified Repository entry
      *
-     * @param spoolerTask
-     * @return
-     */
-    //AdvertisementRepositorySpooler createRepositorySpooler(SpoolerTask<AdvertisementRepository> spoolerTask);
+     * @param repositoryEntryId
+     * @return RepositoryContent containing all content of the entry
+     **/
+    RepositoryContent getContent(Integer repositoryEntryId) throws RepositoryServiceException;
     
     /**
      * Lookup a page of AdvertisementRepository entries

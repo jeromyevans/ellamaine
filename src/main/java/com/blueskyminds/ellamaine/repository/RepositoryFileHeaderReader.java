@@ -21,9 +21,9 @@ import org.apache.commons.logging.LogFactory;
  * <p/>
  * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
-public class RepositoryFileHeader {
+public class RepositoryFileHeaderReader {
 
-    private static final Log LOG = LogFactory.getLog(RepositoryFileHeader.class);
+    private static final Log LOG = LogFactory.getLog(RepositoryFileHeaderReader.class);
 
     private static final int SEEKING_HEADER = 0;
     private static final int IN_HEADER = 1;
@@ -41,7 +41,7 @@ public class RepositoryFileHeader {
     private Date timestamp;
 
 
-    public RepositoryFileHeader(BufferedInputStream inputStream) throws RepositoryHeaderException {
+    public RepositoryFileHeaderReader(BufferedInputStream inputStream) throws RepositoryHeaderException {
         readHeader(inputStream);
         LOG.info(sourceUrl);
         LOG.info(timestamp);
