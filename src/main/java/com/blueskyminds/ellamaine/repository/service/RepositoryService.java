@@ -2,9 +2,6 @@ package com.blueskyminds.ellamaine.repository.service;
 
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
-import com.blueskyminds.ellamaine.extractor.spooler.AdvertisementRepositorySpooler;
-import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
-import com.blueskyminds.framework.persistence.spooler.SpoolerTask;
 import com.blueskyminds.framework.persistence.paging.Page;
 import com.blueskyminds.framework.persistence.paging.Pager;
 

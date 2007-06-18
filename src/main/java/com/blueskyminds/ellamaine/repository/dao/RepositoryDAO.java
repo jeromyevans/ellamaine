@@ -1,7 +1,7 @@
 package com.blueskyminds.ellamaine.repository.dao;
 
 import com.blueskyminds.framework.persistence.jpa.dao.AbstractDAO;
-import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
+import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
 
 import javax.persistence.EntityManager;
 

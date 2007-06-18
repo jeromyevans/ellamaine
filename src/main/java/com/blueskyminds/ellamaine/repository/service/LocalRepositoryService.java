@@ -2,23 +2,15 @@ package com.blueskyminds.ellamaine.repository.service;
 
 import com.blueskyminds.framework.tools.FileTools;
 import com.blueskyminds.framework.tools.PropertiesContext;
-import com.blueskyminds.framework.persistence.spooler.SpoolerTask;
 import com.blueskyminds.framework.persistence.paging.Page;
-import com.blueskyminds.framework.persistence.paging.Pager;
 import com.blueskyminds.framework.persistence.paging.QueryPager;
-import com.blueskyminds.framework.persistence.paging.PageResult;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryHeaderException;
 import com.blueskyminds.ellamaine.repository.dao.RepositoryDAO;
-import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
-import com.blueskyminds.ellamaine.extractor.spooler.AdvertisementRepositorySpooler;
 
 import javax.persistence.EntityManager;
 import java.io.*;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Date;
 
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;

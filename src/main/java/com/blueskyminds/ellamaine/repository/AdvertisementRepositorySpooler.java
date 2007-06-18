@@ -1,17 +1,15 @@
-package com.blueskyminds.ellamaine.extractor.spooler;
+package com.blueskyminds.ellamaine.repository;
 
 import com.blueskyminds.framework.persistence.spooler.DomainObjectSpooler;
 import com.blueskyminds.framework.persistence.spooler.SpoolerTask;
 import com.blueskyminds.framework.persistence.spooler.SpoolerException;
 import com.blueskyminds.framework.persistence.PersistenceServiceException;
 import com.blueskyminds.framework.persistence.query.QueryFactory;
-import com.blueskyminds.framework.persistence.paging.Pager;
 import com.blueskyminds.framework.persistence.paging.QueryPager;
-import com.blueskyminds.ellamaine.extractor.model.AdvertisementRepository;
+import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.persistence.Query;
 import javax.persistence.EntityManager;
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package com.blueskyminds.ellamaine.extractor.model;
+package com.blueskyminds.ellamaine.repository;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

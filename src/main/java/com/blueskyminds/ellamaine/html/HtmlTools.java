@@ -31,6 +31,15 @@ public class HtmlTools {
     public static final String ANCHOR = "a";
     public static final String ID = "id";
     public static final String SPAN = "span";
+    
+    public static final String TABLE = "table";
+    public static final String TD = "td";
+    public static final String TR = "tr";
+    public static final String BLOCKQUOTE = "blockquote";
+    public static final String FONT = "font";
+    public static final String DL = "dl";
+    public static final String DT = "dt";
+    public static final String P = "p";
 
 
     private enum SearchStartPoint {
@@ -50,10 +59,6 @@ public class HtmlTools {
     }
 
     // ------------------------------------------------------------------------------------------------------
-
-    public static final String TD = "td";
-    public static final String TR = "tr";
-    public static final String TABLE = "table";
 
     /** Get a table row from a table */
     public static HTMLTableRowElement getTableRow(HTMLTableElement table, int rowNo) {
@@ -352,7 +357,13 @@ public class HtmlTools {
      * @return true if the node contains the given text pattern (exact match)
      */
     public static boolean containsText(Node node, String pattern) {
-        return node.getTextContent().contains(pattern);
+        if (node != null) {
+            String content = node.getTextContent();
+            if (content != null) {
+                return content.contains(pattern);
+            }
+        }
+        return false;
     }
 
     /**
