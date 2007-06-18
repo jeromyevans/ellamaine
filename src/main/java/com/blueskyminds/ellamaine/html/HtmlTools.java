@@ -634,4 +634,52 @@ public class HtmlTools {
             node = node.getNextSibling();
         }
     }
+
+    /**
+     * Gets the first HTMLElement that's a child of the element provided
+     *  (text and other types of nodes are ignored)
+     *
+     * @param element
+     * @return
+     */
+    public static HTMLElement getFirstChild(HTMLElement element) {
+        HTMLElement found = null;
+        if (element != null) {
+            Node current = element.getFirstChild();
+
+            while ((current != null) && (found == null)) {
+                if (HTMLElement.class.isAssignableFrom(current.getClass())) {
+                    found = (HTMLElement) current;
+                } else {
+                    current = current.getNextSibling();
+                }
+            }
+        }
+
+        return found;
+    }
+
+    /**
+     * Gets the first HTMLElement that's a sibling of the element provided
+     *  (text and other types of nodes are ignored)
+     *
+     * @param element
+     * @return
+     */
+    public static HTMLElement getNextSibling(HTMLElement element) {
+        HTMLElement found = null;
+
+        if (element != null) {
+            Node current = element.getNextSibling();
+            while ((current != null) && (found == null)) {
+                if (HTMLElement.class.isAssignableFrom(current.getClass())) {
+                    found = (HTMLElement) current;
+                } else {
+                    current = current.getNextSibling();
+                }
+            }
+        }
+
+        return found;
+    }
 }
