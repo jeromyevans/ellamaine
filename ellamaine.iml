@@ -18,13 +18,13 @@
     <orderEntry type="library" name="commons-logging-1.0.4" level="project" />
     <orderEntry type="library" name="commons-collections-3.2" level="project" />
     <orderEntry type="library" name="junit-3.8.1" level="project" />
-    <orderEntry type="library" name="log4j-1.2.8" level="project" />
     <orderEntry type="library" name="xerces-2.9.0" level="project" />
     <orderEntry type="library" name="nekohtml-0.9.5" level="project" />
     <orderEntry type="library" name="htmlparser1.6" level="project" />
     <orderEntry type="library" name="jTidy-04aug2007r7" level="project" />
     <orderEntry type="library" name="ejb3-persistence" level="project" />
     <orderEntry type="library" name="commons-beanutils-1.7" level="project" />
+    <orderEntry type="library" name="log4j-1.2.13" level="project" />
     <orderEntryProperties />
   </component>
 </module>
