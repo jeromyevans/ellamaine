@@ -64,7 +64,9 @@
 #                  - Modified to use the AdvertisementCache instead of AdvertisedPropertyProfiles
 # 20 Aug 2006      - Modified crawler for changes to the Domain website.  Most changes were superficial (same urls)
 #   except for some restructuring in the results page
-#
+# 20 Jun 2007      - Fixed a problem parsing the search results site.  Sometimes the URL would be invalid (a javascript reference)
+# and this would cause the entre application to bomb out (can't locate object method: host).  It seems this has been occuring for any
+# result that didn't have an image!
 package Crawler_Domain;
 
 use PrintLogger;
@@ -318,7 +320,12 @@ sub parseDomainSearchResults
                   $printLogger->print("   crud= $crud\n");
                   $printLogger->print("   titleString= $titleString\n");
                   
-                  $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', $prefix.'searchResultMainImage');               
+		  # 20Jun07 - the URL was obtained from the image, but if the image isn't present we need to use
+		  # the first link in the blurb.  Not sure why the blurb wasn't always used so this keeps  backwards compatibility		  
+                  if (!$htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', $prefix.'searchResultMainImage')) 
+		  {
+		     $htmlSyntaxTree->setSearchStartConstraintByTagAndClass('div', $prefix.'searchResultBlurb');
+		  }
                                  
                   $sourceURL = $htmlSyntaxTree->getNextAnchor();            
                                                 
