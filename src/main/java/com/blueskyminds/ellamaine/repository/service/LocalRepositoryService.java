@@ -170,9 +170,11 @@ public class LocalRepositoryService implements RepositoryService {
         QueryPager pager = new RepositoryDAO(em);
         Page page = pager.findPage(pageNo, pageSize);
         if (page != null) {
+            LOG.info("Found page");
             // we return a copy that's a simple serializable PageResult
             return page.asCopy();
         } else {
+            LOG.info("Page not found - returning null");            
             return null;
         }
 //        List<AdvertisementRepository> results = new LinkedList<AdvertisementRepository>();

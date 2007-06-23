@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.io.Serializable;
 
 import com.blueskyminds.ellamaine.db.AdvertisementRepositoryFinder;
 import com.blueskyminds.framework.HasIdentity;
@@ -28,7 +29,7 @@ import javax.persistence.*;
  * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
 @Entity
-public class AdvertisementRepository implements HasIdentity, RowTableGateway {
+public class AdvertisementRepository implements HasIdentity, RowTableGateway, Serializable {
 
     private static final Log LOG = LogFactory.getLog(AdvertisementRepository.class);
 
