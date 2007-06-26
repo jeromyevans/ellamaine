@@ -11,6 +11,7 @@ import com.blueskyminds.ellamaine.repository.dao.RepositoryDAO;
 
 import javax.persistence.EntityManager;
 import java.io.*;
+import java.util.Properties;
 
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
@@ -37,8 +38,9 @@ public class LocalRepositoryService implements RepositoryService {
     protected EntityManager em;
     private PropertiesContext ellamaineProperties;
 
-    private String basePath;
+    //private String basePath;
     private boolean useFlatPath;
+    private LocalRepositoryPaths localRepositoryPaths;
 
     public LocalRepositoryService(EntityManager em) {
         this.em = em;
@@ -57,18 +59,19 @@ public class LocalRepositoryService implements RepositoryService {
     protected void init() {
         ellamaineProperties = new PropertiesContext(ELLAMAINE_PROPERTIES);
         useFlatPath = false;
-        basePath = ellamaineProperties.getProperty(ORIGINATINGHTML_LOG_PATH_PROPERTY);
-        if (basePath == null) {
-            basePath = DEFAULT_LOG_PATH;
-        }
+        localRepositoryPaths = new LocalRepositoryPaths(ellamaineProperties.getPropertiesStartingWith(ORIGINATINGHTML_LOG_PATH_PROPERTY), DEFAULT_LOG_PATH);
+        //basePath =
+        //if (basePath == null) {
+        //    basePath = DEFAULT_LOG_PATH;
+        //}
     }
 
     /**
     * returns the base path used for the AdvertisementRepository files
     */
 
-    protected String getBasePath() {
-        return basePath;
+    protected String getBasePath(int identifier) {
+        return localRepositoryPaths.getBasePath(identifier);
     }
 
     /**
@@ -77,7 +80,7 @@ public class LocalRepositoryService implements RepositoryService {
     protected String getTargetPath(int identifier) {
 
         String targetPath;
-        String basePath = getBasePath();
+        String basePath = getBasePath(identifier);
 
         if (!useFlatPath) {
             // this is the normal case - use subdirectories
@@ -90,9 +93,9 @@ public class LocalRepositoryService implements RepositoryService {
         return targetPath;
     }
 
-    protected void overrideBasePath(String newBasePath) {
-        this.basePath = newBasePath;
-    }
+//    protected void overrideBasePath(String newBasePath) {
+//        this.basePath = newBasePath;
+//    }
 
 
     protected void useFlatPath() {
