@@ -13,7 +13,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="framework" />
+    <orderEntry type="module" module-name="framework-core" />
     <orderEntry type="library" name="commons-lang-2.3" level="project" />
     <orderEntry type="library" name="commons-logging-1.0.4" level="project" />
     <orderEntry type="library" name="commons-collections-3.2" level="project" />
