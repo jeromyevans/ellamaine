@@ -277,7 +277,7 @@ sub parseDomainSearchResults
             # get the suburbname from the page - used tfor tracking progress...
             $regionName = $htmlSyntaxTree->getNextText();  # 20Aug06
             $crud = $htmlSyntaxTree->getNextText();  # 20Aug06
-            $suburbName = $htmlSyntaxTree->getNextText();  # 20Aug06
+            #$suburbName = $htmlSyntaxTree->getNextText();  # 20Aug06  #17Oct07 - use parent label for suburbname
             
             $htmlSyntaxTree->resetSearchConstraints();
                         
@@ -503,8 +503,8 @@ sub parseDomainChooseSuburbs
    if (($htmlSyntaxTree->containsTextPattern("Advanced Search")) || (($htmlSyntaxTree->containsTextPattern("Search by state"))))
    {                    
       # get the HTML Form instance
-      $htmlForm = $htmlSyntaxTree->getHTMLForm("__aspnetForm");
-       
+       # 17Oct07 - more superficial changes
+      $htmlForm = $htmlSyntaxTree->getHTMLForm("aspnetForm");      
       if ($htmlForm)
       {               
          # for all of the suburbs defined in the form, create a transaction to get it
@@ -512,7 +512,7 @@ sub parseDomainChooseSuburbs
          {
             $printLogger->print("   parseChooseSuburbs: Filtering suburb names between $startLetter to $endLetter...\n");
          }
-         $optionsRef = $htmlForm->getSelectionOptions('_ctl0:listboxSuburbs');
+         $optionsRef = $htmlForm->getSelectionOptions('ctl00\$listboxSuburbs');
          if ($optionsRef)
          {         
             # recover the state, region, suburb combination from the recovery file for this thread
@@ -551,7 +551,7 @@ sub parseDomainChooseSuburbs
                      #$printLogger->print("  $currentRegion:", $_->{'text'}, " '", $_->{'value'}, "'\n");
 
                      # set the suburb name in the form   
-                     $htmlForm->setInputValue('_ctl0:listboxSuburbs', $_->{'value'});            
+                     $htmlForm->setInputValue('ctl00$listboxSuburbs', $value);
 
                      #$htmlForm->printForm();
                      
@@ -564,7 +564,7 @@ sub parseDomainChooseSuburbs
                      $transactionList[$noOfTransactions] = $newHTTPTransaction;
                      $noOfTransactions++;
 
-                     $htmlForm->clearInputValue('_ctl0:listboxSuburbs');
+                     $htmlForm->clearInputValue('ctl00$listboxSuburbs');
                   }
                   else
                   {
