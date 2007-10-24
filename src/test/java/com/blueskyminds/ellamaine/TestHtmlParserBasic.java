@@ -2,9 +2,11 @@ package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceLocator;
+import com.blueskyminds.framework.tools.ResourceTools;
 import com.blueskyminds.ellamaine.html.HtmlParser;
 import com.blueskyminds.ellamaine.html.TextExtractor;
-import java.net.URL;
+
+import java.net.URI;
 import java.io.InputStream;
 
 import org.apache.commons.logging.Log;
@@ -35,8 +37,8 @@ public class TestHtmlParserBasic extends BaseTestCase {
     // ------------------------------------------------------------------------------------------------------
 
     public void testHtmlParser() throws Exception {
-        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
-        InputStream inputStream = fileUrl.openStream();
+        URI fileUrl = ResourceLocator.locateResource("rsearch1.htm");
+        InputStream inputStream = ResourceTools.openStream(fileUrl);
         HtmlParser parser = new HtmlParser();
         parser.registerExtractor(new TextExtractor());
         String textContent = (String) parser.parseDocument("rsearch1.htm", inputStream);

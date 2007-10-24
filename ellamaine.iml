@@ -25,6 +25,7 @@
     <orderEntry type="library" name="ejb3-persistence" level="project" />
     <orderEntry type="library" name="commons-beanutils-1.7" level="project" />
     <orderEntry type="library" name="log4j-1.2.13" level="project" />
+    <orderEntry type="module" module-name="enterprise-core" />
     <orderEntryProperties />
   </component>
 </module>

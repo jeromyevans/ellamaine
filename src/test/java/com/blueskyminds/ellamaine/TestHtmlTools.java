@@ -2,6 +2,7 @@ package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceLocator;
+import com.blueskyminds.framework.tools.ResourceTools;
 import com.blueskyminds.ellamaine.html.HtmlTools;
 import org.cyberneko.html.parsers.DOMParser;
 import org.cyberneko.html.filters.Writer;
@@ -33,7 +34,7 @@ public class TestHtmlTools extends BaseTestCase {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml
 
-        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceTools.toURL(ResourceLocator.locateResource("rsearch1.htm"));
         parser.parse(new InputSource(fileUrl.openStream()));
         HTMLDocument document = (HTMLDocument) parser.getDocument();
 
@@ -46,7 +47,7 @@ public class TestHtmlTools extends BaseTestCase {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml
 
-        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceTools.toURL(ResourceLocator.locateResource("rsearch1.htm"));
         parser.parse(new InputSource(fileUrl.openStream()));
         HTMLDocument document = (HTMLDocument) parser.getDocument();
 
@@ -67,7 +68,7 @@ public class TestHtmlTools extends BaseTestCase {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml
 
-        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceTools.toURL(ResourceLocator.locateResource("rsearch1.htm"));
         parser.parse(new InputSource(fileUrl.openStream()));
         HTMLDocument document = (HTMLDocument) parser.getDocument();
 
@@ -87,7 +88,7 @@ public class TestHtmlTools extends BaseTestCase {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml
 
-        URL fileUrl = ResourceLocator.locateResource("rsearch1.htm");
+        URL fileUrl = ResourceTools.toURL(ResourceLocator.locateResource("rsearch1.htm"));
         parser.parse(new InputSource(fileUrl.openStream()));
         HTMLDocument document = (HTMLDocument) parser.getDocument();
 
