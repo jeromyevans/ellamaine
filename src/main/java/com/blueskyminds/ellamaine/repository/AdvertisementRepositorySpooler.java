@@ -23,12 +23,12 @@ public class AdvertisementRepositorySpooler extends EntitySpooler<AdvertisementR
     private static final Log LOG = LogFactory.getLog(AdvertisementRepositorySpooler.class);
 
     public AdvertisementRepositorySpooler(EntityManager entityManager, QueryPager pager, SpoolerTask<AdvertisementRepository> spoolerTask) {
-        super(entityManager, pager, QueryFactory.createFindAllQuery(entityManager, AdvertisementRepository.class), spoolerTask);
+        super(pager, QueryFactory.createFindAllQuery(entityManager, AdvertisementRepository.class), spoolerTask);
         init();
     }
 
     public AdvertisementRepositorySpooler(EntityManager entityManager, QueryPager pager) {
-        super(entityManager, pager, QueryFactory.createFindAllQuery(entityManager, AdvertisementRepository.class), null);
+        super(pager, QueryFactory.createFindAllQuery(entityManager, AdvertisementRepository.class), null);
         init();
     }
 
