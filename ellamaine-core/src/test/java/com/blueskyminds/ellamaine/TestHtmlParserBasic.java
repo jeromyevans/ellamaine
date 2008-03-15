@@ -36,11 +36,11 @@ public class TestHtmlParserBasic extends BaseTestCase {
     // ------------------------------------------------------------------------------------------------------
 
     public void testHtmlParser() throws Exception {
-        URI fileUrl = ResourceTools.locateResource("rsearch1.htm");
+        URI fileUrl = ResourceTools.locateResource("/rsearch1.htm");
         InputStream inputStream = ResourceTools.openStream(fileUrl);
         HtmlParser parser = new HtmlParser();
         parser.registerExtractor(new TextExtractor());
-        String textContent = (String) parser.parseDocument("rsearch1.htm", inputStream);
+        String textContent = (String) parser.parseDocument("/rsearch1.htm", inputStream);
         assertNotNull(textContent);
         System.out.println(textContent);
     }

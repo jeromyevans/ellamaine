@@ -2,7 +2,6 @@ package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceTools;
-import com.blueskyminds.framework.tools.ResourceTools;
 import org.w3c.tidy.Tidy;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -40,7 +39,7 @@ public class TestJTidy extends BaseTestCase {
     public void testJTidySetup() throws Exception {
         Tidy tidy = new Tidy();
 
-        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("rsearch1.htm"));
+        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("/rsearch1.htm"));
 
         tidy.parse(fileUrl.openStream(), System.out);
     }
@@ -51,7 +50,7 @@ public class TestJTidy extends BaseTestCase {
         Tidy tidy = new Tidy();
         tidy.setShowWarnings(false);
         tidy.setQuiet(true);        
-        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("rsearch1.htm"));
+        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("/rsearch1.htm"));
 
         Document document = tidy.parseDOM(fileUrl.openStream(), System.out);
         assertNotNull(document);
@@ -64,7 +63,7 @@ public class TestJTidy extends BaseTestCase {
         final Tidy tidy = new Tidy();
 
         tidy.setShowWarnings(false);
-        final URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("rsearch1.htm"));
+        final URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("/rsearch1.htm"));
 
         final PipedInputStream intoXerces = new PipedInputStream();
         final PipedOutputStream out = new PipedOutputStream(intoXerces);

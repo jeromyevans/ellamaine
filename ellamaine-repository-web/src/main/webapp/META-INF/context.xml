@@ -1,0 +1,18 @@
+<Context debug="5" reloadable="true" crossContext="true">
+
+  <!-- JDBC -->
+ <!-- <Resource name="jdbc/RepositoryDS" auth="Container" type="javax.sql.DataSource"
+               maxActive="100" maxIdle="30" maxWait="10000"
+               username="webclient" password="d34bdfe8e9fa5ce3e2fbf531c3627bded768570b" driverClassName="com.mysql.jdbc.Driver"
+               url="jdbc:mysql://localhost:3306/housepad"/>-->
+
+  <!-- Hypersonic DB for testing-->
+  <!--<Resource name="jdbc/WebDS" auth="Container" type="javax.sql.DataSource"-->
+               <!--username="sa" password="" driverClassName="org.hsqldb.jdbcDriver"-->
+               <!--url="jdbc:hsqldb:mem:mem"/>-->
+
+  <!-- JavaMail session -->
+  <!--<Resource name="mail/MyMailSession" auth="Container" type="javax.mail.Session"
+            mail.smtp.host="localhost"/>-->
+
+</Context>

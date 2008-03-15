@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.4"
+         xmlns="http://java.sun.com/xml/ns/j2ee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+
+  <context-param>
+    <param-name>css</param-name>
+    <param-value>/static/css</param-value>
+  </context-param>
+
+  <context-param>
+    <param-name>js</param-name>
+    <param-value>/static/js</param-value>
+  </context-param>
+
+  <context-param>
+    <param-name>yui</param-name>
+    <param-value>http://yui.yahooapis.com/2.5.0</param-value>
+  </context-param>
+
+  <filter>
+    <filter-name>struts</filter-name>
+    <filter-class>org.apache.struts2.dispatcher.FilterDispatcher</filter-class>
+    <init-param>
+      <param-name>actionPackages</param-name>
+      <param-value>com.blueskyminds.ellamaine.web.actions</param-value>
+    </init-param>
+  </filter>
+
+  <filter-mapping>
+    <filter-name>struts</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+
+  <!-- Enable the tiles plugin for struts2 -->
+  <listener>
+    <listener-class>org.apache.struts2.tiles.StrutsTilesListener</listener-class>
+  </listener>
+
+  <!--<listener>-->
+    <!--<listener-class>com.blueskyminds.housepad.web.startup.StartupListener</listener-class>-->
+  <!--</listener>-->
+
+ <!--
+  Name is relative to java:comp/env
+  -->
+  <resource-ref>
+    <description>DB Connection</description>
+    <res-ref-name>jdbc/RepositoryDS</res-ref-name>
+    <res-type>javax.sql.DataSource</res-type>
+    <res-auth>Container</res-auth>
+  </resource-ref>
+
+  <welcome-file-list>
+    <welcome-file>index.jsp</welcome-file>
+  </welcome-file-list>
+
+</web-app>

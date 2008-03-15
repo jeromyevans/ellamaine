@@ -2,7 +2,6 @@ package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceTools;
-import com.blueskyminds.framework.tools.ResourceTools;
 import org.cyberneko.html.parsers.DOMParser;
 import org.cyberneko.html.parsers.DOMFragmentParser;
 import org.w3c.dom.*;
@@ -42,7 +41,7 @@ public class TestNekoHtml extends BaseTestCase {
         DOMParser parser = new DOMParser();
         parser.setFeature("http://xml.org/sax/features/namespaces", false);  // this is needed for xhtml
 
-        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("rsearch1.htm"));
+        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("/rsearch1.htm"));
         parser.parse(new InputSource(fileUrl.openStream()));
         HTMLDocument document = (HTMLDocument) parser.getDocument();
         assertNotNull(document);
@@ -72,7 +71,7 @@ public class TestNekoHtml extends BaseTestCase {
         HTMLDocument document = new HTMLDocumentImpl();
          
         DocumentFragment fragment = document.createDocumentFragment();
-        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("rsearch1.htm"));
+        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("/rsearch1.htm"));
         parser.parse(new InputSource(fileUrl.openStream()), fragment);
 
         assertNotNull(fragment);
@@ -87,7 +86,7 @@ public class TestNekoHtml extends BaseTestCase {
         HTMLDocument document = new HTMLDocumentImpl();
 
         DocumentFragment fragment = document.createDocumentFragment();
-        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("rsearch1.htm"));
+        URL fileUrl = ResourceTools.toURL(ResourceTools.locateResource("/rsearch1.htm"));
         parser.parse(new InputSource(fileUrl.openStream()), fragment);
         print(fragment, "");
     }

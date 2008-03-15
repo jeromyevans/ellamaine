@@ -4,11 +4,15 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.blueskyminds.ellamaine</groupId>
   <artifactId>ellamaine</artifactId>
-  <packaging>jar</packaging>
-  <version>0.1</version>
-  <name>Ellamaine Web Crawler</name>
+  <packaging>pom</packaging>
+  <version>1</version>
+  <name>Ellamaine Web Crawler Parent Module</name>
   <url>http://www.blueskyminds.com.au</url>
 
+  <modules>
+    <module>ellamaine-core</module>
+    <module>ellamaine-repository-web</module>
+  </modules>
   <build>
     <pluginManagement>
       <plugins>
@@ -35,9 +39,6 @@
     </pluginManagement>
     <defaultGoal>install</defaultGoal>
   </build>
-
-  <!--<orderEntry type="library" name="xerces-2.9.0" level="project" />
-<orderEntry type="library" name="ejb3-persistence" level="project" />-->
 
   <dependencies>
 
