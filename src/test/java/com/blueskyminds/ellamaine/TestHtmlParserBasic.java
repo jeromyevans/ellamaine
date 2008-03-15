@@ -1,7 +1,6 @@
 package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
-import com.blueskyminds.framework.tools.ResourceLocator;
 import com.blueskyminds.framework.tools.ResourceTools;
 import com.blueskyminds.ellamaine.html.HtmlParser;
 import com.blueskyminds.ellamaine.html.TextExtractor;
@@ -37,7 +36,7 @@ public class TestHtmlParserBasic extends BaseTestCase {
     // ------------------------------------------------------------------------------------------------------
 
     public void testHtmlParser() throws Exception {
-        URI fileUrl = ResourceLocator.locateResource("rsearch1.htm");
+        URI fileUrl = ResourceTools.locateResource("rsearch1.htm");
         InputStream inputStream = ResourceTools.openStream(fileUrl);
         HtmlParser parser = new HtmlParser();
         parser.registerExtractor(new TextExtractor());
