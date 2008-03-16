@@ -33,15 +33,6 @@
     <url-pattern>/*</url-pattern>
   </filter-mapping>
 
-  <!-- Enable the tiles plugin for struts2 -->
-  <listener>
-    <listener-class>org.apache.struts2.tiles.StrutsTilesListener</listener-class>
-  </listener>
-
-  <!--<listener>-->
-    <!--<listener-class>com.blueskyminds.housepad.web.startup.StartupListener</listener-class>-->
-  <!--</listener>-->
-
  <!--
   Name is relative to java:comp/env
   -->

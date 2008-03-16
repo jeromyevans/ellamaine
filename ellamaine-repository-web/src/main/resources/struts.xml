@@ -1,0 +1,17 @@
+<!DOCTYPE struts PUBLIC
+        "-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+        "http://struts.apache.org/dtds/struts-2.0.dtd">
+<struts>
+  <!--<bean type="org.apache.struts2.rest.handler.ContentTypeHandler" name="customXMLHandler" class="com.blueskyminds.housepad.web.handlers.MyXStreamHandler"/>-->
+  <!--<bean type="org.apache.struts2.rest.handler.ContentTypeHandler" name="customJSONHandler" class="com.blueskyminds.housepad.web.handlers.JSONWriterContentHandler"/>-->
+  <!--<constant name="struts.configuration.classpath.defaultParentPackage" value="rest-default" />-->
+
+  <!-- Instruct struts2 to use the URLPatternActionMapper as the ActionMapper -->
+  <constant name="struts.mapper.class" value="urlPatternMapper"/>
+  <constant name="struts.urlplugin.configFile" value="ellamaine-urls.xml"/>
+
+  <bean type="com.opensymphony.xwork2.util.PatternMatcher" name="namedVariablePatternMatcher" class="com.opensymphony.xwork2.util.NamedVariablePatternMatcher"/>
+  <constant name="struts.patternMatcher" value="namedVariablePatternMatcher"/>
+  <constant name="struts.mapper.alwaysSelectFullNamespace" value="true"/>
+  
+</struts>
