@@ -130,7 +130,9 @@ public class RepositoryFileHeaderReader {
             }
 
             this.sourceUrl = sourceUrl;
-            this.timestamp = headerTimestampFormat.parse(timestamp);
+            if (timestamp != null) {
+                this.timestamp = headerTimestampFormat.parse(timestamp);
+            }
 
             // return to the marked position before the header
             inputStream.reset();

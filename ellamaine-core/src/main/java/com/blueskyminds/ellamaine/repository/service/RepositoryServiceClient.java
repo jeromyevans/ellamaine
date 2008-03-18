@@ -1,20 +1,20 @@
 package com.blueskyminds.ellamaine.repository.service;
 
+import java.util.Properties;
+import java.io.IOException;
+import java.io.InputStream;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.commons.httpclient.HttpException;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.methods.GetMethod;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryHeaderException;
 import com.blueskyminds.framework.persistence.paging.Page;
 import com.thoughtworks.xstream.XStream;
-
-import java.io.InputStream;
-import java.io.IOException;
-
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpState;
-import org.apache.commons.httpclient.HttpException;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import com.google.inject.Inject;
 
 /**
  * Date Started: 16/03/2008
@@ -24,10 +24,29 @@ import org.apache.commons.logging.LogFactory;
 public class RepositoryServiceClient implements RepositoryService {
 
     private static final Log LOG = LogFactory.getLog(RepositoryServiceClient.class);
+
+    private static final String DEFAULT_HOSTNAME = "localhost";
+    private static final String REPOSITORY_HOSTNAME_PROPERTY = "repository.hostname";
+
     private String hostname;
 
     public RepositoryServiceClient(String hostname) {
         this.hostname = hostname;
+    }
+
+    @Inject
+    public RepositoryServiceClient(@RepositoryProperties Properties properties) {
+
+        if (properties != null) {
+            this.hostname = (String) properties.get(REPOSITORY_HOSTNAME_PROPERTY);
+        }
+
+        if (hostname == null) {
+            this.hostname = DEFAULT_HOSTNAME;
+        }
+    }
+
+    public RepositoryServiceClient() {        
     }
 
     /**
