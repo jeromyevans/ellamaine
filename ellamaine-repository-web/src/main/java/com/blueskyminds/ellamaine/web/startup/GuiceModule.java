@@ -1,20 +1,21 @@
 package com.blueskyminds.ellamaine.web.startup;
 
 import com.blueskyminds.framework.ExtendedGuiceModule;
-import com.blueskyminds.framework.jpa.ThreadLocalEntityManagerFactoryProvider;
-import com.blueskyminds.framework.jpa.ThreadLocalEntityManagerProvider;
 import com.blueskyminds.framework.tools.PropertiesContext;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.ellamaine.repository.service.LocalRepositoryService;
+import com.blueskyminds.ellamaine.repository.service.LocalRepositoryConfiguration;
+import com.blueskyminds.ellamaine.repository.service.RepositoryProperties;
 import com.google.inject.name.Names;
+import com.google.inject.matcher.Matcher;
+import com.google.inject.matcher.Matchers;
 import com.wideplay.warp.persist.UnitOfWork;
 import com.wideplay.warp.persist.PersistenceService;
+import com.wideplay.warp.persist.Transactional;
 import com.wideplay.warp.jpa.JpaUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.EntityManager;
 import java.util.Map;
 import java.util.Properties;
 
@@ -38,12 +39,15 @@ public class GuiceModule extends ExtendedGuiceModule {
 
         bindConstants();
 
-        bind(RepositoryService.class).toProvider(RepositoryServiceProvider.class);
+        bind(LocalRepositoryConfiguration.class).asEagerSingleton();
+        bind(RepositoryService.class).to(LocalRepositoryService.class);
     }
 
     private void bindConstants() {
         // read the properties and bind them as constants
         Properties properties = PropertiesContext.loadPropertiesFile("ellamaine.properties");
+        bind(Properties.class).annotatedWith(RepositoryProperties.class).toInstance(properties);
+
         for (Map.Entry entry : properties.entrySet()) {
             bindConstant().annotatedWith(Names.named((String) entry.getKey())).to((String) entry.getValue());
         }

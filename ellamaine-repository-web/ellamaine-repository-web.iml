@@ -419,6 +419,7 @@
         </JAVADOC>
         <SOURCES>
           <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/blueskyminds/framework/framework-core/0.2-SNAPSHOT/framework-core-0.2-SNAPSHOT-sources.jar!/" />
+          <root url="file://$projectsHome$/framework/framework-core/src/main/java" />
         </SOURCES>
       </library>
     </orderEntry>
@@ -835,6 +836,7 @@
         </JAVADOC>
         <SOURCES>
           <root url="jar://$MODULE_DIR$/../../../../m2/repository/warp-persist/warp-persist/1.0/warp-persist-1.0-sources.jar!/" />
+          <root url="file://$MODULE_DIR$/../../../../google/warp-persist/src" />
         </SOURCES>
       </library>
     </orderEntry>

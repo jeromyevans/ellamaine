@@ -8,10 +8,10 @@ import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryHeaderException;
 import com.blueskyminds.ellamaine.repository.dao.RepositoryDAO;
+import com.google.inject.Inject;
 
 import javax.persistence.EntityManager;
 import java.io.*;
-import java.util.Properties;
 
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
@@ -35,43 +35,34 @@ public class LocalRepositoryService implements RepositoryService {
     private static final String ELLAMAINE_PROPERTIES = "ellamaine.properties";
     private static final String ORIGINATINGHTML_LOG_PATH_PROPERTY = "originatinghtml.log.path";
 
-    protected EntityManager em;
+    private EntityManager em;
     private PropertiesContext ellamaineProperties;
 
     //private String basePath;
     private boolean useFlatPath;
-    private LocalRepositoryPaths localRepositoryPaths;
+    private LocalRepositoryConfiguration localRepositoryConfiguration;
 
+    /** Initialise with default properties read from the properties file */
     public LocalRepositoryService(EntityManager em) {
         this.em = em;
-        init();
-    }
-
-    public LocalRepositoryService() {
-        init();
-    }
-
-    // ------------------------------------------------------------------------------------------------------
-
-    /**
-     * Initialise the LocalRepositoryService with default attributes
-     */
-    protected void init() {
         ellamaineProperties = new PropertiesContext(ELLAMAINE_PROPERTIES);
         useFlatPath = false;
-        localRepositoryPaths = new LocalRepositoryPaths(ellamaineProperties.getPropertiesStartingWith(ORIGINATINGHTML_LOG_PATH_PROPERTY), DEFAULT_LOG_PATH);
-        //basePath =
-        //if (basePath == null) {
-        //    basePath = DEFAULT_LOG_PATH;
-        //}
+        localRepositoryConfiguration = new LocalRepositoryConfiguration(ellamaineProperties.getPropertiesStartingWith(ORIGINATINGHTML_LOG_PATH_PROPERTY));
+        localRepositoryConfiguration.setDefaultPath(DEFAULT_LOG_PATH);       }
+
+    /**
+     * Don't forget to inject the EntityManager and LocalRepositoryPaths
+     */
+    public LocalRepositoryService() {
     }
+
 
     /**
     * returns the base path used for the AdvertisementRepository files
     */
 
     protected String getBasePath(int identifier) {
-        return localRepositoryPaths.getBasePath(identifier);
+        return localRepositoryConfiguration.getBasePath(identifier);
     }
 
     /**
@@ -93,24 +84,10 @@ public class LocalRepositoryService implements RepositoryService {
         return targetPath;
     }
 
-//    protected void overrideBasePath(String newBasePath) {
-//        this.basePath = newBasePath;
-//    }
-
 
     protected void useFlatPath() {
         this.useFlatPath = true;
     }
-
-    // ------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the PersistenceService used to access the AdvertisementRepository
-     * @return PersistenceService
-     */
-//    public PersistenceService getPersistenceService() {
-//        return persistenceService;
-//    }
 
     // ------------------------------------------------------------------------------------------------------
 
@@ -164,17 +141,7 @@ public class LocalRepositoryService implements RepositoryService {
         return content;
     }
 
-    /**
-     * Create a spooler for paging entries from the AdvertisementRepository
-     *
-     * @param spoolerTask
-     * @return
-     */
-//    public AdvertisementRepositorySpooler createRepositorySpooler(SpoolerTask<AdvertisementRepository> spoolerTask) {
-//        return new AdvertisementRepositorySpooler(em, new RepositoryDAO(em), spoolerTask);
-//    }
-
-    /** Load a page of AdvertisementRepository entries */
+    /** Load a page of AdvertisementRepository entries */   
     public Page findPage(int pageNo, int pageSize) {
         QueryPager pager = new RepositoryDAO(em);
         Page page = pager.findPage(pageNo, pageSize);
@@ -186,14 +153,15 @@ public class LocalRepositoryService implements RepositoryService {
             LOG.info("Page not found - returning null");            
             return null;
         }
-//        List<AdvertisementRepository> results = new LinkedList<AdvertisementRepository>();
-//        for (int i = 1; i < 10; i++) {
-//            results.add(new AdvertisementRepository(i, new Date(), "test"));
-//        }
-//        return new PageResult(0, 10, results);
     }
 
+    @Inject
     public void setEntityManager(EntityManager em) {
         this.em = em;
+    }
+
+    @Inject
+    public void setLocalRepositoryPaths(LocalRepositoryConfiguration localRepositoryConfiguration) {
+        this.localRepositoryConfiguration = localRepositoryConfiguration;
     }
 }

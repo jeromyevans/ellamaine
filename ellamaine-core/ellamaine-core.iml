@@ -457,6 +457,19 @@
         </SOURCES>
       </library>
     </orderEntry>
+    <orderEntry type="module-library" exported="">
+      <library name="com.google.inject:guice:1.0-SNAPSHOT">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/google/inject/guice/1.0-SNAPSHOT/guice-1.0-SNAPSHOT.jar!/" />
+        </CLASSES>
+        <JAVADOC>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/google/inject/guice/1.0-SNAPSHOT/guice-1.0-SNAPSHOT-javadoc.jar!/" />
+        </JAVADOC>
+        <SOURCES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/google/inject/guice/1.0-SNAPSHOT/guice-1.0-SNAPSHOT-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
     <orderEntryProperties />
   </component>
 </module>

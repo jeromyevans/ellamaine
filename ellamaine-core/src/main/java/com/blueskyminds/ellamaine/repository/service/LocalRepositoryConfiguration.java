@@ -7,6 +7,7 @@ import org.apache.commons.logging.LogFactory;
 import java.util.*;
 
 import com.blueskyminds.framework.tools.text.StringTools;
+import com.google.inject.Inject;
 
 /**
  * Identifies the locations to find repository entiries in the local filesystem based on their range
@@ -15,9 +16,9 @@ import com.blueskyminds.framework.tools.text.StringTools;
  * <p/>
  * History:
  */
-public class LocalRepositoryPaths {
+public class LocalRepositoryConfiguration {
 
-    private static final Log LOG = LogFactory.getLog(LocalRepositoryPaths.class);
+    private static final Log LOG = LogFactory.getLog(LocalRepositoryConfiguration.class);
 
     private String defaultPath = "";
     private List<RepositoryPathEntry> repositoryPaths;
@@ -31,9 +32,9 @@ public class LocalRepositoryPaths {
      * The property value is the absolute base path
      *
      *  */
-    public LocalRepositoryPaths(Properties properties, String defaultPath) {
+    @Inject
+    public LocalRepositoryConfiguration(@RepositoryProperties Properties properties) {
         repositoryPaths = new LinkedList<RepositoryPathEntry>();
-        this.defaultPath = defaultPath;
         for (Object key : properties.keySet()) {
             String suffix = StringUtils.substringAfterLast((String) key, ".");
             if (suffix.contains("-")) {
@@ -55,6 +56,9 @@ public class LocalRepositoryPaths {
         Collections.sort(repositoryPaths);
     }
 
+    public void setDefaultPath(String defaultPath) {
+        this.defaultPath = defaultPath;
+    }
 
     public String getBasePath(int identifier) {
         String basePath = defaultPath;

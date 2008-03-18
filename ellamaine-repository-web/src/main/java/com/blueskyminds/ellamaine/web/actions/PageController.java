@@ -5,6 +5,8 @@ import com.opensymphony.xwork2.ModelDriven;
 import com.google.inject.Inject;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.framework.persistence.paging.Page;
+import com.wideplay.warp.persist.Transactional;
+import com.wideplay.warp.persist.TransactionType;
 import org.apache.struts2.config.Namespace;
 import org.apache.struts2.config.Results;
 import org.apache.struts2.config.Result;
@@ -39,6 +41,7 @@ public class PageController extends RESTControllerSupport implements ModelDriven
         this.pageSize = (pageSize != null ? pageSize : DEFAULT_PAGE_SIZE);
     }
 
+    @Transactional(type = TransactionType.READ_ONLY)
     public HttpHeaders index() {
         if (pageSize == 0) {
             pageSize = DEFAULT_PAGE_SIZE;
@@ -48,8 +51,7 @@ public class PageController extends RESTControllerSupport implements ModelDriven
         next = page.hasNextPage();
         previous = page.hasPreviousPage();
 
-        return new DefaultHttpHeaders("index")
-            .disableCaching();
+        return new DefaultHttpHeaders("index");
     }
 
     public Page getModel() {

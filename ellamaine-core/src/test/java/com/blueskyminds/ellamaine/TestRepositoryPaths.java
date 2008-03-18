@@ -1,7 +1,7 @@
 package com.blueskyminds.ellamaine;
 
 import com.blueskyminds.framework.test.BaseTestCase;
-import com.blueskyminds.ellamaine.repository.service.LocalRepositoryPaths;
+import com.blueskyminds.ellamaine.repository.service.LocalRepositoryConfiguration;
 
 import java.util.Properties;
 
@@ -21,14 +21,15 @@ public class TestRepositoryPaths extends BaseTestCase {
         p.put("path.10001-20000", "B:\\");
         p.put("path", "C:\\");
 
-        LocalRepositoryPaths localRepositoryPaths = new LocalRepositoryPaths(p, "D:\\");
+        LocalRepositoryConfiguration localRepositoryConfiguration = new LocalRepositoryConfiguration(p);
+        localRepositoryConfiguration.setDefaultPath("D:\\");
 
-        assertEquals("A:\\", localRepositoryPaths.getBasePath(0));
-        assertEquals("A:\\", localRepositoryPaths.getBasePath(5000));
-        assertEquals("A:\\", localRepositoryPaths.getBasePath(10000));
-        assertEquals("B:\\", localRepositoryPaths.getBasePath(15000));
-        assertEquals("B:\\", localRepositoryPaths.getBasePath(20000));
-        assertEquals("C:\\", localRepositoryPaths.getBasePath(25000));
-        assertEquals("C:\\", localRepositoryPaths.getBasePath(30000));
+        assertEquals("A:\\", localRepositoryConfiguration.getBasePath(0));
+        assertEquals("A:\\", localRepositoryConfiguration.getBasePath(5000));
+        assertEquals("A:\\", localRepositoryConfiguration.getBasePath(10000));
+        assertEquals("B:\\", localRepositoryConfiguration.getBasePath(15000));
+        assertEquals("B:\\", localRepositoryConfiguration.getBasePath(20000));
+        assertEquals("C:\\", localRepositoryConfiguration.getBasePath(25000));
+        assertEquals("C:\\", localRepositoryConfiguration.getBasePath(30000));
     }
 }
