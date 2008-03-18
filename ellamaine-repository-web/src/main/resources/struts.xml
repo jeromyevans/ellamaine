@@ -13,5 +13,10 @@
   <bean type="com.opensymphony.xwork2.util.PatternMatcher" name="namedVariablePatternMatcher" class="com.opensymphony.xwork2.util.NamedVariablePatternMatcher"/>
   <constant name="struts.patternMatcher" value="namedVariablePatternMatcher"/>
   <constant name="struts.mapper.alwaysSelectFullNamespace" value="true"/>
-  
+
+  <package name="defaultPackage" namespace="/" extends="rest-default">
+    <global-exception-mappings>
+      <exception-mapping exception="java.lang.Throwable" result="exception"/>
+    </global-exception-mappings>
+  </package>
 </struts>

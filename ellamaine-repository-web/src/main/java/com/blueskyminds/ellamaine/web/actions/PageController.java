@@ -8,6 +8,7 @@ import com.blueskyminds.framework.persistence.paging.Page;
 import org.apache.struts2.config.Namespace;
 import org.apache.struts2.config.Results;
 import org.apache.struts2.config.Result;
+import org.apache.struts2.config.ParentPackage;
 import org.apache.struts2.rest.DefaultHttpHeaders;
 import org.apache.struts2.rest.HttpHeaders;
 
@@ -16,7 +17,8 @@ import org.apache.struts2.rest.HttpHeaders;
  * <p/>
  * History:
  */
-@Namespace("/")   
+@Namespace("/")
+@ParentPackage("defaultPackage")
 public class PageController extends RESTControllerSupport implements ModelDriven<Page> {
 
     private static final int DEFAULT_PAGE_SIZE = 20;

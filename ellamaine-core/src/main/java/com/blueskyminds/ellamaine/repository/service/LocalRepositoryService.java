@@ -153,6 +153,12 @@ public class LocalRepositoryService implements RepositoryService {
             throw new RepositoryServiceException(e);
         } catch(RepositoryHeaderException e) {
             throw new RepositoryServiceException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                //
+            }
         }
 
         return content;

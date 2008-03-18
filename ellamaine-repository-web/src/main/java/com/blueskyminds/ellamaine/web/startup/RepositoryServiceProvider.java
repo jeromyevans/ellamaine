@@ -14,14 +14,14 @@ import javax.persistence.EntityManager;
  */
 public class RepositoryServiceProvider implements Provider<RepositoryService> {
 
-    private EntityManager em;
+    private Provider<EntityManager> em;
 
     public RepositoryService get() {
-        return new LocalRepositoryService(em);
+        return new LocalRepositoryService(em.get());
     }
 
     @Inject
-    public void setEntityManager(EntityManager em) {
+    public void setEm(Provider<EntityManager> em) {
         this.em = em;
     }
 }

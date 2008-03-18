@@ -7,6 +7,9 @@ import com.blueskyminds.framework.tools.PropertiesContext;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.ellamaine.repository.service.LocalRepositoryService;
 import com.google.inject.name.Names;
+import com.wideplay.warp.persist.UnitOfWork;
+import com.wideplay.warp.persist.PersistenceService;
+import com.wideplay.warp.jpa.JpaUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -26,16 +29,20 @@ public class GuiceModule extends ExtendedGuiceModule {
     protected void configure() {
         LOG.info("Setting up binding...");
 
-        bindConstants();
+        LOG.info("Setting warp-persist...");
+        install(PersistenceService.usingJpa().across(UnitOfWork.TRANSACTION).buildModule());
+        bindConstant().annotatedWith(JpaUnit.class).to("RepositoryDb");
 
-        bind(EntityManagerFactory.class).toProvider(ThreadLocalEntityManagerFactoryProvider.class).asEagerSingleton();
-        bind(EntityManager.class).toProvider(ThreadLocalEntityManagerProvider.class);
+        // setup the persistence unit when guice is initialised
+        bind(PersistenceServiceInitializer.class).asEagerSingleton();
+
+        bindConstants();
 
         bind(RepositoryService.class).toProvider(RepositoryServiceProvider.class);
     }
 
     private void bindConstants() {
-        // read the properties and bind them as contants
+        // read the properties and bind them as constants
         Properties properties = PropertiesContext.loadPropertiesFile("ellamaine.properties");
         for (Map.Entry entry : properties.entrySet()) {
             bindConstant().annotatedWith(Names.named((String) entry.getKey())).to((String) entry.getValue());

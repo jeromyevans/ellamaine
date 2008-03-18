@@ -177,6 +177,10 @@
             <attribute name="method" value="1" />
             <attribute name="URI" value="/WEB-INF/lib/guice-1.0-SNAPSHOT.jar" />
           </containerElement>
+          <containerElement type="library" name="warp-persist:warp-persist:1.0" level="module">
+            <attribute name="method" value="1" />
+            <attribute name="URI" value="/WEB-INF/lib/warp-persist-1.0.jar" />
+          </containerElement>
           <containerElement type="library" name="com.google.inject.struts2:guice-struts2-plugin:1.0.1-SNAPSHOT" level="module">
             <attribute name="method" value="1" />
             <attribute name="URI" value="/WEB-INF/lib/guice-struts2-plugin-1.0.1-SNAPSHOT.jar" />
@@ -208,6 +212,14 @@
           <containerElement type="module" name="ellamaine-core">
             <attribute name="method" value="5" />
             <attribute name="URI" value="/WEB-INF/lib/ellamaine-core-0.1.jar" />
+          </containerElement>
+          <containerElement type="library" name="commons-httpclient:commons-httpclient:3.1" level="module">
+            <attribute name="method" value="1" />
+            <attribute name="URI" value="/WEB-INF/lib/commons-httpclient-3.1.jar" />
+          </containerElement>
+          <containerElement type="library" name="commons-codec:commons-codec:1.2" level="module">
+            <attribute name="method" value="1" />
+            <attribute name="URI" value="/WEB-INF/lib/commons-codec-1.2.jar" />
           </containerElement>
           <containerElement type="module" name="ellamaine-repository-web">
             <attribute name="method" value="1" />
@@ -814,6 +826,19 @@
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="">
+      <library name="warp-persist:warp-persist:1.0">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/warp-persist/warp-persist/1.0/warp-persist-1.0.jar!/" />
+        </CLASSES>
+        <JAVADOC>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/warp-persist/warp-persist/1.0/warp-persist-1.0-javadoc.jar!/" />
+        </JAVADOC>
+        <SOURCES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/warp-persist/warp-persist/1.0/warp-persist-1.0-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="">
       <library name="com.google.inject.struts2:guice-struts2-plugin:1.0.1-SNAPSHOT">
         <CLASSES>
           <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/google/inject/struts2/guice-struts2-plugin/1.0.1-SNAPSHOT/guice-struts2-plugin-1.0.1-SNAPSHOT.jar!/" />
@@ -905,6 +930,32 @@
       </library>
     </orderEntry>
     <orderEntry type="module" module-name="ellamaine-core" exported="" />
+    <orderEntry type="module-library" exported="">
+      <library name="commons-httpclient:commons-httpclient:3.1">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-httpclient/commons-httpclient/3.1/commons-httpclient-3.1.jar!/" />
+        </CLASSES>
+        <JAVADOC>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-httpclient/commons-httpclient/3.1/commons-httpclient-3.1-javadoc.jar!/" />
+        </JAVADOC>
+        <SOURCES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-httpclient/commons-httpclient/3.1/commons-httpclient-3.1-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="">
+      <library name="commons-codec:commons-codec:1.2">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-codec/commons-codec/1.2/commons-codec-1.2.jar!/" />
+        </CLASSES>
+        <JAVADOC>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-codec/commons-codec/1.2/commons-codec-1.2-javadoc.jar!/" />
+        </JAVADOC>
+        <SOURCES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-codec/commons-codec/1.2/commons-codec-1.2-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
     <orderEntryProperties />
   </component>
 </module>

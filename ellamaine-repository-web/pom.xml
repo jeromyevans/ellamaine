@@ -79,6 +79,12 @@
     </dependency>
 
     <dependency>
+       <groupId>warp-persist</groupId>
+       <artifactId>warp-persist</artifactId>
+       <version>1.0</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.inject.struts2</groupId>
       <artifactId>guice-struts2-plugin</artifactId>
       <version>1.0.1-SNAPSHOT</version>
