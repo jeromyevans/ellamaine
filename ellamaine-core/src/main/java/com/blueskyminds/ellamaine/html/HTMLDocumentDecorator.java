@@ -26,6 +26,7 @@ public class HTMLDocumentDecorator implements HTMLDocument {
 
     public static final String TABLE = "table";
     public static final String ANCHOR = "a";
+    public static final String IMG = "img";
 
     private HTMLDocument document;
 
@@ -97,7 +98,7 @@ public class HTMLDocumentDecorator implements HTMLDocument {
         return table;            
     }
 
-    /** Returns all anchors containg the specified pattern in the anchor body */
+    /** Returns all anchors containing the specified pattern in the anchor body */
     public List<HTMLElement> getAnchorsContainingPattern(String pattern) {
         NodeList anchorList = document.getElementsByTagName(ANCHOR);
         List<HTMLElement> anchors = new LinkedList<HTMLElement>();
@@ -110,6 +111,32 @@ public class HTMLDocumentDecorator implements HTMLDocument {
             if (bodyText.contains(pattern)) {
                 anchors.add(anchor);
             }
+            index++;
+        }
+
+        return anchors;
+    }
+
+    /** Returns all anchors containing an image with the specified src */
+    public List<HTMLElement> getAnchorsContainingImageSrc(String srcPattern) {
+        NodeList anchorList = document.getElementsByTagName(ANCHOR);
+        List<HTMLElement> anchors = new LinkedList<HTMLElement>();
+
+        int index = 0;
+        while (index < anchorList.getLength()) {
+            HTMLElement anchor = (HTMLElement) anchorList.item(index);
+
+            NodeList images = anchor.getElementsByTagName(IMG);
+            for (int j = 0; j < images.getLength(); j++) {
+                HTMLElement image = (HTMLElement) images.item(j);
+
+                String src = image.getAttribute("src");
+                if (src.contains(srcPattern)) {
+                    anchors.add(anchor);
+                    break;
+                }
+            }
+
             index++;
         }
 
@@ -143,8 +170,6 @@ public class HTMLDocumentDecorator implements HTMLDocument {
             child = child.getNextSibling();
         }
     }
-
-
 
     // ------------------------------------------------------------------------------------------------------
 

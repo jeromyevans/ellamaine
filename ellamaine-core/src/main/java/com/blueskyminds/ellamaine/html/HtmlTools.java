@@ -168,7 +168,9 @@ public class HtmlTools {
     /** Extracts ALL the text content (only) from a node */
     public static String getText(Node node) {
         StringBuilder sb = new StringBuilder();
-        extractText(sb, node);
+        if (node != null) {
+            extractText(sb, node);
+        }
         return cleanseText(sb.toString());
     }
 
@@ -389,21 +391,30 @@ public class HtmlTools {
     }
 
     /** Locate the first HTML table element containing the text pattern */
-    public static HTMLTableElement getTableContainingText(HTMLElement element, String pattern) {
-        NodeList tables = element.getElementsByTagName(TABLE);
+    public static HTMLTableElement getTableContainingText(Node elementOrDocument, String pattern) {
+        NodeList tables = null;
         HTMLTableElement match = null;
-        int index = 0;
-        while ((match == null) && (index < tables.getLength())) {
-            if (tables.item(index).getTextContent().contains(pattern)) {
-                match = (HTMLTableElement) tables.item(index);
+        if (elementOrDocument instanceof HTMLElement) {
+            tables = ((HTMLElement) elementOrDocument).getElementsByTagName(TABLE);
+        } else {
+            if (elementOrDocument instanceof HTMLDocument) {
+                tables = ((HTMLDocument) elementOrDocument).getElementsByTagName(TABLE);
             }
-            index++;
+        }
+        if (tables != null) {
+            int index = 0;
+            while ((match == null) && (index < tables.getLength())) {
+                if (tables.item(index).getTextContent().contains(pattern)) {
+                    match = (HTMLTableElement) tables.item(index);
+                }
+                index++;
+            }
         }
         return match;
     }
 
     /**
-     * Prune all nodes from the element before the specified node.
+     * Prune all nodes within the element before the specified node.
      *
      * @return true if the target element was found, otherwise the result is false and the
      *  element will now be empty */
@@ -544,6 +555,19 @@ public class HtmlTools {
         return null;
     }
 
+     // ------------------------------------------------------------------------------------------------------
+
+    /** Return the first element of the specified tag with an attribute with the given name and value */
+    public static List<HTMLElement> getElementsByTagAndAttribute(Node elementOrDocument, String tagName, String attrName, String attrValue) {
+
+        NodeList elements = getElementsByTagName(elementOrDocument, tagName);
+        if (elements != null) {
+            return filter(elements, new AttrValueFilter(attrName, attrValue));
+        } else {
+            return null;
+        }
+    }
+
     /**
      * Filters HTMLElements from a node list
      * @return the list of accepted HTMLElements
@@ -682,4 +706,15 @@ public class HtmlTools {
 
         return found;
     }
+
+    /**
+     * Get the next text node containing the specified patterhn
+     * @param parent
+     * @param pattern
+     * @return
+     */
+    public static Text textNodeContaining(HTMLElement parent, String pattern) {
+        return searchForTextPattern(pattern, parent, SearchStartPoint.Child);
+    }
+
 }
