@@ -1,4 +1,4 @@
-
+#!/bin/sh
 # REAL-ESTATE Sales
 perl Ellamaine.pl "command=start\&config=realestatesalesqld\&startrange=A\&endrange=D" &
 perl sleeprand.pl 20

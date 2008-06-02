@@ -1,4 +1,4 @@
-
+#!/bin/sh
 
 # REIWA SALES
 perl Ellamaine.pl "command=start\&config=reiwasales\&startrange=A\&endrange=Ga" &
