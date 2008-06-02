@@ -38,9 +38,9 @@ use Ellamaine::DocumentReader;
 use HTTPClient;
 use PrintLogger;
 use SQLClient;
-use SuburbProfiles;
+use parsers::SuburbProfiles;
 use DebugTools;
-use AdvertisedPropertyProfiles;
+use parsers::AdvertisedPropertyProfiles;
 use StringTools;
 use PrettyPrint;
 

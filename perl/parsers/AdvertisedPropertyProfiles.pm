@@ -129,15 +129,15 @@ require Exporter;
 
 use DBI;
 use SQLClient;
-use OriginatingHTML;
+use Ellamaine::OriginatingHTML;
 use Time::Local;
 use PrettyPrint;
-use PropertyTypes;
+use parsers::PropertyTypes;
 use StringTools;
 use PrettyPrint;
-use RegExPatterns;
-use AgentProfiles;
-use AgentContactProfiles;
+use parsers::RegExPatterns;
+use parsers::AgentProfiles;
+use parsers::AgentContactProfiles;
 
 @ISA = qw(Exporter SQLTable);
 
