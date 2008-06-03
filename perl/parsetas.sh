@@ -1,4 +1,6 @@
 #!/bin/sh
+cd /var/lib/ellamaine/deploy
+
 # REAL-ESTATE Sales
 perl Ellamaine.pl command=start\&config=realestatesalestas\&startrange=A\&endrange=D &
 perl sleeprand.pl 20

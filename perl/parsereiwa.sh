@@ -1,4 +1,5 @@
 #!/bin/sh
+cd /var/lib/ellamaine/deploy
 
 # REIWA SALES
 perl Ellamaine.pl command=start\&config=reiwasales\&startrange=A\&endrange=Ga &
