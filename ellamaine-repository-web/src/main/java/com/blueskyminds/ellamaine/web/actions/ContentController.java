@@ -21,7 +21,6 @@ import java.io.ByteArrayInputStream;
  * <p/>
  * History:
  */
-@Namespace("/")
 @Results({
     @Result(name= "stream", type = StreamResult.class, value = "inputStream"),
     @Result(name= "error", value = "/notFound.jsp")

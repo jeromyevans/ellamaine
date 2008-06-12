@@ -29,7 +29,7 @@ public class RepositoryFileHeaderReader {
     private static final int IN_HEADER = 1;
 
     private static final int MAX_LINES_IN_HEADER = 10;
-    private static final int MAX_BYTES_IN_HEADER = 1000;
+    private static final int MAX_BYTES_IN_HEADER = 20000;
 
     private static final String TOKEN_ORIGINATING_HTML = "OriginatingHTML";
     private static final String TOKEN_SOURCEURL = "sourceurl";
@@ -68,7 +68,7 @@ public class RepositoryFileHeaderReader {
      * @param inputStream   stream from the file in the repository
      * @throws RepositoryHeaderException if the header can't be processed
      */
-    private void readHeader(InputStream inputStream) throws RepositoryHeaderException {
+    private void readHeader(BufferedInputStream inputStream) throws RepositoryHeaderException {
         String thisLine;
         String line;
         int lineNo = 0;

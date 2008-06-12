@@ -19,8 +19,6 @@ import org.apache.struts2.rest.HttpHeaders;
  * <p/>
  * History:
  */
-@Namespace("/")
-@ParentPackage("defaultPackage")
 public class PageController extends RESTControllerSupport implements ModelDriven<Page> {
 
     private static final int DEFAULT_PAGE_SIZE = 20;

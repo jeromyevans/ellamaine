@@ -209,14 +209,6 @@
             <attribute name="method" value="1" />
             <attribute name="URI" value="/WEB-INF/lib/aopalliance-1.0.jar" />
           </containerElement>
-          <containerElement type="library" name="com.blueskyminds.struts2:struts2-url-plugin:0.1-SNAPSHOT" level="module">
-            <attribute name="method" value="1" />
-            <attribute name="URI" value="/WEB-INF/lib/struts2-url-plugin-0.1-SNAPSHOT.jar" />
-          </containerElement>
-          <containerElement type="library" name="commons-digester:commons-digester:1.8" level="module">
-            <attribute name="method" value="1" />
-            <attribute name="URI" value="/WEB-INF/lib/commons-digester-1.8.jar" />
-          </containerElement>
           <containerElement type="module" name="ellamaine-core">
             <attribute name="method" value="5" />
             <attribute name="URI" value="/WEB-INF/lib/ellamaine-core-0.1.jar" />
@@ -832,6 +824,7 @@
         </JAVADOC>
         <SOURCES>
           <root url="jar://$MODULE_DIR$/../../../../m2/repository/org/apache/struts/struts2-codebehind-plugin/2.1.3-SNAPSHOT/struts2-codebehind-plugin-2.1.3-SNAPSHOT-sources.jar!/" />
+          <root url="file://$MODULE_DIR$/../../../../apache/struts/struts2/plugins/codebehind/src/main/java" />
         </SOURCES>
       </library>
     </orderEntry>
@@ -936,32 +929,6 @@
         </JAVADOC>
         <SOURCES>
           <root url="jar://$MODULE_DIR$/../../../../m2/repository/aopalliance/aopalliance/1.0/aopalliance-1.0-sources.jar!/" />
-        </SOURCES>
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" exported="">
-      <library name="com.blueskyminds.struts2:struts2-url-plugin:0.1-SNAPSHOT">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/blueskyminds/struts2/struts2-url-plugin/0.1-SNAPSHOT/struts2-url-plugin-0.1-SNAPSHOT.jar!/" />
-        </CLASSES>
-        <JAVADOC>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/blueskyminds/struts2/struts2-url-plugin/0.1-SNAPSHOT/struts2-url-plugin-0.1-SNAPSHOT-javadoc.jar!/" />
-        </JAVADOC>
-        <SOURCES>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/blueskyminds/struts2/struts2-url-plugin/0.1-SNAPSHOT/struts2-url-plugin-0.1-SNAPSHOT-sources.jar!/" />
-        </SOURCES>
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" exported="">
-      <library name="commons-digester:commons-digester:1.8">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-digester/commons-digester/1.8/commons-digester-1.8.jar!/" />
-        </CLASSES>
-        <JAVADOC>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-digester/commons-digester/1.8/commons-digester-1.8-javadoc.jar!/" />
-        </JAVADOC>
-        <SOURCES>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/commons-digester/commons-digester/1.8/commons-digester-1.8-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>

@@ -2,21 +2,62 @@
         "-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
         "http://struts.apache.org/dtds/struts-2.0.dtd">
 <struts>
-  <!--<bean type="org.apache.struts2.rest.handler.ContentTypeHandler" name="customXMLHandler" class="com.blueskyminds.housepad.web.handlers.MyXStreamHandler"/>-->
-  <!--<bean type="org.apache.struts2.rest.handler.ContentTypeHandler" name="customJSONHandler" class="com.blueskyminds.housepad.web.handlers.JSONWriterContentHandler"/>-->
-  <!--<constant name="struts.configuration.classpath.defaultParentPackage" value="rest-default" />-->
 
-  <!-- Instruct struts2 to use the URLPatternActionMapper as the ActionMapper -->
-  <constant name="struts.mapper.class" value="urlPatternMapper"/>
-  <constant name="struts.urlplugin.configFile" value="ellamaine-urls.xml"/>
+  <constant name="struts.objectFactory" value="guice"/>
+  <constant name="guice.module" value="com.blueskyminds.ellamaine.web.startup.GuiceModule"/>
 
-  <bean type="com.opensymphony.xwork2.util.PatternMatcher" name="namedVariablePatternMatcher" class="com.opensymphony.xwork2.util.NamedVariablePatternMatcher"/>
-  <constant name="struts.patternMatcher" value="namedVariablePatternMatcher"/>
-  <constant name="struts.mapper.alwaysSelectFullNamespace" value="true"/>
+  <constant name="struts.devMode" value="false"/>
+  <constant name="struts.configuration.xml.reload" value="false"/>
+  <constant name="struts.ui.theme" value="simple"/>
 
-  <package name="defaultPackage" namespace="/" extends="rest-default">
-    <global-exception-mappings>
-      <exception-mapping exception="java.lang.Throwable" result="exception"/>
-    </global-exception-mappings>
+  <constant name="struts.action.extension" value=",,xhtml,xml,json"/>
+  <constant name="struts.rest.defaultHandlerName" value="xhtml"/>
+
+  <constant name="struts.codebehind.defaultPackage" value="ellamaine-default"/>
+  <constant name="struts.configuration.classpath.defaultParentPackage" value="ellamaine-default" />
+
+  <package name="ellamaine-default" extends="rest-default" namespace="/">
+
+      <interceptors>
+        <interceptor-stack name="ellamaineDefaultStack">
+          <interceptor-ref name="exception">
+            <param name="logEnabled">true</param>
+            <param name="logLevel">error</param>
+          </interceptor-ref>
+          <interceptor-ref name="alias"/>
+          <interceptor-ref name="servletConfig"/>
+          <interceptor-ref name="messages">
+              <param name="operationMode">AUTOMATIC</param>
+          </interceptor-ref>
+          <interceptor-ref name="prepare"/>
+          <interceptor-ref name="i18n"/>
+          <interceptor-ref name="chain"/>
+          <interceptor-ref name="debugging"/>
+          <interceptor-ref name="profiling"/>
+          <interceptor-ref name="actionMappingParams"/>
+          <interceptor-ref name="scopedModelDriven"/>
+          <interceptor-ref name="modelDriven">
+              <param name="refreshModelBeforeResult">true</param>
+          </interceptor-ref>
+          <interceptor-ref name="fileUpload"/>
+          <interceptor-ref name="checkbox"/>
+          <interceptor-ref name="staticParams"/>
+          <interceptor-ref name="params">
+            <param name="excludeParams">dojo\..*</param>
+          </interceptor-ref>
+          <interceptor-ref name="rest" />
+          <interceptor-ref name="conversionError"/>
+          <interceptor-ref name="validation">
+              <param name="excludeMethods">input,back,cancel,browse,index,show,edit,editNew</param>
+          </interceptor-ref>
+          <interceptor-ref name="restWorkflow">
+              <param name="excludeMethods">input,back,cancel,browse,index,show,edit,editNew</param>
+          </interceptor-ref>
+        </interceptor-stack>
+
+      </interceptors>
+    
+      <default-interceptor-ref name="ellamaineDefaultStack"/>
+
   </package>
 </struts>

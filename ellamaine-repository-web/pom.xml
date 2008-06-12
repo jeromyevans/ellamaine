@@ -115,12 +115,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.blueskyminds.struts2</groupId>
-      <artifactId>struts2-url-plugin</artifactId>
-      <version>0.1-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
        <groupId>com.blueskyminds.ellamaine</groupId>
        <artifactId>ellamaine-core</artifactId>
        <version>0.1</version>
