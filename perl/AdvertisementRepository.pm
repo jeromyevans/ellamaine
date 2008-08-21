@@ -200,7 +200,7 @@ sub addRecordToRepository
       $statementText = "INSERT INTO AdvertisementRepository (";
             
       # modify the statement to specify each column value to set 
-      $appendString = "ID, DateEntered, sourceurl";
+      $appendString = "ID, DateEntered, sourceurl, datestamp, year, month, day";
       
       $statementText = $statementText.$appendString . ") VALUES (";
       
