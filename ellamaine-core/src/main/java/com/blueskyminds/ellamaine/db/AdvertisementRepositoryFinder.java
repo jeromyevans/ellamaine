@@ -27,8 +27,8 @@ public class AdvertisementRepositoryFinder {
 
     private static final String TABLE_NAME = "AdvertisementRepository";
 
-    public static final String[] COLUMN_LIST = {"ID", "DateEntered", "SourceURL"};
-    private static final String[] COLUMN_TYPE = {"integer primary key", "datetime", "longvarchar"};
+    public static final String[] COLUMN_LIST = {"ID", "DateEntered", "SourceURL", "Datestamp", "Year", "Month", "Day"};
+    private static final String[] COLUMN_TYPE = {"integer primary key", "datetime", "longvarchar", "date", "integer", "integer", "integer"};
 
     private static final String COLUMNS = StringUtils.join(COLUMN_LIST, ", ");
 

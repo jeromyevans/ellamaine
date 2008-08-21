@@ -1,6 +1,7 @@
 package com.blueskyminds.ellamaine.repository.service;
 
 import java.util.Properties;
+import java.util.List;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -12,8 +13,10 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryHeaderException;
+import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
 import com.blueskyminds.framework.persistence.paging.Page;
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.core.BaseException;
 import com.google.inject.Inject;
 
 /**
@@ -98,14 +101,44 @@ public class RepositoryServiceClient implements RepositoryService {
         Page page = null;
         try {
             client.executeMethod(method);
-            responseBody = method.getResponseBodyAsString();
-            page = (Page) new XStream().fromXML(responseBody);
+            if (method.getStatusCode() >= 400) {
+                LOG.error(hostname+" responded with "+method.getStatusLine());
+            } else {
+                responseBody = method.getResponseBodyAsString();
+                page = (Page) new XStream().fromXML(responseBody);
+            }
         } catch (HttpException e) {
             LOG.error(e);
         } catch (IOException e) {
+            LOG.error(e);
+        } catch (BaseException e) {
+            LOG.error("Failed to deserialize xml response:");
             LOG.error(e);
         }
         return page;
     }
 
+    public List<AdvertisementRepository> listByDate(int year, int month, int day) {
+        HttpClient client = new HttpClient();
+        String responseBody;
+        GetMethod method = new GetMethod(hostname+"/list.xml?year="+year+"&month="+month+"&day="+day);
+        List<AdvertisementRepository> page = null;
+        try {
+            client.executeMethod(method);
+            if (method.getStatusCode() >= 400) {
+                LOG.error(hostname+" responded with "+method.getStatusLine());
+            } else {
+                responseBody = method.getResponseBodyAsString();
+                page = (List<AdvertisementRepository>) new XStream().fromXML(responseBody);
+            }
+        } catch (HttpException e) {
+            LOG.error(e);
+        } catch (IOException e) {
+            LOG.error(e);
+        } catch (BaseException e) {
+            LOG.error("Failed to deserialize xml response:");
+            LOG.error(e);
+        }
+        return page;
+    }
 }

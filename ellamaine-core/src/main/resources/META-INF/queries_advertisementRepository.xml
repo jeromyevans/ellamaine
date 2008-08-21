@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<entity-mappings
+    xmlns="http://java.sun.com/xml/ns/persistence/orm"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/persistence/orm orm_1_0.xsd"
+    version="1.0">
+
+    <!--
+     Get entries in the AdvertisementRepository within the specified dateStamp
+
+     @param year
+     @param month
+     @param day
+
+     -->
+    <named-query name="advertisementRepository.byYearMonthDay">
+      <query>
+          select advertisementRepository from AdvertisementRepository advertisementRepository where advertisementRepository.year = :year and advertisementRepository.month = :month and advertisementRepository.day = :day
+      </query>
+    </named-query>
+
+</entity-mappings>

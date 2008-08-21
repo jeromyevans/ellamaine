@@ -4,6 +4,7 @@ import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.google.inject.Inject;
+import com.opensymphony.xwork2.ActionSupport;
 import org.apache.struts2.rest.HttpHeaders;
 import org.apache.struts2.rest.DefaultHttpHeaders;
 import org.apache.struts2.config.Namespace;
@@ -25,7 +26,7 @@ import java.io.ByteArrayInputStream;
     @Result(name= "stream", type = StreamResult.class, value = "inputStream"),
     @Result(name= "error", value = "/notFound.jsp")
 })
-public class ContentController extends RESTControllerSupport {
+public class ContentController extends ActionSupport {
 
     private static final Log LOG = LogFactory.getLog(ContentController.class);
 

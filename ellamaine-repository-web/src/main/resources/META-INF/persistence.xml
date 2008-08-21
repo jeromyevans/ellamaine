@@ -10,6 +10,9 @@
     <description>The production repository database</description>
     <provider>org.hibernate.ejb.HibernatePersistence</provider>
 
+    <mapping-file>META-INF/queries_advertisementRepository.xml</mapping-file>
+
+
     <class>com.blueskyminds.ellamaine.repository.AdvertisementRepository</class>
 
     <properties>

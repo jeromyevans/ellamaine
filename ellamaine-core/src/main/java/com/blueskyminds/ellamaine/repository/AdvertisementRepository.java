@@ -4,6 +4,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.util.Date;
+import java.util.Calendar;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Connection;
@@ -36,6 +37,10 @@ public class AdvertisementRepository implements HasIdentity, RowTableGateway, Se
     private Integer id;
     private Date dateEntered;
     private String sourceUrl;
+    private Date datestamp;
+    private Integer year;
+    private Integer month;
+    private Integer day;
 
     public AdvertisementRepository(Integer id, Date dateEntered, String sourceUrl) {
         this.id = id;
@@ -102,10 +107,50 @@ public class AdvertisementRepository implements HasIdentity, RowTableGateway, Se
         this.sourceUrl = sourceUrl;
     }
 
+    @Temporal(TemporalType.DATE)
+    @Column(name = "Datestamp")
+    public Date getDatestamp() {
+        return datestamp;
+    }
+
+    public void setDatestamp(Date datestamp) {
+        this.datestamp = datestamp;
+    }
+
+    @Basic
+    @Column(name="Year")
+    public Integer getYear() {
+        return year;
+    }
+
+    public void setYear(Integer year) {
+        this.year = year;
+    }
+
+    @Basic
+    @Column(name="Month")
+    public Integer getMonth() {
+        return month;
+    }
+
+    public void setMonth(Integer month) {
+        this.month = month;
+    }
+
+    @Basic
+    @Column(name="Day")
+    public Integer getDay() {
+        return day;
+    }
+
+    public void setDay(Integer day) {
+        this.day = day;
+    }
+
     // ------------------------------------------------------------------------------------------------------
 
     /**
-     * Populates this insance with the values from a ResultSet
+     * Populates this instance with the values from a ResultSet
      *
      * @param resultSet
      */
@@ -113,6 +158,10 @@ public class AdvertisementRepository implements HasIdentity, RowTableGateway, Se
         setId(resultSet.getLong(AdvertisementRepositoryFinder.COLUMN_LIST[0]));
         setDateEntered(resultSet.getDate(AdvertisementRepositoryFinder.COLUMN_LIST[1]));
         setSourceUrl(resultSet.getString(AdvertisementRepositoryFinder.COLUMN_LIST[2]));
+        setDatestamp(resultSet.getDate(AdvertisementRepositoryFinder.COLUMN_LIST[3]));
+        setYear(resultSet.getInt(AdvertisementRepositoryFinder.COLUMN_LIST[4]));
+        setMonth(resultSet.getInt(AdvertisementRepositoryFinder.COLUMN_LIST[5]));
+        setDay(resultSet.getInt(AdvertisementRepositoryFinder.COLUMN_LIST[6]));
     }
 
 
@@ -135,6 +184,20 @@ public class AdvertisementRepository implements HasIdentity, RowTableGateway, Se
         }
 
         insertStatement.setString(3, getSourceUrl());
+
+        if (getDateEntered() != null) {
+            insertStatement.setDate(4, new java.sql.Date(getDateEntered().getTime()));
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(getDateEntered());
+            insertStatement.setInt(5, calendar.get(Calendar.YEAR));
+            insertStatement.setInt(6, calendar.get(Calendar.MONTH)+1); // [1,12]
+            insertStatement.setInt(7, calendar.get(Calendar.DATE));
+        } else {
+            insertStatement.setDate(4, null);
+            insertStatement.setDate(5, null);
+            insertStatement.setDate(6, null);
+            insertStatement.setDate(7, null);
+        }
 
         return insertStatement.executeUpdate();
     }

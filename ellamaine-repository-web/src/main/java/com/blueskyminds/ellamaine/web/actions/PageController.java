@@ -19,7 +19,7 @@ import org.apache.struts2.rest.HttpHeaders;
  * <p/>
  * History:
  */
-public class PageController extends RESTControllerSupport implements ModelDriven<Page> {
+public class PageController extends ActionSupport implements ModelDriven<Page> {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
 

@@ -7,11 +7,13 @@ import com.blueskyminds.framework.persistence.paging.QueryPager;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryHeaderException;
+import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
 import com.blueskyminds.ellamaine.repository.dao.RepositoryDAO;
 import com.google.inject.Inject;
 
 import javax.persistence.EntityManager;
 import java.io.*;
+import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
@@ -153,6 +155,11 @@ public class LocalRepositoryService implements RepositoryService {
             LOG.info("Page not found - returning null");            
             return null;
         }
+    }
+
+    public List<AdvertisementRepository> listByDate(int year, int month, int day) {
+        RepositoryDAO repositoryDAO= new RepositoryDAO(em);
+        return repositoryDAO.listByDate(year, month, day);        
     }
 
     @Inject

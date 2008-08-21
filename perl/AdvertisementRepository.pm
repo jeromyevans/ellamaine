@@ -37,7 +37,7 @@
 # 5 Feb 2006  - renamed from OriginatingHTML to AdvertisementRepository in accordance with the new architecture
 #             - the name OriginatingHTML is still stored in the generated repository files and in the 
 #  default path to the repository (for backwards compatibility with the existing repository) 
-#
+# 21 Aug 2008 - added year, month, day columns for faster indexing
 # CONVENTIONS
 # _ indicates a private variable or method
 # ---CVS---
@@ -124,7 +124,12 @@ sub new
 my $SQL_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS AdvertisementRepository ".
    "(ID INTEGER ZEROFILL PRIMARY KEY AUTO_INCREMENT, ".
    "DateEntered DATETIME NOT NULL, ".   
-   "SourceURL TEXT)";   
+   "SourceURL TEXT, ".
+   "Datestamp DATE, ".
+   "Year INTEGER, ".
+   "Month INTEGER, ".
+   "Day INTEGER".
+   ")";
       
 sub createTable
 
@@ -204,7 +209,13 @@ sub addRecordToRepository
       $quotedUrl = $sqlClient->quote($url);
       $quotedForeignIdentifier = $sqlClient->quote($foreignIdentifier);
       $quotedTimestamp = $sqlClient->quote($timestamp);
-      $appendString = "null, $quotedTimestamp, $quotedUrl)";
+
+      # convert timestamp back to date components (yyyy-MM-dd hh:hh:ss)
+      $datestamp = substr($timestamp, 0, index($timestamp, ' '));
+      ($year, $month, $day) = split('-', $datestamp);             
+      $quotedDatestamp = $sqlClient->quote($datestamp);
+
+      $appendString = "null, $quotedTimestamp, $quotedUrl, $quotedDatestamp, $year, $month, $day)";
 
       $statementText = $statementText.$appendString;
       

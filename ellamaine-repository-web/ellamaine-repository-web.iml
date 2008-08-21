@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module relativePaths="true" type="JAVA_MODULE" version="4">
+<module relativePaths="true" MavenProjectsManager.isMavenModule="true" type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="web" name="Web">
       <configuration>
@@ -141,13 +141,17 @@
             <attribute name="method" value="1" />
             <attribute name="URI" value="/WEB-INF/lib/struts2-core-2.1.3-SNAPSHOT.jar" />
           </containerElement>
-          <containerElement type="library" name="com.opensymphony:xwork:2.1.1" level="module">
+          <containerElement type="library" name="com.opensymphony:xwork:2.1.2-SNAPSHOT" level="module">
             <attribute name="method" value="1" />
-            <attribute name="URI" value="/WEB-INF/lib/xwork-2.1.1.jar" />
+            <attribute name="URI" value="/WEB-INF/lib/xwork-2.1.2-SNAPSHOT.jar" />
           </containerElement>
           <containerElement type="library" name="opensymphony:ognl:2.6.11" level="module">
             <attribute name="method" value="1" />
             <attribute name="URI" value="/WEB-INF/lib/ognl-2.6.11.jar" />
+          </containerElement>
+          <containerElement type="library" name="org.springframework:spring-test:2.5.4" level="module">
+            <attribute name="method" value="1" />
+            <attribute name="URI" value="/WEB-INF/lib/spring-test-2.5.4.jar" />
           </containerElement>
           <containerElement type="library" name="org.freemarker:freemarker:2.3.13" level="module">
             <attribute name="method" value="1" />
@@ -167,7 +171,7 @@
           </containerElement>
           <containerElement type="library" name="net.sf.json-lib:json-lib:2.1:jdk15" level="module">
             <attribute name="method" value="1" />
-            <attribute name="URI" value="/WEB-INF/lib/json-lib-2.1-jdk15.jar" />
+            <attribute name="URI" value="/WEB-INF/lib/json-lib-2.1.jar" />
           </containerElement>
           <containerElement type="library" name="net.sf.ezmorph:ezmorph:1.0.3" level="module">
             <attribute name="method" value="1" />
@@ -711,15 +715,15 @@
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="">
-      <library name="com.opensymphony:xwork:2.1.1">
+      <library name="com.opensymphony:xwork:2.1.2-SNAPSHOT">
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/opensymphony/xwork/2.1.1/xwork-2.1.1.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/opensymphony/xwork/2.1.2-SNAPSHOT/xwork-2.1.2-SNAPSHOT.jar!/" />
         </CLASSES>
         <JAVADOC>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/opensymphony/xwork/2.1.1/xwork-2.1.1-javadoc.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/opensymphony/xwork/2.1.2-SNAPSHOT/xwork-2.1.2-SNAPSHOT-javadoc.jar!/" />
         </JAVADOC>
         <SOURCES>
-          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/opensymphony/xwork/2.1.1/xwork-2.1.1-sources.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/com/opensymphony/xwork/2.1.2-SNAPSHOT/xwork-2.1.2-SNAPSHOT-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>
@@ -733,6 +737,19 @@
         </JAVADOC>
         <SOURCES>
           <root url="jar://$MODULE_DIR$/../../../../m2/repository/opensymphony/ognl/2.6.11/ognl-2.6.11-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="">
+      <library name="org.springframework:spring-test:2.5.4">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/org/springframework/spring-test/2.5.4/spring-test-2.5.4.jar!/" />
+        </CLASSES>
+        <JAVADOC>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/org/springframework/spring-test/2.5.4/spring-test-2.5.4-javadoc.jar!/" />
+        </JAVADOC>
+        <SOURCES>
+          <root url="jar://$MODULE_DIR$/../../../../m2/repository/org/springframework/spring-test/2.5.4/spring-test-2.5.4-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>
@@ -824,7 +841,6 @@
         </JAVADOC>
         <SOURCES>
           <root url="jar://$MODULE_DIR$/../../../../m2/repository/org/apache/struts/struts2-codebehind-plugin/2.1.3-SNAPSHOT/struts2-codebehind-plugin-2.1.3-SNAPSHOT-sources.jar!/" />
-          <root url="file://$MODULE_DIR$/../../../../apache/struts/struts2/plugins/codebehind/src/main/java" />
         </SOURCES>
       </library>
     </orderEntry>

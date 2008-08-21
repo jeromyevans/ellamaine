@@ -2,10 +2,12 @@ package com.blueskyminds.ellamaine.repository.service;
 
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
+import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
 import com.blueskyminds.framework.persistence.paging.Page;
 import com.blueskyminds.framework.persistence.paging.Pager;
 
 import java.io.InputStream;
+import java.util.List;
 
 /**
  * Accesses Ellamaine's advertisement repository
@@ -38,5 +40,15 @@ public interface RepositoryService extends Pager {
      * Lookup a page of AdvertisementRepository entries
      **/
     Page findPage(int pageNo, int pageSize);
+
+    /**
+     * List entries created on the specified date
+     *
+     * @param year
+     * @param month
+     * @param day
+     * @return
+     */
+    List<AdvertisementRepository> listByDate(int year, int month, int day);
 
 }
