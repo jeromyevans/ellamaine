@@ -1,9 +1,10 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.ellamaine.repository.service.LocalRepositoryConfiguration;
 
 import java.util.Properties;
+
+import junit.framework.TestCase;
 
 /**
  * Tests the lookup of repository paths to local a repository entry
@@ -12,7 +13,7 @@ import java.util.Properties;
  * <p/>
  * History:
  */
-public class TestRepositoryPaths extends BaseTestCase {
+public class TestRepositoryPaths extends TestCase {
 
 
     public void testRepositoryPaths() {

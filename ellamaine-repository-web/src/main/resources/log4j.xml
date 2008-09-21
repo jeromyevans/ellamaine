@@ -14,6 +14,16 @@
         </layout>
     </appender>
 
+    <appender name="R" class="org.apache.log4j.RollingFileAppender">
+        <!-- USe the system variable catalina.home set by the tomcat init.d script -->
+        <param name="file" value="${catalina.home}/logs/ellamaine-repository.log"/>
+        <param name="MaxFileSize" value="10000KB"/>
+        <param name="MaxBackupIndex" value="1"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d{ISO8601} %-5p [%t] [%c{1}] %m%n"/>
+        </layout>
+    </appender>
+
     <!-- ================ -->
     <!-- Limit categories -->
     <!-- ================ -->
@@ -49,6 +59,7 @@
     <root>
         <priority value="warn"/>
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="R"/>            
     </root>
 
 </log4j:configuration>

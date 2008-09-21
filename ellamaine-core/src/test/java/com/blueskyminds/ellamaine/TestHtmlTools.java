@@ -1,6 +1,5 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceTools;
 import com.blueskyminds.ellamaine.html.HtmlTools;
 import org.cyberneko.html.parsers.DOMParser;
@@ -12,6 +11,8 @@ import org.apache.commons.logging.LogFactory;
 
 import java.net.URL;
 
+import junit.framework.TestCase;
+
 /**
  * Date Started: 31/05/2007
  * <p/>
@@ -19,7 +20,7 @@ import java.net.URL;
  * <p/>
  * Copyright (c) 2007 Blue Sky Minds Pty Ltd<br/>
  */
-public class TestHtmlTools extends BaseTestCase {
+public class TestHtmlTools extends TestCase {
 
     private static final Log LOG = LogFactory.getLog(TestHtmlTools.class);
 

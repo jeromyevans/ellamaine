@@ -1,6 +1,5 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceTools;
 import org.cyberneko.html.parsers.DOMParser;
 import org.cyberneko.html.parsers.DOMFragmentParser;
@@ -12,6 +11,8 @@ import org.apache.html.dom.HTMLDocumentImpl;
 
 import java.net.URL;
 
+import junit.framework.TestCase;
+
 /**
  * NekoHTML is a Xerces Native Interface plugin for Xerces2 (an html parser)
  *
@@ -21,7 +22,7 @@ import java.net.URL;
  * <p/>
  * ---[ Blue Sky Minds Pty Ltd ]------------------------------------------------------------------------------
  */
-public class TestNekoHtml extends BaseTestCase {
+public class TestNekoHtml extends TestCase {
 
     public TestNekoHtml(String string) {
         super(string);

@@ -2,6 +2,7 @@ package com.blueskyminds.ellamaine.repository.service;
 
 import java.util.Properties;
 import java.util.List;
+import java.util.LinkedList;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -139,6 +140,10 @@ public class RepositoryServiceClient implements RepositoryService {
             LOG.error("Failed to deserialize xml response:");
             LOG.error(e);
         }
+        if (page == null) {
+            return new LinkedList<AdvertisementRepository>();
+        }
+
         return page;
     }
 }

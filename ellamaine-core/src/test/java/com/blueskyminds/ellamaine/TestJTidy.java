@@ -1,6 +1,5 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceTools;
 import org.w3c.tidy.Tidy;
 import org.w3c.dom.Document;
@@ -11,6 +10,8 @@ import javax.xml.parsers.DocumentBuilder;
 import java.io.*;
 import java.net.URL;
 
+import junit.framework.TestCase;
+
 /**
  * Test use of the JTidy library
  *
@@ -20,7 +21,7 @@ import java.net.URL;
  * <p/>
  * ---[ Blue Sky Minds Pty Ltd ]------------------------------------------------------------------------------
  */
-public class TestJTidy extends BaseTestCase {
+public class TestJTidy extends TestCase {
 
     public TestJTidy(String string) {
         super(string);

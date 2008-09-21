@@ -55,69 +55,21 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.struts</groupId>
-      <artifactId>struts2-core</artifactId>
-      <version>2.1.3-SNAPSHOT</version>
+      <groupId>com.blueskyminds.homebyfive.web</groupId>
+      <artifactId>web-core</artifactId>
+      <version>0.1-SNAPSHOT</version>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.struts</groupId>
-      <artifactId>struts2-rest-plugin</artifactId>
-      <version>2.1.3-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.struts</groupId>
-      <artifactId>struts2-codebehind-plugin</artifactId>
-      <version>2.1.3-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.googlecode.code.jsonplugin</groupId>
-      <artifactId>jsonplugin</artifactId>
-      <version>0.20-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.inject</groupId>
-      <artifactId>guice</artifactId>
-      <version>1.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-       <groupId>warp-persist</groupId>
-       <artifactId>warp-persist</artifactId>
-       <version>1.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.inject.struts2</groupId>
-      <artifactId>guice-struts2-plugin</artifactId>
-      <version>1.0.1-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.inject.servlet</groupId>
-      <artifactId>guice-servlet</artifactId>
-      <version>1.0.1-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.blueskyminds.framework</groupId>
-      <artifactId>framework-core</artifactId>
-      <version>0.2-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.blueskyminds.framework</groupId>
+      <groupId>com.blueskyminds.homebyfive.framework</groupId>
       <artifactId>framework-guice</artifactId>
-      <version>0.2-SNAPSHOT</version>
+      <version>0.1-SNAPSHOT</version>
     </dependency>
 
     <dependency>
        <groupId>com.blueskyminds.ellamaine</groupId>
        <artifactId>ellamaine-core</artifactId>
-       <version>0.1</version>
+       <version>0.2-SNAPSHOT</version>
      </dependency>
 
 

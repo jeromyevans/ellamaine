@@ -99,9 +99,9 @@
     </dependency>
 
     <dependency>
-      <groupId>com.blueskyminds.framework</groupId>
+      <groupId>com.blueskyminds.homebyfive.framework</groupId>
       <artifactId>framework-core</artifactId>
-      <version>0.2-SNAPSHOT</version>
+      <version>0.1-SNAPSHOT</version>
     </dependency>
 
   </dependencies>

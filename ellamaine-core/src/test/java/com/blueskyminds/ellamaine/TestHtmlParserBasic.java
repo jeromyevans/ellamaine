@@ -1,6 +1,5 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.test.BaseTestCase;
 import com.blueskyminds.framework.tools.ResourceTools;
 import com.blueskyminds.ellamaine.html.HtmlParser;
 import com.blueskyminds.ellamaine.html.TextExtractor;
@@ -10,6 +9,7 @@ import java.io.InputStream;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import junit.framework.TestCase;
 
 /**
  * Date Started: 8/12/2006
@@ -18,7 +18,7 @@ import org.apache.commons.logging.LogFactory;
  * <p/>
  * Copyright (c) 2006 Blue Sky Minds Pty Ltd<br/>
  */
-public class TestHtmlParserBasic extends BaseTestCase {
+public class TestHtmlParserBasic extends TestCase {
 
     private static final Log LOG = LogFactory.getLog(TestHtmlParserBasic.class);
     public TestHtmlParserBasic(String string) {
