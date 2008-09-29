@@ -15,7 +15,7 @@ import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryHeaderException;
 import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
-import com.blueskyminds.framework.persistence.paging.Page;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.Page;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.core.BaseException;
 import com.google.inject.Inject;

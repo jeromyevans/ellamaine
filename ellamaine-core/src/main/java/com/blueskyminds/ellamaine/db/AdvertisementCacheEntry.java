@@ -1,6 +1,6 @@
 package com.blueskyminds.ellamaine.db;
 
-import com.blueskyminds.framework.persistence.jdbc.PersistenceTools;
+import com.blueskyminds.homebyfive.framework.core.persistence.jdbc.PersistenceTools;
 
 import java.util.Date;
 import java.sql.ResultSet;

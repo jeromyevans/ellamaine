@@ -19,7 +19,7 @@
      <!-- ================ -->
     <!-- Limit categories -->
     <!-- ================ -->
-    <category name="com.blueskyminds.framework.persistence">
+    <category name="com.blueskyminds.homebyfive.framework.core.persistence">
         <priority value="info"/>
     </category>
 
@@ -27,7 +27,7 @@
         <priority value="info"/>
     </category>
 
-    <category name="com.blueskyminds.framework.patterns.PatternMatcher">
+    <category name="com.blueskyminds.homebyfive.framework.core.patterns.PatternMatcher">
         <priority value="info"/>
     </category>
 

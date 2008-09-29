@@ -5,7 +5,7 @@ import org.apache.commons.logging.LogFactory;
 
 import javax.sql.DataSource;
 
-import com.blueskyminds.framework.persistence.hsqldb.HsqlDbMemoryDataSourceFactory;
+import com.blueskyminds.homebyfive.framework.core.persistence.hsqldb.HsqlDbMemoryDataSourceFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;

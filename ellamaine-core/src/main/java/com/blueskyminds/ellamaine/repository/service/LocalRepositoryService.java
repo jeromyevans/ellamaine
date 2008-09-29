@@ -1,9 +1,9 @@
 package com.blueskyminds.ellamaine.repository.service;
 
-import com.blueskyminds.framework.tools.FileTools;
-import com.blueskyminds.framework.tools.PropertiesContext;
-import com.blueskyminds.framework.persistence.paging.Page;
-import com.blueskyminds.framework.persistence.paging.QueryPager;
+import com.blueskyminds.homebyfive.framework.core.tools.FileTools;
+import com.blueskyminds.homebyfive.framework.core.tools.PropertiesContext;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.Page;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.QueryPager;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.RepositoryHeaderException;

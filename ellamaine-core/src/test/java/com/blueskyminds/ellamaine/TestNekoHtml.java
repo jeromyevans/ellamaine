@@ -1,6 +1,6 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.tools.ResourceTools;
+import com.blueskyminds.homebyfive.framework.core.tools.ResourceTools;
 import org.cyberneko.html.parsers.DOMParser;
 import org.cyberneko.html.parsers.DOMFragmentParser;
 import org.w3c.dom.*;

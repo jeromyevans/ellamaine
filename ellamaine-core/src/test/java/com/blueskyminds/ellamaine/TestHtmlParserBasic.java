@@ -1,6 +1,6 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.tools.ResourceTools;
+import com.blueskyminds.homebyfive.framework.core.tools.ResourceTools;
 import com.blueskyminds.ellamaine.html.HtmlParser;
 import com.blueskyminds.ellamaine.html.TextExtractor;
 

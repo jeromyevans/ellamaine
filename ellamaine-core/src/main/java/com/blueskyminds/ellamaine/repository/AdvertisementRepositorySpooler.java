@@ -1,9 +1,9 @@
 package com.blueskyminds.ellamaine.repository;
 
-import com.blueskyminds.framework.persistence.paging.QueryPager;
-import com.blueskyminds.framework.persistence.query.QueryFactory;
-import com.blueskyminds.framework.persistence.spooler.EntitySpooler;
-import com.blueskyminds.framework.persistence.spooler.SpoolerTask;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.QueryPager;
+import com.blueskyminds.homebyfive.framework.core.persistence.query.QueryFactory;
+import com.blueskyminds.homebyfive.framework.core.persistence.spooler.EntitySpooler;
+import com.blueskyminds.homebyfive.framework.core.persistence.spooler.SpoolerTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

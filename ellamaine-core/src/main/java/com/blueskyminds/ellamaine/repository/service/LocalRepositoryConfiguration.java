@@ -6,7 +6,7 @@ import org.apache.commons.logging.LogFactory;
 
 import java.util.*;
 
-import com.blueskyminds.framework.tools.text.StringTools;
+import com.blueskyminds.homebyfive.framework.core.tools.text.StringTools;
 import com.google.inject.Inject;
 
 /**

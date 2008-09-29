@@ -36,11 +36,11 @@
         <priority value="debug"/>
     </category>
 
-  <category name="com.blueskyminds.framework.jpa">
+  <category name="com.blueskyminds.homebyfive.framework.core.jpa">
         <priority value="debug"/>
     </category>
 
-    <category name="com.blueskyminds.framework.persistence.schema">
+    <category name="com.blueskyminds.homebyfive.framework.core.persistence.schema">
         <priority value="info"/>
     </category>
 

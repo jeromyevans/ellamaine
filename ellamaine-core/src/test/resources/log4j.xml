@@ -20,7 +20,7 @@
     <!-- Limit categories -->
     <!-- ================ -->
 
-    <category name="com.blueskyminds.framework.persistence">
+    <category name="com.blueskyminds.homebyfive.framework.core.persistence">
         <priority value="debug"/>
     </category>
 

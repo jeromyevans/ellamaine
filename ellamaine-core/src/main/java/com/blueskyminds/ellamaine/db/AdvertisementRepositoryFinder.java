@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.LinkedList;
 
 import com.blueskyminds.ellamaine.EllamaineException;
-import com.blueskyminds.framework.tools.text.StringTools;
-import com.blueskyminds.framework.persistence.jdbc.JdbcTools;
+import com.blueskyminds.homebyfive.framework.core.tools.text.StringTools;
+import com.blueskyminds.homebyfive.framework.core.persistence.jdbc.JdbcTools;
 
 /**
  * Accesses an entry in the AdvertisementRepository

@@ -12,8 +12,8 @@ import java.sql.PreparedStatement;
 import java.io.Serializable;
 
 import com.blueskyminds.ellamaine.db.AdvertisementRepositoryFinder;
-import com.blueskyminds.framework.HasIdentity;
-import com.blueskyminds.framework.persistence.jdbc.RowTableGateway;
+import com.blueskyminds.homebyfive.framework.core.HasIdentity;
+import com.blueskyminds.homebyfive.framework.core.persistence.jdbc.RowTableGateway;
 
 import javax.persistence.*;
 

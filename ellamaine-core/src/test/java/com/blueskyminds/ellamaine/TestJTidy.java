@@ -1,6 +1,6 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.tools.ResourceTools;
+import com.blueskyminds.homebyfive.framework.core.tools.ResourceTools;
 import org.w3c.tidy.Tidy;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;

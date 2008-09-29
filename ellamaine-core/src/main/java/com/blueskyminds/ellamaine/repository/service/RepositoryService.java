@@ -3,8 +3,8 @@ package com.blueskyminds.ellamaine.repository.service;
 import com.blueskyminds.ellamaine.repository.RepositoryServiceException;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
 import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
-import com.blueskyminds.framework.persistence.paging.Page;
-import com.blueskyminds.framework.persistence.paging.Pager;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.Page;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.Pager;
 
 import java.io.InputStream;
 import java.util.List;

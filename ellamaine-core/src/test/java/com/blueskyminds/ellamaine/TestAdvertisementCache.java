@@ -1,6 +1,6 @@
 package com.blueskyminds.ellamaine;
 
-import com.blueskyminds.framework.persistence.jdbc.PersistenceTools;
+import com.blueskyminds.homebyfive.framework.core.persistence.jdbc.PersistenceTools;
 import com.blueskyminds.ellamaine.db.AdvertisementCacheFinder;
 import com.blueskyminds.ellamaine.db.AdvertisementCacheEntry;
 import com.blueskyminds.ellamaine.db.AdvertisementRepositoryFinder;

@@ -4,7 +4,7 @@ import junit.framework.TestCase;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.ellamaine.repository.service.RepositoryServiceClient;
 import com.blueskyminds.ellamaine.repository.RepositoryContent;
-import com.blueskyminds.framework.persistence.paging.Page;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.Page;
 
 /**
  * Date Started: 16/03/2008

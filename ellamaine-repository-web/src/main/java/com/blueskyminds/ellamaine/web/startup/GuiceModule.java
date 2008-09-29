@@ -1,7 +1,7 @@
 package com.blueskyminds.ellamaine.web.startup;
 
-import com.blueskyminds.framework.ExtendedGuiceModule;
-import com.blueskyminds.framework.tools.PropertiesContext;
+import com.blueskyminds.homebyfive.framework.core.ExtendedGuiceModule;
+import com.blueskyminds.homebyfive.framework.core.tools.PropertiesContext;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.ellamaine.repository.service.LocalRepositoryService;
 import com.blueskyminds.ellamaine.repository.service.LocalRepositoryConfiguration;

@@ -2,7 +2,7 @@ package com.blueskyminds.ellamaine.web.actions;
 
 import com.opensymphony.xwork2.ActionSupport;
 import com.opensymphony.xwork2.ModelDriven;
-import com.blueskyminds.framework.persistence.paging.Page;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.Page;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
 import com.google.inject.Inject;

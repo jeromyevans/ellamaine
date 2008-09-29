@@ -4,7 +4,7 @@ import com.opensymphony.xwork2.ActionSupport;
 import com.opensymphony.xwork2.ModelDriven;
 import com.google.inject.Inject;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
-import com.blueskyminds.framework.persistence.paging.Page;
+import com.blueskyminds.homebyfive.framework.core.persistence.paging.Page;
 import com.wideplay.warp.persist.Transactional;
 import com.wideplay.warp.persist.TransactionType;
 import org.apache.struts2.config.Namespace;

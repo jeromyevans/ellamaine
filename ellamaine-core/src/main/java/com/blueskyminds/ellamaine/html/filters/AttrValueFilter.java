@@ -1,7 +1,7 @@
 package com.blueskyminds.ellamaine.html.filters;
 
 import org.w3c.dom.html.HTMLElement;
-import com.blueskyminds.framework.tools.filters.Filter;
+import com.blueskyminds.homebyfive.framework.core.tools.filters.Filter;
 
 /**
  * A filter that accepts an HTMLElement with a specified attribute and value
