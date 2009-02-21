@@ -49,6 +49,6 @@ public interface RepositoryService extends Pager {
      * @param day
      * @return
      */
-    List<AdvertisementRepository> listByDate(int year, int month, int day);
+    List<AdvertisementRepository> listByDate(int year, int month, int day) throws RepositoryServiceException;
 
 }

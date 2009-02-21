@@ -157,7 +157,7 @@ public class LocalRepositoryService implements RepositoryService {
         }
     }
 
-    public List<AdvertisementRepository> listByDate(int year, int month, int day) {
+    public List<AdvertisementRepository> listByDate(int year, int month, int day) throws RepositoryServiceException {
         RepositoryDAO repositoryDAO= new RepositoryDAO(em);
         return repositoryDAO.listByDate(year, month, day);        
     }

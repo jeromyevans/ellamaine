@@ -31,7 +31,7 @@
         <priority value="info"/>
     </category>
 
-    <category name="com.blueskyminds.enterprise.address.TestAddressParser">
+    <category name="com.blueskyminds.homebyfive.business.address.TestAddressParser">
         <priority value="debug"/>
     </category>
 

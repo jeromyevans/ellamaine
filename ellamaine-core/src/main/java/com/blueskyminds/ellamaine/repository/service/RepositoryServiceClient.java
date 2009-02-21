@@ -21,6 +21,8 @@ import com.thoughtworks.xstream.core.BaseException;
 import com.google.inject.Inject;
 
 /**
+ * Remote RESTful client of a Repository
+ *
  * Date Started: 16/03/2008
  * <p/>
  * History:
@@ -61,12 +63,16 @@ public class RepositoryServiceClient implements RepositoryService {
      */
     public InputStream getInputStream(Integer repositoryEntryId) throws RepositoryServiceException {
         HttpClient client = new HttpClient();
-        InputStream stream = null;
+        InputStream stream;
         GetMethod method = new GetMethod(hostname+"/content/"+repositoryEntryId);
 
         try {
-            client.executeMethod(method);
-            stream = method.getResponseBodyAsStream();
+            int status = client.executeMethod(method);
+            if (status < 400) {
+                stream = method.getResponseBodyAsStream();
+            } else {
+                throw new RepositoryServiceException("Remote Repository returned error an HTTP error status: "+status);
+            }
         } catch (HttpException e) {
             throw new RepositoryServiceException(e);
         } catch (IOException e) {
@@ -119,7 +125,7 @@ public class RepositoryServiceClient implements RepositoryService {
         return page;
     }
 
-    public List<AdvertisementRepository> listByDate(int year, int month, int day) {
+    public List<AdvertisementRepository> listByDate(int year, int month, int day) throws RepositoryServiceException {
         HttpClient client = new HttpClient();
         String responseBody;
         GetMethod method = new GetMethod(hostname+"/list.xml?year="+year+"&month="+month+"&day="+day);
@@ -133,13 +139,13 @@ public class RepositoryServiceClient implements RepositoryService {
                 page = (List<AdvertisementRepository>) new XStream().fromXML(responseBody);
             }
         } catch (HttpException e) {
-            LOG.error(e);
+            throw new RepositoryServiceException(e);
         } catch (IOException e) {
-            LOG.error(e);
+            throw new RepositoryServiceException(e);
         } catch (BaseException e) {
-            LOG.error("Failed to deserialize xml response:");
-            LOG.error(e);
+            throw new RepositoryServiceException(e);
         }
+
         if (page == null) {
             return new LinkedList<AdvertisementRepository>();
         }

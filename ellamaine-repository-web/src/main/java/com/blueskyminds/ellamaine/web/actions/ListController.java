@@ -2,7 +2,6 @@ package com.blueskyminds.ellamaine.web.actions;
 
 import com.opensymphony.xwork2.ActionSupport;
 import com.opensymphony.xwork2.ModelDriven;
-import com.blueskyminds.homebyfive.framework.core.persistence.paging.Page;
 import com.blueskyminds.ellamaine.repository.service.RepositoryService;
 import com.blueskyminds.ellamaine.repository.AdvertisementRepository;
 import com.google.inject.Inject;
@@ -10,7 +9,6 @@ import com.wideplay.warp.persist.Transactional;
 import com.wideplay.warp.persist.TransactionType;
 import org.apache.struts2.rest.HttpHeaders;
 import org.apache.struts2.rest.DefaultHttpHeaders;
-import org.apache.commons.collections.map.LinkedMap;
 
 import java.util.List;
 import java.util.Calendar;
@@ -62,8 +60,12 @@ public class ListController extends ActionSupport implements ModelDriven<List<Ad
         if (year <= 2004) {
             year = 2004;
         }
-        
-        page = repositoryService.listByDate(year, month, day);        
+
+        try {
+            page = repositoryService.listByDate(year, month, day);
+        } catch (com.blueskyminds.ellamaine.repository.RepositoryServiceException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
 
         return new DefaultHttpHeaders("index");
     }

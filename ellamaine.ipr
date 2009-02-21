@@ -114,6 +114,7 @@
     <option name="ADDITIONAL_OPTIONS_STRING" value="" />
     <option name="MAXIMUM_HEAP_SIZE" value="128" />
   </component>
+  <component name="Encoding" useUTFGuessing="true" native2AsciiForPropertiesFiles="false" />
   <component name="EntryPointsManager">
     <entry_points version="2.0" />
   </component>
@@ -432,6 +433,9 @@
     <option name="USE_CLIENT_FILTER" value="true" />
     <option name="CLIENT" value="" />
   </component>
+  <component name="ProjectDetails">
+    <option name="projectName" value="ellamaine" />
+  </component>
   <component name="ProjectFileVersion" converted="true" />
   <component name="ProjectModuleManager">
     <modules>
@@ -440,7 +444,7 @@
       <module fileurl="file://$PROJECT_DIR$/ellamaine-repository-web/ellamaine-repository-web.iml" filepath="$PROJECT_DIR$/ellamaine-repository-web/ellamaine-repository-web.iml" />
     </modules>
   </component>
-  <component name="ProjectRootManager" version="2" assert-keyword="true" jdk-15="true" project-jdk-name="1.5" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_5" assert-keyword="true" jdk-15="true" project-jdk-name="1.5" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
   <component name="ResourceManagerContainer">
@@ -473,7 +477,38 @@
     <option name="myReportErrorsAsWarnings" value="true" />
   </component>
   <component name="SvnBranchConfigurationManager">
-    <option name="myVersion" value="123" />
+    <option name="myConfigurationMap">
+      <map>
+        <entry key="$PROJECT_DIR$">
+          <value>
+            <SvnBranchConfiguration>
+              <option name="branchMap">
+                <map>
+                  <entry key="https://axe/svn/Ellamaine/branches">
+                    <value>
+                      <list />
+                    </value>
+                  </entry>
+                  <entry key="https://axe/svn/Ellamaine/tags">
+                    <value>
+                      <list />
+                    </value>
+                  </entry>
+                </map>
+              </option>
+              <option name="branchUrls">
+                <list>
+                  <option value="https://axe/svn/Ellamaine/branches" />
+                  <option value="https://axe/svn/Ellamaine/tags" />
+                </list>
+              </option>
+              <option name="trunkUrl" value="https://axe/svn/Ellamaine/trunk" />
+            </SvnBranchConfiguration>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="myVersion" value="124" />
   </component>
   <component name="SvnChangesBrowserSettings">
     <option name="USE_AUTHOR_FIELD" value="true" />
