@@ -40,6 +40,19 @@
     <defaultGoal>install</defaultGoal>
   </build>
 
+  <distributionManagement>
+    <repository>
+      <id>localhost-filesystem</id>
+      <url>file:///tmp</url>
+      </repository>
+      <snapshotRepository>
+      <id>dev-snapshot-repository</id>
+      <name>Dev Snapshot Repository</name>
+      <url>scp://dev/snapshots</url>
+      <uniqueVersion>false</uniqueVersion>
+      </snapshotRepository>
+  </distributionManagement>
+
   <dependencies>
 
     <dependency>
