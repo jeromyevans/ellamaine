@@ -7,10 +7,9 @@ import com.google.inject.Inject;
 import com.opensymphony.xwork2.ActionSupport;
 import org.apache.struts2.rest.HttpHeaders;
 import org.apache.struts2.rest.DefaultHttpHeaders;
-import org.apache.struts2.config.Namespace;
-import org.apache.struts2.config.Results;
-import org.apache.struts2.config.Result;
 import org.apache.struts2.dispatcher.StreamResult;
+import org.apache.struts2.convention.annotation.Result;
+import org.apache.struts2.convention.annotation.Results;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -23,8 +22,8 @@ import java.io.ByteArrayInputStream;
  * History:
  */
 @Results({
-    @Result(name= "stream", type = StreamResult.class, value = "inputStream"),
-    @Result(name= "error", value = "/notFound.jsp")
+    @Result(name= "stream", type = "stream", params = {"inputName", "inputStream"}),
+    @Result(name= "error", location = "/notFound.jsp")
 })
 public class ContentController extends ActionSupport {
 
